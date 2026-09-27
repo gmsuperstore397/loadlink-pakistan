@@ -79,12 +79,17 @@ const acceptBooking = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Your account must be verified before accepting bookings');
   }
   if (booking.status !== 'REQUESTED') throw new ApiError(400, 'Booking is no longer pending');
+  const agreedFare = req.body.agreedFare !== undefined ? Number(req.body.agreedFare) : null;
+  if (agreedFare !== null && (!Number.isFinite(agreedFare) || agreedFare <= 0)) throw new ApiError(422, 'Invalid agreed fare');
+  const commissionRate = Number(process.env.PLATFORM_COMMISSION_RATE || 0.10);
+  const platformFee = agreedFare === null ? null : Math.round(agreedFare * commissionRate * 100) / 100;
+  const driverPayout = agreedFare === null ? null : Math.round((agreedFare - platformFee) * 100) / 100;
 
   const trip = await prisma.$transaction(async (tx) => {
     const freshBooking = await tx.booking.findUnique({ where: { id: booking.id } });
     if (freshBooking.status !== 'REQUESTED') throw new ApiError(400, 'Booking is no longer pending');
 
-    await tx.booking.update({ where: { id: booking.id }, data: { status: 'ACCEPTED' } });
+    await tx.booking.update({ where: { id: booking.id }, data: { status: 'ACCEPTED', agreedFare, platformFee, driverPayout } });
     await tx.load.update({ where: { id: booking.loadId }, data: { status: 'ASSIGNED' } });
     await tx.vehicle.update({ where: { id: booking.vehicleId }, data: { status: 'BUSY' } });
 
