@@ -3,53 +3,59 @@ const crypto = require('crypto');
 async function sendEmail(to, subject, text) {
   if (!to) return false;
 
-  if (process.env.RESEND_API_KEY) {
-    const from = process.env.EMAIL_FROM || 'LoadLink Pakistan <onboarding@resend.dev>';
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    try {
-      const resp = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from,
-          to: [to],
-          subject,
-          text,
-        }),
-      });
-      const raw = await resp.text().catch(() => '');
-      if (!resp.ok) {
-        console.error('RESEND_OTP_FAILED', JSON.stringify({
-          status: resp.status,
-          to,
-          from,
-          response: raw.slice(0, 1000),
-        }));
-        // Continue to the Gmail fallback below when configured.
-      } else {
-        console.log('RESEND_EMAIL_ACCEPTED', JSON.stringify({
-          to,
-          from,
-          response: raw.slice(0, 500),
-        }));
-        return true;
-      }
-    } catch (error) {
-      console.error('RESEND_OTP_ERROR', JSON.stringify({
+  // Brevo HTTP API works from Render without SMTP port restrictions.
+  if (process.env.BREVO_API_KEY) {
+    const from = process.env.EMAIL_FROM || process.env.GMAIL_USER;
+    if (!from) {
+      console.error('BREVO_EMAIL_FAILED', JSON.stringify({
+        message: 'EMAIL_FROM or GMAIL_USER is required as the verified Brevo sender',
         to,
-        from,
-        message: error.message,
       }));
-      return false;
-    } finally {
-      clearTimeout(timeout);
+    } else {
+      try {
+        const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'api-key': process.env.BREVO_API_KEY,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: {
+              name: 'LoadLink Pakistan',
+              email: from,
+            },
+            to: [{ email: to }],
+            subject,
+            textContent: text,
+          }),
+        });
+        const raw = await resp.text().catch(() => '');
+        if (!resp.ok) {
+          console.error('BREVO_EMAIL_FAILED', JSON.stringify({
+            status: resp.status,
+            to,
+            from,
+            response: raw.slice(0, 1000),
+          }));
+        } else {
+          console.log('BREVO_EMAIL_ACCEPTED', JSON.stringify({
+            to,
+            from,
+            response: raw.slice(0, 500),
+          }));
+          return true;
+        }
+      } catch (error) {
+        console.error('BREVO_EMAIL_ERROR', JSON.stringify({
+          to,
+          from,
+          message: error.message,
+        }));
+      }
     }
   }
+
 
   if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
     const nodemailer = require('nodemailer');
