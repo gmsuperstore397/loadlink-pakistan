@@ -77,24 +77,58 @@
 
 <!-- ============== HERO ============== -->
 <section class="hero" id="home">
+  <div class="hero-backdrop" aria-hidden="true">
+    <div class="mountain mountain-a"></div>
+    <div class="mountain mountain-b"></div>
+    <div class="road-glow"></div>
+    <div class="road-lane"></div>
+    <div class="moving-truck">🚛</div>
+  </div>
   <div class="hero-inner">
     <div class="hero-copy">
-      <span class="badge">📍 Pakistan ka Truck &amp; Load Marketplace</span>
-      <h1>Load bhejna hai?<br><span class="highlight">Truck chahiye?</span><br>Sab ek jagah.</h1>
-      <p class="hero-desc">Apne saman ke liye suitable vehicle dhoondhein ya apni khali gaari ke liye next load hasil karein.</p>
+      <span class="badge">🇵🇰 Pakistan ka Truck &amp; Load Marketplace</span>
+      <div class="hero-slide active" data-slide="0">
+        <h1>Load bhejna hai?<br><span class="highlight">Truck chahiye?</span><br>Sab ek jagah.</h1>
+        <p class="hero-desc">Apne saman ke liye suitable vehicle dhoondhein ya apni khali gaari ke liye next load hasil karein.</p>
+      </div>
+      <div class="hero-slide" data-slide="1">
+        <h1>Khali truck hai?<br><span class="highlight">Next load dhoondhein.</span></h1>
+        <p class="hero-desc">Apne route ke qareeb available loads dekhein aur empty return trips ko kam karein.</p>
+      </div>
+      <div class="hero-slide" data-slide="2">
+        <h1>Shipment bhej rahe hain?<br><span class="highlight">Live track karein.</span></h1>
+        <p class="hero-desc">Booking se delivery tak trip status aur location updates ek hi jagah par dekhein.</p>
+      </div>
       <div class="hero-actions">
         <button class="btn btn-primary btn-lg" id="heroPostLoadBtn">📦 Mujhe Load Bhejna Hai</button>
         <button class="btn btn-outline btn-lg" id="heroDriverBtn">🚚 Mere Paas Gaari Hai</button>
       </div>
-    </div>
-    <div class="hero-visual" aria-hidden="true">
-      <div class="route-card">
-        <div class="route-point">Karachi</div>
-        <div class="route-line"></div>
-        <div class="route-point">Lahore</div>
-        <div class="route-truck">🚛</div>
+      <div class="hero-trust-row">
+        <span>✓ Verified Transporters</span>
+        <span>✓ Live Trip Tracking</span>
+        <span>✓ Secure Payments</span>
       </div>
     </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hero-route-panel">
+        <div class="route-panel-head"><span>LIVE ROUTE</span><b>Pakistan</b></div>
+        <div class="route-route">
+          <div><strong>Karachi</strong><small>Pickup</small></div>
+          <span class="route-dots"></span>
+          <div><strong>Lahore</strong><small>Destination</small></div>
+        </div>
+        <div class="route-status"><span class="pulse-dot"></span> Driver is on the way <b>Tracking ON</b></div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-controls" aria-label="Hero slides">
+    <button type="button" class="hero-arrow" id="heroPrev" aria-label="Previous slide">‹</button>
+    <div class="hero-dots">
+      <button type="button" class="hero-dot active" data-hero-slide="0" aria-label="Slide 1"></button>
+      <button type="button" class="hero-dot" data-hero-slide="1" aria-label="Slide 2"></button>
+      <button type="button" class="hero-dot" data-hero-slide="2" aria-label="Slide 3"></button>
+    </div>
+    <button type="button" class="hero-arrow" id="heroNext" aria-label="Next slide">›</button>
   </div>
 </section>
 
@@ -271,7 +305,7 @@
 <!-- ============== LIVE TRIPS ============== -->
 <section class="live-trips" id="livetrips">
   <div class="section-inner">
-    <h2>♟ Live Trips</h2>
+    <h2>📍 Live Trips</h2>
     <div class="results-grid" id="ltResults"><p class="muted-empty">Login to see your live trips.</p></div>
   </div>
 </section>
