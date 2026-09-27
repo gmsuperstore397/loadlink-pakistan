@@ -1,8 +1,8 @@
-const prisma = require('../config/prisma');
-const asyncHandler = require('../utils/asyncHandler');
-const { success } = require('../utils/apiResponse');
-const ApiError = require('../utils/ApiError');
-const { distanceKm } = require('../utils/geo');
+const prisma = require('./prisma');
+const asyncHandler = require('./asyncHandler');
+const { success } = require('./apiResponse');
+const ApiError = require('./ApiError');
+const { distanceKm } = require('./geo');
 
 // GET /api/vehicles
 const listVehicles = asyncHandler(async (req, res) => {
