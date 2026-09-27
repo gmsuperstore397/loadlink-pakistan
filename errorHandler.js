@@ -1,4 +1,4 @@
-const { fail } = require('../utils/apiResponse');
+const { fail } = require('./apiResponse');
 
 // Central error handler. Every route funnels here via asyncHandler / next(err).
 function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-vars
