@@ -1036,7 +1036,7 @@ document.addEventListener('click', (e) => {
       btn.disabled = false;
       btn.textContent = '📲 LoadLink Team se Contact Karein';
     });
-}
+});
 
 /* ============================================================
    LIVE TRIPS
