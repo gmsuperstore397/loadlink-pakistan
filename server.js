@@ -12,7 +12,20 @@ const { errorHandler, notFound } = require('./errorHandler');
 const app = express();
 
 // Security & core middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://unpkg.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'", "https://nominatim.openstreetmap.org", "https://*.tile.openstreetmap.org"],
+      workerSrc: ["'self'", "blob:"],
+      manifestSrc: ["'self'"],
+    },
+  },
+}));
 app.use(cors({ origin: frontendUrl === '*' ? true : frontendUrl, credentials: true }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
