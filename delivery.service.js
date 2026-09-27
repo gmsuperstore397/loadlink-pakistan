@@ -5,24 +5,48 @@ async function sendEmail(to, subject, text) {
 
   if (process.env.RESEND_API_KEY) {
     const from = process.env.EMAIL_FROM || 'LoadLink Pakistan <onboarding@resend.dev>';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     try {
       const resp = await fetch('https://api.resend.com/emails', {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ from, to: [to], subject, text }),
+        body: JSON.stringify({
+          from,
+          to: [to],
+          subject,
+          text,
+        }),
       });
+      const raw = await resp.text().catch(() => '');
       if (!resp.ok) {
-        const detail = await resp.text().catch(() => '');
-        console.error('Resend email delivery failed:', resp.status, detail);
+        console.error('RESEND_OTP_FAILED', JSON.stringify({
+          status: resp.status,
+          to,
+          from,
+          response: raw.slice(0, 1000),
+        }));
         return false;
       }
+      console.log('RESEND_EMAIL_ACCEPTED', JSON.stringify({
+        to,
+        from,
+        response: raw.slice(0, 500),
+      }));
       return true;
     } catch (error) {
-      console.error('Resend email delivery failed:', error.message);
+      console.error('RESEND_OTP_ERROR', JSON.stringify({
+        to,
+        from,
+        message: error.message,
+      }));
       return false;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
