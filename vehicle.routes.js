@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const {
   listVehicles, listAvailableVehicles, getVehicle, createVehicle, updateVehicle,
-} = require('../controllers/vehicle.controller');
-const { createVehicleRules } = require('../validators/vehicle.validator');
-const validate = require('../middleware/validate');
-const { authenticateUser, requireRole } = require('../middleware/auth');
-const upload = require('../middleware/upload');
+} = require('./vehicle.controller');
+const { createVehicleRules } = require('./vehicle.validator');
+const validate = require('./validate');
+const { authenticateUser, requireRole } = require('./auth');
+const upload = require('./upload');
 
 router.get('/', authenticateUser, listVehicles);
 router.get('/available', authenticateUser, listAvailableVehicles);
