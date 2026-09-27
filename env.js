@@ -13,4 +13,7 @@ module.exports = {
   adminMobile: process.env.ADMIN_MOBILE || '03000000000',
   adminEmail: process.env.ADMIN_EMAIL || 'admin@loadlink.pk',
   adminPassword: process.env.ADMIN_PASSWORD || 'ChangeMe123!',
+  publicAppUrl: process.env.PUBLIC_APP_URL || '',
+  easyPaisaCheckoutUrl: process.env.EASYPAISA_CHECKOUT_URL || '',
+  jazzCashCheckoutUrl: process.env.JAZZCASH_CHECKOUT_URL || '',
 };
