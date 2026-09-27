@@ -177,6 +177,10 @@ function initNav() {
   const navTargets = { home: '#home', findtruck: '#findtruck', postload: '#postload', findload: '#findload', marketplace: '#findload', profile: '#profile', returnloads: '#returnloads', livetrips: '#livetrips', categories: '#categories' };
   document.querySelectorAll('[data-nav]').forEach((el) => {
     el.addEventListener('click', (e) => {
+      // Keep auth state in sync with the session saved by login/OTP.
+      syncSessionFromStorage();
+      closeModal('loginModal');
+      closeModal('signupModal');
       const target = navTargets[el.dataset.nav];
       if (el.dataset.nav === 'profile') {
         e.preventDefault();
@@ -216,9 +220,20 @@ function openDriverSignup() {
   requestAnimationFrame(() => setSignupTab('driver'));
 }
 
+function syncSessionFromStorage() {
+  const token = localStorage.getItem('ll_token');
+  const rawUser = localStorage.getItem('ll_user');
+  let user = null;
+  try { user = rawUser ? JSON.parse(rawUser) : null; } catch (_) { user = null; }
+  state.token = token || null;
+  state.user = user;
+  return state.user;
+}
+
 function initAuthModals() {
-  $('#loginBtn').addEventListener('click', () => openModal('loginModal'));
-  $('#loginBtnMobile').addEventListener('click', () => openModal('loginModal'));
+  // If the user is already logged in, Login should never open the login form again.
+  $('#loginBtn').addEventListener('click', () => { syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
+  $('#loginBtnMobile').addEventListener('click', () => { syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
   $('#signupBtn').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
   $('#signupBtnMobile').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
   $('#heroDriverBtn').addEventListener('click', (event) => {
