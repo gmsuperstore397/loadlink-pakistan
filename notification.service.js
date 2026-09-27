@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const prisma = require('./prisma');
 
 // Creates an in-app notification row for a user. Fire-and-forget from controllers;
 // failures here should never block the primary request.
