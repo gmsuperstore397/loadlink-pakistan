@@ -58,6 +58,17 @@ const listLoads = asyncHandler(async (req, res) => {
   return success(res, 200, 'Loads fetched', { loads });
 });
 
+// GET /api/loads/mine
+const listMyLoads = asyncHandler(async (req, res) => {
+  const loads = await prisma.load.findMany({
+    where: { customerId: req.user.id },
+    include: { customer: { select: { id: true, fullName: true, city: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+  return success(res, 200, 'My loads fetched', { loads });
+});
+
 // GET /api/loads/:id
 const getLoad = asyncHandler(async (req, res) => {
   const load = await prisma.load.findUnique({
@@ -117,4 +128,4 @@ const deleteLoad = asyncHandler(async (req, res) => {
   return success(res, 200, 'Load cancelled');
 });
 
-module.exports = { createLoad, listLoads, getLoad, updateLoad, deleteLoad };
+module.exports = { createLoad, listLoads, listMyLoads, getLoad, updateLoad, deleteLoad };
