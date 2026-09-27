@@ -121,7 +121,7 @@ const verifyOtp = asyncHandler(async (req, res) => {
     return tx.user.update({ where: { id: user.id }, data: { emailVerified: true } });
   });
   const token = signToken({ id: verifiedUser.id, role: verifiedUser.role });
-  return success(res, 200, 'Mobile verified successfully', { token, user: sanitizeUser(verifiedUser) });
+  return success(res, 200, 'Email verified successfully', { token, user: sanitizeUser(verifiedUser) });
 });
 
 // POST /api/auth/resend-otp
@@ -130,14 +130,14 @@ const resendOtp = asyncHandler(async (req, res) => {
   if (!email) throw new ApiError(400, 'Email is required');
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw new ApiError(404, 'Account not found');
-  if (user.emailVerified) return success(res, 200, 'Mobile already verified');
+  if (user.emailVerified) return success(res, 200, 'Email already verified');
   const recent = await prisma.otpVerification.findFirst({ where: { userId: user.id, purpose: 'SIGNUP', createdAt: { gt: new Date(Date.now() - 60 * 1000) } } });
   if (recent) throw new ApiError(429, '1 minute baad OTP dobara bhejein');
   const otp = String(crypto.randomInt(100000, 1000000));
   await prisma.otpVerification.deleteMany({ where: { userId: user.id, purpose: 'SIGNUP', usedAt: null } });
   await prisma.otpVerification.create({ data: { userId: user.id, purpose: 'SIGNUP', codeHash: hashToken(otp), expiresAt: new Date(Date.now() + 10 * 60 * 1000) } });
   const sent = await sendOtpEmail(user.email, otp).catch(() => false);
-  return success(res, 200, sent ? 'OTP resent' : 'OTP generated but SMS delivery is not configured', {
+  return success(res, 200, sent ? 'OTP resent' : 'OTP generated but email delivery is not configured', {
     otpDeliveryConfigured: sent,
     ...(process.env.NODE_ENV !== 'production' && !sent ? { developmentOtp: otp } : {}),
   });
