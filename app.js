@@ -507,6 +507,36 @@ function exitProfileView() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+async function initProfilePhoto() {
+  const input = $('#profilePhotoInput');
+  const btn = $('#profilePhotoBtn');
+  const remove = $('#profilePhotoRemoveBtn');
+  if (!input || !btn || !remove) return;
+  btn.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => {
+    const file = input.files && input.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > 2 * 1024 * 1024) return toast('Photo 2MB se choti honi chahiye.');
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { localStorage.setItem(`ll_profile_photo_${state.user?.id || state.user?.email || 'user'}`, reader.result); applyProfilePhoto(); toast('Profile picture save ho gayi.'); }
+      catch (_) { toast('Photo save nahi ho saki.'); }
+    };
+    reader.readAsDataURL(file);
+  });
+  remove.addEventListener('click', () => { localStorage.removeItem(`ll_profile_photo_${state.user?.id || state.user?.email || 'user'}`); applyProfilePhoto(); });
+  applyProfilePhoto();
+}
+
+function applyProfilePhoto() {
+  const avatar = $('#profileAvatar'), remove = $('#profilePhotoRemoveBtn');
+  if (!avatar || !state.user) return;
+  const key = `ll_profile_photo_${state.user.id || state.user.email || 'user'}`;
+  const photo = localStorage.getItem(key);
+  if (photo) { avatar.innerHTML = `<img src="${photo}" alt="Profile picture">`; if (remove) remove.hidden = false; }
+  else { avatar.textContent = (state.user.fullName || 'C').trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase(); if (remove) remove.hidden = true; }
+}
+
 async function loadProfile() {
   if (!state.user) return;
   $('#profileName').textContent = state.user.fullName || 'Customer';
@@ -515,6 +545,7 @@ async function loadProfile() {
   $('#profileMobile').textContent = state.user.mobile || '—';
   $('#profileEmail').textContent = state.user.email || '—';
   $('#profileCity').textContent = state.user.city || 'City not added';
+  applyProfilePhoto();
 
   if (state.user.role !== 'CUSTOMER') {
     $('#profileLoads').innerHTML = '<p class="muted-empty">Driver profile ke loads yahan show nahi hote.</p>';
@@ -965,6 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPostLoadForm();
   initSearchSections();
   initDashboard();
+  initProfilePhoto();
   if (state.user) loadMarketplace();
   updateAuthUI();
   const resetToken = new URLSearchParams(location.search).get('reset');
