@@ -1,6 +1,6 @@
-const { verifyToken } = require('../utils/jwt');
-const { fail } = require('../utils/apiResponse');
-const prisma = require('../config/prisma');
+const { verifyToken } = require('./utils/jwt');
+const { fail } = require('./utils/apiResponse');
+const prisma = require('./config/prisma');
 
 // Verifies the Bearer JWT and attaches the current user (with driverProfile) to req.user.
 async function authenticateUser(req, res, next) {
