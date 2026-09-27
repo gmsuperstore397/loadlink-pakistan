@@ -117,6 +117,8 @@ const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST',
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
 const getMyBookings = () => apiRequest('/bookings/my');
 const getTrips = () => apiRequest('/trips');
+const updateTripLocation = (tripId, latitude, longitude) => apiRequest(`/trips/${tripId}/location`, { method: 'PATCH', body: { latitude, longitude } });
+const updateTripStatus = (tripId, status) => apiRequest(`/trips/${tripId}/status`, { method: 'PATCH', body: { status } });
 const forgotPassword = (identifier) => apiRequest('/auth/forgot-password', { method: 'POST', body: identifier.includes('@') ? { email: identifier } : { mobile: identifier } });
 const resetPassword = (token, password) => apiRequest('/auth/reset-password', { method: 'POST', body: { token, password } });
 const getNotifications = () => apiRequest('/notifications');
@@ -270,6 +272,16 @@ async function loadDashboard() {
     `).join('') || '<p class="muted-empty">No payments.</p>';
   } catch (err) {}
 }
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.trip-status-btn');
+  if (!btn) return;
+  try {
+    await updateTripStatus(btn.dataset.trip, btn.dataset.status);
+    toast('Trip status update ho gaya.');
+    await loadLiveTrips();
+  } catch (err) { toast(err.message); }
+});
 
 function initDashboard() {
   $('#markAllReadBtn').addEventListener('click', async () => {
@@ -594,6 +606,18 @@ function renderLoadResults(loads, targetSel = '#flResults') {
 /* ============================================================
    LIVE TRIPS
    ============================================================ */
+let driverGeoWatch = null;
+function startDriverTracking(trips) {
+  if (driverGeoWatch !== null || !state.user || state.user.role !== 'DRIVER' || !navigator.geolocation) return;
+  const active = trips.find(t => t.status !== 'DELIVERED');
+  if (!active) return;
+  driverGeoWatch = navigator.geolocation.watchPosition(async (pos) => {
+    try {
+      await updateTripLocation(active.id, pos.coords.latitude, pos.coords.longitude);
+    } catch (_) {}
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+}
+
 async function loadLiveTrips() {
   const el = $('#ltResults');
   if (!state.user) { el.innerHTML = '<p class="muted-empty">Login to see your live trips.</p>'; return; }
@@ -601,7 +625,9 @@ async function loadLiveTrips() {
   try {
     const { trips } = await getTrips();
     if (!trips.length) { el.innerHTML = '<p class="muted-empty">No active trips.</p>'; return; }
+    startDriverTracking(trips);
     el.innerHTML = trips.map((t) => `
+
       <div class="result-card">
         <div class="rc-top">
           <h4>Trip #${t.id.slice(0, 8)}</h4>
