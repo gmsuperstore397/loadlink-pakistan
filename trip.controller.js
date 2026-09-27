@@ -127,4 +127,22 @@ const updateTripStatus = asyncHandler(async (req, res) => {
   return success(res, 200, 'Trip status updated', { trip: updated });
 });
 
-module.exports = { listTrips, getTrip, getLiveTrip, updateLocation, updateTripStatus };
+// GET /api/trips/:id/stream - Server-Sent Events for near-real-time tracking.
+const streamTrip = asyncHandler(async (req, res) => {
+  const trip = await prisma.trip.findUnique({ where: { id: req.params.id } });
+  if (!trip) throw new ApiError(404, 'Trip not found');
+  await assertTripAccess(req, trip);
+  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+  res.flushHeaders();
+  let closed = false;
+  const send = async () => {
+    if (closed) return;
+    const current = await prisma.trip.findUnique({ where: { id: trip.id }, select: { id: true, status: true, currentLatitude: true, currentLongitude: true, updatedAt: true } });
+    if (current) res.write(`data: ${JSON.stringify(current)}\\n\\n`);
+  };
+  await send();
+  const timer = setInterval(send, 5000);
+  req.on('close', () => { closed = true; clearInterval(timer); res.end(); });
+});
+
+module.exports = { listTrips, getTrip, getLiveTrip, updateLocation, updateTripStatus, streamTrip };
