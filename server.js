@@ -60,6 +60,7 @@ app.use(errorHandler);
 app.listen(port, '0.0.0.0', () => {
   console.log(`LoadLink Pakistan API running on http://localhost:${port}`);
   console.log(`Health check: http://localhost:${port}/api/health`);
+  console.log('LOADLINK_DEPLOY_VERSION: DRIVER-SIGNUP-FIX-20260927');
 });
 
 module.exports = app;
