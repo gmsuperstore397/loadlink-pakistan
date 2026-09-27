@@ -23,4 +23,14 @@ const markAsRead = asyncHandler(async (req, res) => {
   return success(res, 200, 'Notification marked as read', { notification: updated });
 });
 
-module.exports = { listNotifications, markAsRead };
+const markAllAsRead = asyncHandler(async (req, res) => {
+  const result = await prisma.notification.updateMany({ where: { userId: req.user.id, isRead: false }, data: { isRead: true } });
+  return success(res, 200, 'All notifications marked as read', { count: result.count });
+});
+
+const unreadCount = asyncHandler(async (req, res) => {
+  const count = await prisma.notification.count({ where: { userId: req.user.id, isRead: false } });
+  return success(res, 200, 'Unread count', { count });
+});
+
+module.exports = { listNotifications, markAsRead, markAllAsRead, unreadCount };
