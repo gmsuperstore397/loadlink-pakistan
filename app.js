@@ -32,6 +32,7 @@ const state = {
   mapTarget: null, // 'pickup' | 'destination'
   pickupCoords: null,
   destinationCoords: null,
+  pendingOtpMobile: null,
 };
 
 /* ---------------- generic helpers ---------------- */
@@ -96,15 +97,11 @@ async function loginUser(mobileOrEmail, password) {
 }
 
 async function registerUser(payload) {
-  const data = await apiRequest('/auth/register', { method: 'POST', body: payload });
-  saveSession(data.token, data.user);
-  return data.user;
+  return apiRequest('/auth/register', { method: 'POST', body: payload });
 }
 
 async function registerTransporter(formData) {
-  const data = await apiRequest('/transporters/register', { method: 'POST', body: formData, isForm: true });
-  saveSession(data.token, data.user);
-  return data.user;
+  return apiRequest('/transporters/register', { method: 'POST', body: formData, isForm: true });
 }
 
 /* ---------------- feature API ---------------- */
@@ -235,9 +232,28 @@ function initAuthModals() {
         password: $('#cPassword').value,
         city: $('#cCity').value.trim() || undefined,
       });
-      toast(`Account created. Welcome, ${user.fullName}!`);
-      closeModal('signupModal');
+      state.pendingOtpMobile = $('#cMobile').value.trim();
+      closeModal('signupModal'); openModal('otpModal');
+      toast(result.otpDeliveryConfigured ? 'OTP SMS bhej diya gaya hai.' : 'OTP generated hai; SMS provider configure karna baqi hai.');
+    } catch (err) { toast(err.message); }
+  });
+
+  $('#otpForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const result = await verifyOtp(state.pendingOtpMobile, $('#otpCode').value.trim());
+      saveSession(result.token, result.user);
+      closeModal('otpModal');
+      $('#otpCode').value = '';
+      state.pendingOtpMobile = null;
       updateAuthUI();
+      toast('Mobile number verify ho gaya. Welcome!');
+    } catch (err) { toast(err.message); }
+  });
+  $('#resendOtpBtn').addEventListener('click', async () => {
+    try {
+      const result = await resendOtp(state.pendingOtpMobile);
+      toast(result.otpDeliveryConfigured ? 'OTP dobara bhej diya gaya.' : 'SMS provider configure nahi hai.');
     } catch (err) { toast(err.message); }
   });
 
@@ -255,10 +271,10 @@ function initAuthModals() {
     fd.append('capacityKg', $('#dCapacity').value);
     fd.append('drivingLicense', $('#dLicense').value.trim());
     try {
-      const user = await registerTransporter(fd);
-      toast('Driver account created. Verification pending.');
-      closeModal('signupModal');
-      updateAuthUI();
+      const result = await registerTransporter(fd);
+      state.pendingOtpMobile = $('#dMobile').value.trim();
+      closeModal('signupModal'); openModal('otpModal');
+      toast(result.otpDeliveryConfigured ? 'OTP SMS bhej diya gaya hai.' : 'OTP generated hai; SMS provider configure karna baqi hai.');
     } catch (err) { toast(err.message); }
   });
 }
