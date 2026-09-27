@@ -1,6 +1,6 @@
-const asyncHandler = require('../utils/asyncHandler');
-const { success } = require('../utils/apiResponse');
-const ApiError = require('../utils/ApiError');
+const asyncHandler = require('./asyncHandler');
+const { success } = require('./apiResponse');
+const ApiError = require('./ApiError');
 
 // POST /api/location/reverse-geocode
 // Proxies to OpenStreetMap Nominatim so the API key / rate limiting stays server-side.
