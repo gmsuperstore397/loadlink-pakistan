@@ -325,8 +325,9 @@
     <nav class="footer-links">
       <a href="#about">About Us</a>
       <a href="#help">Help &amp; Support</a>
-      <a href="#terms">Terms &amp; Conditions</a>
-      <a href="#privacy">Privacy Policy</a>
+      <a href="legal.html#terms">Terms &amp; Conditions</a>
+      <a href="legal.html#privacy">Privacy Policy</a>
+      <a href="legal.html#refunds">Refund &amp; Cancellation</a>
       <a href="#contact">Contact</a>
     </nav>
     <div class="footer-social">
@@ -406,6 +407,22 @@
         <div class="field"><label>Driving License</label><input type="text" id="dLicense" required></div>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Create Driver Account</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============== OTP VERIFICATION MODAL ============== -->
+<div class="modal" id="otpModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <strong>Mobile OTP Verification</strong>
+      <button type="button" class="modal-close" data-close="otpModal">×</button>
+    </div>
+    <p class="section-desc small">Aapke mobile number par 6-digit OTP bheja gaya hai. OTP 10 minutes tak valid hai.</p>
+    <form id="otpForm" class="modal-form">
+      <div class="field"><label for="otpCode">6-digit OTP</label><input id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\d{6}" required></div>
+      <button type="submit" class="btn btn-primary btn-block">Verify OTP</button>
+      <button type="button" class="link-btn" id="resendOtpBtn">Resend OTP</button>
     </form>
   </div>
 </div>
