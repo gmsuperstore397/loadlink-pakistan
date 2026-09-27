@@ -149,6 +149,7 @@ model Vehicle {
   model         String?
   year          Int?
   documentUrl   String?
+  documentExpiryDate DateTime?
   status        VehicleStatus @default(OFFLINE)
   isVerified    Boolean       @default(false)
   latitude      Float?
