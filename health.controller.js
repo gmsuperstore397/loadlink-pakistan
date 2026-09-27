@@ -1,4 +1,4 @@
-const { success } = require('../utils/apiResponse');
+const { success } = require('./apiResponse');
 
 const health = (req, res) => success(res, 200, 'LoadLink Pakistan API is running');
 
