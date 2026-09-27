@@ -10,6 +10,7 @@ router.use(authenticateUser, requireRole('ADMIN'));
 router.get('/dashboard', dashboard);
 router.get('/payments/summary', paymentSummary);
 router.get('/audit-logs', listAuditLogs);
+router.get('/documents/expiring', expiringDocuments);
 router.get('/users', listUsers);
 router.get('/transporters/pending', pendingTransporters);
 router.patch('/transporters/:id/verify', verifyTransporter);
