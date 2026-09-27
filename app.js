@@ -440,6 +440,10 @@ document.addEventListener('click', async (e) => {
 });
 
 function initDashboard() {
+  $('#profileLogoutBtn').addEventListener('click', () => {
+    clearSession();
+    location.reload();
+  });
   $('#markAllReadBtn').addEventListener('click', async () => {
     if (!state.user) return toast('Pehle login karein.');
     try { await markAllRead(); await loadDashboard(); toast('Notifications read mark ho gayi hain.'); } catch (err) { toast(err.message); }
@@ -493,6 +497,7 @@ function showProfile() {
 async function loadProfile() {
   if (!state.user) return;
   $('#profileName').textContent = state.user.fullName || 'Customer';
+  $('#profileAvatar').textContent = (state.user.fullName || 'C').trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase();
   $('#profileRole').textContent = state.user.role === 'DRIVER' ? 'Driver / Transporter' : 'Customer';
   $('#profileMobile').textContent = state.user.mobile || '—';
   $('#profileEmail').textContent = state.user.email || '—';
