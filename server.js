@@ -33,6 +33,13 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api', routes);
 
+// Serve the frontend from the same Render web service.
+app.use(express.static(__dirname));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 app.use(notFound);
 app.use(errorHandler);
 
