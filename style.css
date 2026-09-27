@@ -405,3 +405,14 @@ button{font-family:inherit;cursor:pointer}
   .filter-bar{padding:12px;border-radius:15px}
   .feature-card{min-height:132px;padding:18px 12px}
 }
+
+
+/* ---------- Customer profile ---------- */
+.profile-card{display:flex;align-items:center;gap:18px}
+.profile-avatar{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;font-size:32px;flex:0 0 72px}
+.profile-card h2{margin:0 0 4px}
+.profile-card p{margin:5px 0}
+@media (max-width:700px){
+  .profile-card{align-items:flex-start}
+  .profile-avatar{width:58px;height:58px;flex-basis:58px;font-size:26px}
+}
