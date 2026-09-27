@@ -967,8 +967,75 @@ function renderLoadResults(loads, targetSel = '#flResults', ownOnly = false) {
       <p>Weight: ${l.weightKg} kg · Vehicle: ${l.preferredVehicle || 'Any suitable'}</p>
       ${l.customer ? `<p class="muted-empty">👤 Posted by: <b>${l.customer.fullName}</b>${l.customer.city ? ` · ${l.customer.city}` : ''}</p>` : ''}
       <small>Posted ${new Date(l.createdAt).toLocaleString()}</small>
+      ${(!ownOnly && state.user?.role === 'DRIVER') ? `
+        <button type="button" class="btn btn-primary contact-load-btn" data-load-id="${l.id}" style="margin-top:12px;width:100%">
+          📲 LoadLink Team se Contact Karein
+        </button>
+      ` : ''}
     </div>
   `).join('');
+}
+
+async function contactPostedLoad(loadId) {
+  if (!state.user || state.user.role !== 'DRIVER') {
+    return toast('Driver account se login karein.');
+  }
+
+  const load = await apiRequest(`/loads/${encodeURIComponent(loadId)}`);
+  let vehicles = [];
+  try {
+    const result = await getMyVehicles();
+    vehicles = result.vehicles || [];
+  } catch (_) {}
+
+  const vehicleText = vehicles.length
+    ? vehicles.map((v, i) => `${i + 1}. ${v.vehicleType} - ${v.vehicleNumber} - ${v.capacityKg} kg${v.brand ? ` - ${v.brand}` : ''}${v.model ? ` ${v.model}` : ''}`).join('\\n')
+    : 'No vehicle added yet';
+
+  const l = load.load || load;
+  const message = [
+    'Assalam-o-Alaikum LoadLink Team,',
+    '',
+    '📦 *Posted Load Request*',
+    `Load ID: ${l.id || loadId}`,
+    `📍 Pickup: ${l.pickupAddress || '-'}`,
+    `🏁 Destination: ${l.destinationAddress || '-'}`,
+    `📝 Description: ${l.description || '-'}`,
+    `⚖️ Weight: ${l.weightKg || '-'} kg`,
+    `🚚 Preferred Vehicle: ${l.preferredVehicle || 'Any suitable'}`,
+    `📌 Status: ${l.status || '-'}`,
+    `🕒 Posted: ${l.createdAt ? new Date(l.createdAt).toLocaleString() : '-'}`,
+    '',
+    '👤 *Posted By*',
+    `Name: ${l.customer?.fullName || '-'}`,
+    `City: ${l.customer?.city || '-'}`,
+    '',
+    '🚛 *Driver / Transporter*',
+    `Name: ${state.user.fullName || '-'}`,
+    `Mobile: ${state.user.mobile || '-'}`,
+    `City: ${state.user.city || '-'}`,
+    'Vehicles:',
+    vehicleText,
+    '',
+    'Please is load ke liye meri taraf se contact arrange kar dein.'
+  ].join('\\n');
+
+  const whatsappNumber = '923089011588';
+  const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank', 'noopener');
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.contact-load-btn');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = '📲 WhatsApp khul raha hai...';
+  contactPostedLoad(btn.dataset.loadId)
+    .catch((err) => toast(err.message || 'Load details share nahi ho sakin.'))
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = '📲 LoadLink Team se Contact Karein';
+    });
 }
 
 /* ============================================================
