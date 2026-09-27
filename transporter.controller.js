@@ -70,11 +70,12 @@ const registerTransporter = asyncHandler(async (req, res) => {
     data: { userId: user.id, purpose: 'SIGNUP', codeHash: hashToken(otp), expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
   });
   const sent = await sendOtpEmail(user.email, otp).catch(() => false);
+  const devOtpMode = String(process.env.OTP_DEV_MODE || '').toLowerCase() === 'true';
   return success(res, 201, sent ? 'Driver account created. OTP sent to email.' : 'Driver account created. Email OTP is not configured yet.', {
     verificationRequired: true,
     otpDeliveryConfigured: sent,
     user: sanitizeUser(user),
-    ...(process.env.NODE_ENV !== 'production' && !sent ? { developmentOtp: otp } : {}),
+    ...(devOtpMode && !sent ? { developmentOtp: otp } : {}),
   });
 });
 
