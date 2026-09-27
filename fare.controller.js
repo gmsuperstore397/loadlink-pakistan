@@ -1,7 +1,7 @@
-const asyncHandler = require('../utils/asyncHandler');
-const { success } = require('../utils/apiResponse');
-const ApiError = require('../utils/ApiError');
-const { estimateFare } = require('../services/fare.service');
+const asyncHandler = require('./asyncHandler');
+const { success } = require('./apiResponse');
+const ApiError = require('./ApiError');
+const { estimateFare } = require('./fare.service');
 
 // POST /api/fare/estimate
 const estimateFareHandler = asyncHandler(async (req, res) => {
