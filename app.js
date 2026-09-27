@@ -149,8 +149,8 @@ const subscribePush = (subscription) => apiRequest('/push/subscribe', { method: 
    NAVIGATION
    ============================================================ */
 function initHeroSlider() {
-  const slides = $('.hero-slide');
-  const dots = $('.hero-dot');
+  const slides = Array.from(document.querySelectorAll('.hero-slide'));
+  const dots = Array.from(document.querySelectorAll('.hero-dot'));
   if (slides.length < 2) return;
   let current = 0;
   let timer = null;
@@ -172,7 +172,7 @@ function initHeroSlider() {
 
 function initNav() {
   const navTargets = { home: '#home', findtruck: '#findtruck', postload: '#postload', findload: '#findload', returnloads: '#returnloads', livetrips: '#livetrips', categories: '#categories' };
-  $('[data-nav]').forEach((el) => {
+  document.querySelectorAll('[data-nav]').forEach((el) => {
     el.addEventListener('click', (e) => {
       const target = navTargets[el.dataset.nav];
       if (target) {
