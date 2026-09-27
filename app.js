@@ -217,6 +217,21 @@ function initNav() {
 function openModal(id) { $(`#${id}`).classList.add('open'); }
 function closeModal(id) { $(`#${id}`).classList.remove('open'); }
 function openDriverSignup() {
+  syncSessionFromStorage();
+  if (state.user && state.user.role === 'DRIVER') {
+    showProfile();
+    requestAnimationFrame(() => {
+      const card = $('#driverVehiclesCard');
+      const form = $('#addVehicleForm');
+      if (card) card.hidden = false;
+      if (form) {
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const firstField = $('#vVehicleType');
+        if (firstField) firstField.focus();
+      }
+    });
+    return;
+  }
   openModal('signupModal');
   setSignupTab('driver');
   requestAnimationFrame(() => setSignupTab('driver'));
