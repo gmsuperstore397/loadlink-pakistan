@@ -1,6 +1,6 @@
-const prisma = require('../config/prisma');
-const { recommendVehicle } = require('../utils/vehicleRecommendation');
-const { distanceKm } = require('../utils/geo');
+const prisma = require('./prisma');
+const { recommendVehicle } = require('./vehicleRecommendation');
+const { distanceKm } = require('./geo');
 
 // Suggests suitable vehicle categories for a weight, and (if coordinates are given)
 // looks up currently available, verified vehicles of those categories nearby.
