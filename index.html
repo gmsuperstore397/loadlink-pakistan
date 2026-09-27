@@ -276,6 +276,32 @@
   </div>
 </section>
 
+<!-- ============== USER DASHBOARD ============== -->
+<section class="dashboard-section" id="dashboard">
+  <div class="section-inner">
+    <h2>👤 My Dashboard</h2>
+    <div class="post-load-grid">
+      <div class="card">
+        <h3>Notifications <span id="unreadBadge"></span></h3>
+        <div id="notificationList"><p class="muted-empty">Login karke notifications dekhein.</p></div>
+        <button type="button" class="btn btn-outline" id="markAllReadBtn">Mark all read</button>
+      </div>
+      <div class="card">
+        <h3>Payments</h3>
+        <form id="paymentForm" class="modal-form">
+          <div class="field"><label>Trip ID (optional)</label><input id="paymentTripId" type="text"></div>
+          <div class="field"><label>Amount (PKR)</label><input id="paymentAmount" type="number" min="1" required></div>
+          <div class="field"><label>Method</label>
+            <select id="paymentMethod"><option value="CASH">Cash</option><option value="BANK_TRANSFER">Bank Transfer</option><option value="EASYPAISA">Easypaisa</option><option value="JAZZCASH">JazzCash</option><option value="CARD">Card</option></select>
+          </div>
+          <button class="btn btn-primary" type="submit">Create Payment</button>
+        </form>
+        <div id="paymentList"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============== FOOTER ============== -->
 <footer class="site-footer">
   <div class="section-inner footer-inner">
@@ -364,6 +390,20 @@
         <div class="field"><label>Driving License</label><input type="text" id="dLicense" required></div>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Create Driver Account</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============== PASSWORD RESET MODAL ============== -->
+<div class="modal" id="resetPasswordModal">
+  <div class="modal-box">
+    <div class="modal-header"><strong>Reset Password</strong><button type="button" class="modal-close" data-close="resetPasswordModal">×</button></div>
+    <form id="resetPasswordForm" class="modal-form">
+      <div class="field"><label>Mobile / Email</label><input id="resetIdentifier" required></div>
+      <button type="button" class="btn btn-outline btn-block" id="requestResetBtn">Send Reset Code</button>
+      <div class="field"><label>Reset Token</label><input id="resetToken"></div>
+      <div class="field"><label>New Password</label><input id="resetNewPassword" type="password" minlength="8"></div>
+      <button type="submit" class="btn btn-primary btn-block">Set New Password</button>
     </form>
   </div>
 </div>
