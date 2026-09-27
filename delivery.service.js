@@ -30,14 +30,15 @@ async function sendEmail(to, subject, text) {
           from,
           response: raw.slice(0, 1000),
         }));
-        return false;
+        // Continue to the Gmail fallback below when configured.
+      } else {
+        console.log('RESEND_EMAIL_ACCEPTED', JSON.stringify({
+          to,
+          from,
+          response: raw.slice(0, 500),
+        }));
+        return true;
       }
-      console.log('RESEND_EMAIL_ACCEPTED', JSON.stringify({
-        to,
-        from,
-        response: raw.slice(0, 500),
-      }));
-      return true;
     } catch (error) {
       console.error('RESEND_OTP_ERROR', JSON.stringify({
         to,
