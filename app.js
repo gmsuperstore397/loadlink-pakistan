@@ -261,18 +261,34 @@ function initAuthModals() {
   // customer signup
   $('#customerSignupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const form = e.currentTarget;
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    const button = form.querySelector('button[type="submit"]');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Account create ho raha hai...';
     try {
+      const email = $('#cEmail').value.trim();
       const result = await registerUser({
         fullName: $('#cFullName').value.trim(),
         mobile: $('#cMobile').value.trim(),
-        email: $('#cEmail').value.trim(),
+        email,
         password: $('#cPassword').value,
         city: $('#cCity').value.trim() || undefined,
       });
-      state.pendingOtpEmail = $('#cEmail').value.trim();
-      closeModal('signupModal'); openModal('otpModal');
-      toast(result.otpDeliveryConfigured ? 'Email OTP bhej diya gaya hai.' : 'Email provider configure karna baqi hai.');
-    } catch (err) { toast(err.message); }
+      state.pendingOtpEmail = email;
+      closeModal('signupModal');
+      openModal('otpModal');
+      toast(result.otpDeliveryConfigured ? 'Email OTP bhej diya gaya hai.' : 'Account ban gaya. OTP email delivery check karein.');
+    } catch (err) {
+      toast(err.message || 'Account create nahi ho saka. Dobara try karein.');
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
   });
 
   $('#otpForm').addEventListener('submit', async (e) => {
@@ -297,6 +313,15 @@ function initAuthModals() {
   // driver signup
   $('#driverSignupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const form = e.currentTarget;
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    const button = form.querySelector('button[type="submit"]');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Driver account create ho raha hai...';
     const fd = new FormData();
     fd.append('fullName', $('#dFullName').value.trim());
     fd.append('mobile', $('#dMobile').value.trim());
@@ -311,9 +336,15 @@ function initAuthModals() {
     try {
       const result = await registerTransporter(fd);
       state.pendingOtpEmail = $('#dEmail').value.trim();
-      closeModal('signupModal'); openModal('otpModal');
-      toast(result.otpDeliveryConfigured ? 'Email OTP bhej diya gaya hai.' : 'Email provider configure karna baqi hai.');
-    } catch (err) { toast(err.message); }
+      closeModal('signupModal');
+      openModal('otpModal');
+      toast(result.otpDeliveryConfigured ? 'Email OTP bhej diya gaya hai.' : 'Account ban gaya. OTP email delivery check karein.');
+    } catch (err) {
+      toast(err.message || 'Driver account create nahi ho saka. Dobara try karein.');
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
   });
 }
 
