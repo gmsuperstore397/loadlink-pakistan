@@ -53,8 +53,11 @@ function hashToken(token) {
 
 module.exports = { sendEmail, sendSms, sendWhatsApp, randomToken, hashToken };
 
-async function sendOtpSms(to, code) {
-  return sendSms(to, `LoadLink Pakistan verification code: ${code}. Ye code 10 minutes tak valid hai.`);
+async function sendOtpEmail(to, code) {
+  if (!to) return false;
+  const subject = 'LoadLink Pakistan - Email Verification OTP';
+  const text = `Aapka LoadLink Pakistan verification code: ${code}. Ye code 10 minutes tak valid hai.`;
+  return sendEmail(to, subject, text);
 }
 
-module.exports.sendOtpSms = sendOtpSms;
+module.exports.sendOtpEmail = sendOtpEmail;
