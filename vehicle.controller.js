@@ -4,6 +4,7 @@ const { success } = require('./apiResponse');
 const ApiError = require('./ApiError');
 const { distanceKm } = require('./geo');
 
+
 // GET /api/vehicles
 const listVehicles = asyncHandler(async (req, res) => {
   const vehicles = await prisma.vehicle.findMany({
@@ -69,6 +70,7 @@ const createVehicle = asyncHandler(async (req, res) => {
       model: model || null,
       year: year ? Number(year) : null,
       documentUrl: req.file ? `/uploads/${req.file.filename}` : null,
+      documentExpiryDate: req.body.documentExpiryDate ? new Date(req.body.documentExpiryDate) : null,
       status: 'OFFLINE',
       isVerified: false,
     },
