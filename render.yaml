@@ -15,6 +15,38 @@ services:
         fromDatabase:
           name: loadlink-pakistan-db
           property: connectionString
+      - key: ADMIN_MOBILE
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:admin@loadlink.pk
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: EASYPAISA_CHECKOUT_URL
+        sync: false
+      - key: JAZZCASH_CHECKOUT_URL
+        sync: false
+      - key: PAYMENT_WEBHOOK_SECRET
+        generateValue: true
+      - key: PLATFORM_COMMISSION_RATE
+        value: "0.10"
 
 databases:
   - name: loadlink-pakistan-db
