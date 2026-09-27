@@ -282,7 +282,12 @@ function initAuthModals() {
       state.pendingOtpEmail = email;
       closeModal('signupModal');
       openModal('otpModal');
-      toast(result.otpDeliveryConfigured ? 'Email OTP bhej diya gaya hai.' : 'Account ban gaya. OTP email delivery check karein.');
+      if (result.developmentOtp) {
+        $('#otpCode').value = result.developmentOtp;
+        toast(`Testing OTP: ${result.developmentOtp}`);
+      } else {
+        toast(result.otpDeliveryConfigured ? 'Email OTP bhej diya gaya hai.' : 'Account ban gaya. OTP email delivery check karein.');
+      }
     } catch (err) {
       toast(err.message || 'Account create nahi ho saka. Dobara try karein.');
     } finally {
@@ -306,7 +311,12 @@ function initAuthModals() {
   $('#resendOtpBtn').addEventListener('click', async () => {
     try {
       const result = await resendOtp(state.pendingOtpEmail);
-      toast(result.otpDeliveryConfigured ? 'OTP dobara bhej diya gaya.' : 'Email provider configure nahi hai.');
+      if (result.developmentOtp) {
+        $('#otpCode').value = result.developmentOtp;
+        toast(`Testing OTP: ${result.developmentOtp}`);
+      } else {
+        toast(result.otpDeliveryConfigured ? 'OTP dobara bhej diya gaya.' : 'Email provider configure nahi hai.');
+      }
     } catch (err) { toast(err.message); }
   });
 
@@ -338,7 +348,12 @@ function initAuthModals() {
       state.pendingOtpEmail = $('#dEmail').value.trim();
       closeModal('signupModal');
       openModal('otpModal');
-      toast(result.otpDeliveryConfigured ? 'Email OTP bhej diya gaya hai.' : 'Account ban gaya. OTP email delivery check karein.');
+      if (result.developmentOtp) {
+        $('#otpCode').value = result.developmentOtp;
+        toast(`Testing OTP: ${result.developmentOtp}`);
+      } else {
+        toast(result.otpDeliveryConfigured ? 'Email OTP bhej diya gaya hai.' : 'Account ban gaya. OTP email delivery check karein.');
+      }
     } catch (err) {
       toast(err.message || 'Driver account create nahi ho saka. Dobara try karein.');
     } finally {
