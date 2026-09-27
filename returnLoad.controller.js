@@ -1,7 +1,7 @@
-const prisma = require('../config/prisma');
-const asyncHandler = require('../utils/asyncHandler');
-const { success } = require('../utils/apiResponse');
-const { distanceKm } = require('../utils/geo');
+const prisma = require('./prisma');
+const asyncHandler = require('./asyncHandler');
+const { success } = require('./apiResponse');
+const { distanceKm } = require('./geo');
 
 // GET /api/return-loads  - loads posted near a transporter's current/return route,
 // so they can avoid driving back empty.
