@@ -467,9 +467,24 @@
         <div class="field"><label>Vehicle Number</label><input type="text" id="dVehicleNumber" required></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Capacity (kg)</label><input type="number" id="dCapacity" required></div>
+        <div class="field"><label>Capacity (kg)</label><input type="number" id="dCapacity" min="1" required></div>
         <div class="field"><label>Driving License</label><input type="text" id="dLicense" required></div>
       </div>
+      <div class="field-row">
+        <div class="field"><label>Vehicle Brand (optional)</label><input type="text" id="dBrand"></div>
+        <div class="field"><label>Vehicle Model (optional)</label><input type="text" id="dModel"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Vehicle Year (optional)</label><input type="number" id="dYear" min="1950" max="2100"></div>
+        <div class="field"><label>CNIC Expiry (optional)</label><input type="date" id="dCnicExpiry"></div>
+      </div>
+      <div class="field"><label>License Expiry (optional)</label><input type="date" id="dLicenseExpiry"></div>
+      <div class="field-row">
+        <div class="field"><label>CNIC Document (optional)</label><input type="file" id="dCnicDoc" accept="image/jpeg,image/png,application/pdf"></div>
+        <div class="field"><label>License Document (optional)</label><input type="file" id="dLicenseDoc" accept="image/jpeg,image/png,application/pdf"></div>
+      </div>
+      <div class="field"><label>Vehicle Document (optional)</label><input type="file" id="dVehicleDoc" accept="image/jpeg,image/png,application/pdf"></div>
+      <p class="section-desc small">Documents max 5MB each. Verification admin karega.</p>
       <button type="submit" class="btn btn-primary btn-block">Create Driver Account</button>
     </form>
   </div>
