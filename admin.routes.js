@@ -1,13 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const {
-  dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser,
+  dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary,
 } = require('./admin.controller');
 const { authenticateUser, requireRole } = require('./auth');
 
 router.use(authenticateUser, requireRole('ADMIN'));
 
 router.get('/dashboard', dashboard);
+router.get('/payments/summary', paymentSummary);
+router.get('/audit-logs', listAuditLogs);
 router.get('/users', listUsers);
 router.get('/transporters/pending', pendingTransporters);
 router.patch('/transporters/:id/verify', verifyTransporter);
