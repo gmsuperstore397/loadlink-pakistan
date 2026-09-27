@@ -1,6 +1,6 @@
-const asyncHandler = require('../utils/asyncHandler');
-const { success } = require('../utils/apiResponse');
-const { getRecommendation } = require('../services/recommendation.service');
+const asyncHandler = require('./asyncHandler');
+const { success } = require('./apiResponse');
+const { getRecommendation } = require('./recommendation.service');
 
 // POST /api/recommendations/vehicle
 const recommendVehicleHandler = asyncHandler(async (req, res) => {
