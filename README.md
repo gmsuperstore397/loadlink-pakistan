@@ -67,3 +67,23 @@ Error:
 - Booking accept/reject and trip status transitions run inside Prisma transactions to prevent two drivers accepting the same load.
 - Fare estimates are configurable (`BASE_FARE`, `PER_KM_RATE` in `.env`) and are never presented as a guaranteed final price.
 - Uploaded documents are stored under `uploads/` with randomly generated filenames — original filenames are never trusted.
+
+
+## Production features added
+
+The application now includes:
+- password reset tokens with optional Resend/Twilio delivery
+- in-app notifications plus optional Web Push/SMS/WhatsApp delivery
+- payment records, admin payment confirmation, webhook handling, and platform commission fields
+- Easypaisa/JazzCash hosted-checkout configuration hooks (merchant credentials/checkout URL required)
+- live trip SSE endpoint and automatic browser geolocation updates for drivers
+- driver booking accept/reject workflow and agreed fare/commission tracking
+- admin dashboard APIs for payments, audit logs, document expiry, and transporter verification
+- driver/vehicle document expiry tracking
+- Render runtime public URL wiring and production environment placeholders
+
+### Production secrets/integrations
+
+Set the relevant variables in Render Environment. Do not commit secrets. Optional integrations remain disabled until their provider credentials are configured. See .env.example.
+
+For Easypaisa and JazzCash, obtain merchant credentials/checkout details from the provider and configure the corresponding checkout settings before accepting real payments.
