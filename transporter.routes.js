@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { registerTransporter, getTransporter } = require('../controllers/transporter.controller');
-const { registerDriverRules } = require('../validators/auth.validator');
-const validate = require('../middleware/validate');
-const { authenticateUser } = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { registerTransporter, getTransporter } = require('./transporter.controller');
+const { registerDriverRules } = require('./auth.validator');
+const validate = require('./validate');
+const { authenticateUser } = require('./auth');
+const upload = require('./upload');
 
 router.post(
   '/register',
