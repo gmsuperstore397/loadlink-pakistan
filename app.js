@@ -115,6 +115,7 @@ const resendOtp = (email) => apiRequest('/auth/resend-otp', {
 
 /* ---------------- feature API ---------------- */
 const createLoad = (payload) => apiRequest('/loads', { method: 'POST', body: payload });
+const getMyLoads = () => apiRequest('/loads/mine');
 const getRecommendations = (payload) => apiRequest('/recommendations/vehicle', { method: 'POST', body: payload });
 const findVehicles = (query) => apiRequest(`/vehicles/available?${new URLSearchParams(query)}`);
 const findLoads = (query) => apiRequest(`/loads?${new URLSearchParams(query)}`);
@@ -171,7 +172,7 @@ function initHeroSlider() {
 }
 
 function initNav() {
-  const navTargets = { home: '#home', findtruck: '#findtruck', postload: '#postload', findload: '#findload', returnloads: '#returnloads', livetrips: '#livetrips', categories: '#categories' };
+  const navTargets = { home: '#home', findtruck: '#findtruck', postload: '#postload', findload: '#findload', marketplace: '#findload', profile: '#profile', returnloads: '#returnloads', livetrips: '#livetrips', categories: '#categories' };
   document.querySelectorAll('[data-nav]').forEach((el) => {
     el.addEventListener('click', (e) => {
       const target = navTargets[el.dataset.nav];
@@ -207,8 +208,8 @@ function closeModal(id) { $(`#${id}`).classList.remove('open'); }
 function initAuthModals() {
   $('#loginBtn').addEventListener('click', () => openModal('loginModal'));
   $('#loginBtnMobile').addEventListener('click', () => openModal('loginModal'));
-  $('#signupBtn').addEventListener('click', () => openModal('signupModal'));
-  $('#signupBtnMobile').addEventListener('click', () => openModal('signupModal'));
+  $('#signupBtn').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
+  $('#signupBtnMobile').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
   $('#heroDriverBtn').addEventListener('click', () => {
     openModal('signupModal');
     setSignupTab('driver');
@@ -481,20 +482,52 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
+function showProfile() {
+  const section = $('#profile');
+  if (!section) return;
+  section.hidden = false;
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  loadProfile();
+}
+
+async function loadProfile() {
+  if (!state.user) return;
+  $('#profileName').textContent = state.user.fullName || 'Customer';
+  $('#profileRole').textContent = state.user.role === 'DRIVER' ? 'Driver / Transporter' : 'Customer';
+  $('#profileMobile').textContent = state.user.mobile || '—';
+  $('#profileEmail').textContent = state.user.email || '—';
+  $('#profileCity').textContent = state.user.city || 'City not added';
+
+  if (state.user.role !== 'CUSTOMER') {
+    $('#profileLoads').innerHTML = '<p class="muted-empty">Driver profile ke loads yahan show nahi hote.</p>';
+    return;
+  }
+
+  try {
+    const result = await getMyLoads();
+    renderLoadResults(result.loads || [], '#profileLoads', true);
+  } catch (err) {
+    $('#profileLoads').innerHTML = '<p class="muted-empty">Profile posts load nahi ho sake.</p>';
+  }
+}
+
 function updateAuthUI() {
   const loggedIn = !!state.user;
   $('#loginBtn').style.display = loggedIn ? 'none' : '';
-  $('#signupBtn').textContent = loggedIn ? `👤 ${state.user.fullName.split(' ')[0]}` : 'Sign Up';
+  $('#loginBtnMobile').style.display = loggedIn ? 'none' : '';
+  $('#signupBtn').textContent = loggedIn ? '👤 My Profile' : 'Sign Up';
+  $('#signupBtnMobile').textContent = loggedIn ? '👤 My Profile' : 'Sign Up';
   $('#dashboard').style.display = loggedIn ? '' : 'none';
+  $('#profile').hidden = !loggedIn;
   $('#adminDashboard').hidden = !(loggedIn && state.user.role === 'ADMIN');
   $('#driverBookingsCard').hidden = !(loggedIn && state.user.role === 'DRIVER');
+
   if (loggedIn) {
     loadDashboard();
     loadAdminDashboard();
+    loadProfile();
+    loadMarketplace();
     initPushNotifications();
-    $('#signupBtn').onclick = () => {
-      if (confirm('Logout?')) { clearSession(); location.reload(); }
-    };
   }
 }
 
@@ -570,6 +603,8 @@ function initPostLoadForm() {
         preferredVehicle: preferredVehicle || undefined,
       });
       toast('Load posted successfully!');
+      await loadMarketplace();
+      await loadProfile();
 
       const rec = await getRecommendations({
         weightKg,
@@ -751,9 +786,22 @@ function renderVehicleResults(vehicles) {
   `).join('');
 }
 
-function renderLoadResults(loads, targetSel = '#flResults') {
+async function loadMarketplace() {
+  if (!state.user) return;
+  try {
+    const result = await findLoads({});
+    renderLoadResults(result.loads || [], '#flResults');
+  } catch (err) {
+    console.warn('Marketplace load failed', err);
+  }
+}
+
+function renderLoadResults(loads, targetSel = '#flResults', ownOnly = false) {
   const el = $(targetSel);
-  if (!loads.length) { el.innerHTML = '<p class="muted-empty">No loads found.</p>'; return; }
+  if (!loads.length) {
+    el.innerHTML = '<p class="muted-empty">No loads found.</p>';
+    return;
+  }
   el.innerHTML = loads.map((l) => `
     <div class="result-card">
       <div class="rc-top">
@@ -762,6 +810,8 @@ function renderLoadResults(loads, targetSel = '#flResults') {
       </div>
       <p>${l.description}</p>
       <p>Weight: ${l.weightKg} kg · Vehicle: ${l.preferredVehicle || 'Any suitable'}</p>
+      ${l.customer ? `<p class="muted-empty">👤 Posted by: <b>${l.customer.fullName}</b>${l.customer.city ? ` · ${l.customer.city}` : ''}</p>` : ''}
+      <small>Posted ${new Date(l.createdAt).toLocaleString()}</small>
     </div>
   `).join('');
 }
@@ -897,6 +947,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPostLoadForm();
   initSearchSections();
   initDashboard();
+  if (state.user) loadMarketplace();
   updateAuthUI();
   const resetToken = new URLSearchParams(location.search).get('reset');
   if (resetToken) { $('#resetToken').value = resetToken; openModal('resetPasswordModal'); }
