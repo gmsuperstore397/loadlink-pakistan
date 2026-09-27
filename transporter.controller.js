@@ -10,7 +10,7 @@ const ApiError = require('./ApiError');
 const registerTransporter = asyncHandler(async (req, res) => {
   const {
     fullName, mobile, city, password,
-    cnic, drivingLicense,
+    cnic, drivingLicense, cnicExpiryDate, licenseExpiryDate,
     vehicleType, vehicleNumber, capacityKg, brand, model, year,
   } = req.body;
 
@@ -39,6 +39,8 @@ const registerTransporter = asyncHandler(async (req, res) => {
           cnic,
           cnicDocUrl,
           drivingLicense,
+          cnicExpiryDate: cnicExpiryDate ? new Date(cnicExpiryDate) : null,
+          licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : null,
           licenseDocUrl,
           verification: 'PENDING_VERIFICATION',
           vehicles: {
