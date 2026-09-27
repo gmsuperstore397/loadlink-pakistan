@@ -127,4 +127,4 @@ const expiringDocuments = asyncHandler(async (req, res) => {
   return success(res, 200, 'Documents expiring within 30 days', { drivers, vehicles });
 });
 
-module.exports = { dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary };
+module.exports = { dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments };
