@@ -55,11 +55,12 @@ const register = asyncHandler(async (req, res) => {
     data: { userId: user.id, purpose: 'SIGNUP', codeHash: hashToken(otp), expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
   });
   const sent = user.email ? await sendOtpEmail(user.email, otp).catch(() => false) : false;
+  const devOtpMode = String(process.env.OTP_DEV_MODE || '').toLowerCase() === 'true';
   return success(res, 201, sent ? 'OTP sent to your email address' : 'Account created. Email OTP is not configured yet.', {
     verificationRequired: true,
     otpDeliveryConfigured: sent,
     user: sanitizeUser(user),
-    ...(process.env.NODE_ENV !== 'production' && !sent ? { developmentOtp: otp } : {}),
+    ...(devOtpMode && !sent ? { developmentOtp: otp } : {}),
   });
 });
 
@@ -164,9 +165,10 @@ const resendOtp = asyncHandler(async (req, res) => {
   await prisma.otpVerification.deleteMany({ where: { userId: user.id, purpose: 'SIGNUP', usedAt: null } });
   await prisma.otpVerification.create({ data: { userId: user.id, purpose: 'SIGNUP', codeHash: hashToken(otp), expiresAt: new Date(Date.now() + 10 * 60 * 1000) } });
   const sent = await sendOtpEmail(user.email, otp).catch(() => false);
+  const devOtpMode = String(process.env.OTP_DEV_MODE || '').toLowerCase() === 'true';
   return success(res, 200, sent ? 'OTP resent' : 'OTP generated but email delivery is not configured', {
     otpDeliveryConfigured: sent,
-    ...(process.env.NODE_ENV !== 'production' && !sent ? { developmentOtp: otp } : {}),
+    ...(devOtpMode && !sent ? { developmentOtp: otp } : {}),
   });
 });
 
