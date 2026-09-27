@@ -50,7 +50,7 @@
       <button class="btn btn-primary" id="signupBtn">Sign Up</button>
     </div>
 
-    <button type="button" class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" onclick="document.getElementById('navMobile').classList.toggle('open'); this.setAttribute('aria-expanded', document.getElementById('navMobile').classList.contains('open'));">
+    <button type="button" class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false" >
       <span></span><span></span><span></span>
     </button>
   </div>
@@ -64,8 +64,8 @@
     <a href="#livetrips" data-nav="livetrips">Live Trips</a>
     <a href="#categories">Categories</a>
     <div class="nav-mobile-auth">
-      <button type="button" class="btn btn-ghost" id="loginBtnMobile" onclick="document.getElementById('loginModal').classList.add('open'); document.getElementById('navMobile').classList.remove('open');">Login</button>
-      <button type="button" class="btn btn-primary" id="signupBtnMobile" onclick="document.getElementById('signupModal').classList.add('open'); document.getElementById('navMobile').classList.remove('open');">Sign Up</button>
+      <button type="button" class="btn btn-ghost" id="loginBtnMobile">Login</button>
+      <button type="button" class="btn btn-primary" id="signupBtnMobile">Sign Up</button>
     </div>
     <button class="btn btn-outline" id="installAppBtnMobile" hidden style="margin-top:8px">⬇️ Install App</button>
   </div>
@@ -525,6 +525,6 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="app.js?v=20260927-2"></script>
+<script src="app.js?v=20260927-3"></script>
 </body>
 </html>
