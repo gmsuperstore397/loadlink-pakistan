@@ -358,6 +358,13 @@ function initAuthModals() {
     const cnicDoc = $('#dCnicDoc').files?.[0];
     const licenseDoc = $('#dLicenseDoc').files?.[0];
     const vehicleDoc = $('#dVehicleDoc').files?.[0];
+    const documents = [cnicDoc, licenseDoc, vehicleDoc].filter(Boolean);
+    if (documents.some((file) => file.size > 5 * 1024 * 1024)) {
+      toast('Har document 5MB se chhota hona chahiye.');
+      button.disabled = false;
+      button.textContent = originalText;
+      return;
+    }
     if (cnicDoc) fd.append('cnicDoc', cnicDoc);
     if (licenseDoc) fd.append('licenseDoc', licenseDoc);
     if (vehicleDoc) fd.append('vehicleDoc', vehicleDoc);
