@@ -8,12 +8,11 @@ const { randomInt } = require('crypto');
 const { hashToken, sendOtpEmail } = require('./delivery.service');
 const ApiError = require('./ApiError');
 
-// POST /api/transporters/register  (driver + first vehicle, in one step)
+// POST /api/transporters/register  (driver account only; vehicles are added separately)
 const registerTransporter = asyncHandler(async (req, res) => {
   const {
     fullName, mobile, email, city, password,
     cnic, drivingLicense, cnicExpiryDate, licenseExpiryDate,
-    vehicleType, vehicleNumber, capacityKg, brand, model, year,
   } = req.body;
 
   const normalizedMobile = String(mobile || '').replace(/\s+/g, '');
@@ -44,14 +43,8 @@ const registerTransporter = asyncHandler(async (req, res) => {
     }));
   }
 
-  const existingVehicle = await prisma.vehicle.findUnique({ where: { vehicleNumber } });
-  if (existingVehicle && (!reusableDriver || existingVehicle.driverId !== existingUser.driverProfile?.id)) {
-    throw new ApiError(409, 'A vehicle with this number is already registered');
-  }
-
   const cnicDocUrl = req.files?.cnicDoc?.[0] ? `/uploads/${req.files.cnicDoc[0].filename}` : null;
   const licenseDocUrl = req.files?.licenseDoc?.[0] ? `/uploads/${req.files.licenseDoc[0].filename}` : null;
-  const vehicleDocUrl = req.files?.vehicleDoc?.[0] ? `/uploads/${req.files.vehicleDoc[0].filename}` : null;
 
   let user;
 
@@ -74,29 +67,6 @@ const registerTransporter = asyncHandler(async (req, res) => {
             licenseDocUrl: licenseDocUrl || undefined,
             cnicExpiryDate: cnicExpiryDate ? new Date(cnicExpiryDate) : null,
             licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : null,
-            vehicles: existingVehicle
-              ? { update: { where: { id: existingVehicle.id }, data: {
-                  vehicleType,
-                  vehicleNumber,
-                  capacityKg: Number(capacityKg),
-                  brand: brand || null,
-                  model: model || null,
-                  year: year ? Number(year) : null,
-                  documentUrl: vehicleDocUrl || undefined,
-                  status: 'OFFLINE',
-                  isVerified: false,
-                } } }
-              : { create: {
-                  vehicleType,
-                  vehicleNumber,
-                  capacityKg: Number(capacityKg),
-                  brand: brand || null,
-                  model: model || null,
-                  year: year ? Number(year) : null,
-                  documentUrl: vehicleDocUrl,
-                  status: 'OFFLINE',
-                  isVerified: false,
-                } },
           },
         },
       },
@@ -129,19 +99,6 @@ const registerTransporter = asyncHandler(async (req, res) => {
             licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : null,
             licenseDocUrl,
             verification: 'PENDING_VERIFICATION',
-            vehicles: {
-              create: {
-                vehicleType,
-                vehicleNumber,
-                capacityKg: Number(capacityKg),
-                brand: brand || null,
-                model: model || null,
-                year: year ? Number(year) : null,
-                documentUrl: vehicleDocUrl,
-                status: 'OFFLINE',
-                isVerified: false,
-              },
-            },
           },
         },
       },
