@@ -50,6 +50,25 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('push', (event) => {
+  let payload = { title: 'LoadLink Pakistan', body: 'Aapke account mein nayi update hai.' };
+  try { if (event.data) payload = { ...payload, ...event.data.json() }; } catch (_) {}
+  event.waitUntil(self.registration.showNotification(payload.title, {
+    body: payload.body,
+    icon: './assets/icons/icon-192.png',
+    badge: './assets/icons/icon-72.png',
+    data: payload.data || {},
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    if (list.length) return list[0].focus();
+    return clients.openWindow('./');
+  }));
+});
+
 // Let the page trigger an immediate update (see app.js registration code).
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
