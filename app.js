@@ -791,7 +791,7 @@ function renderVehicleResults(vehicles) {
   `).join('');
 }
 
-async function loadMarketplace() {
+async async function loadMarketplace() {
   if (!state.user) return;
   try {
     const result = await findLoads({});
