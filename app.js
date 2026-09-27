@@ -566,7 +566,7 @@ function renderCategories() {
    POST LOAD FORM + VALIDATION + RECOMMENDATION
    ============================================================ */
 function initPostLoadForm() {
-  $('#heroPostLoadBtn').addEventListener('click', () => $('#postload').scrollIntoView({ behavior: 'smooth' }));
+  $('#heroPostLoadBtn').addEventListener('click', () => { if (!state.user) { openModal('signupModal'); setSignupTab('customer'); } else { $('#postload').scrollIntoView({ behavior: 'smooth' }); } });
 
   $('#loadDescription').addEventListener('input', (e) => {
     $('#descCount').textContent = e.target.value.length;
