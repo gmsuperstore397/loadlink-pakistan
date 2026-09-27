@@ -1,10 +1,10 @@
 const bcrypt = require('bcryptjs');
-const prisma = require('../config/prisma');
-const asyncHandler = require('../utils/asyncHandler');
-const { success, fail } = require('../utils/apiResponse');
-const { signToken } = require('../utils/jwt');
-const { sanitizeUser } = require('../utils/sanitizeUser');
-const ApiError = require('../utils/ApiError');
+const prisma = require('./prisma');
+const asyncHandler = require('./asyncHandler');
+const { success, fail } = require('./apiResponse');
+const { signToken } = require('./jwt');
+const { sanitizeUser } = require('./sanitizeUser');
+const ApiError = require('./ApiError');
 
 // POST /api/auth/register  (customer registration)
 const register = asyncHandler(async (req, res) => {
