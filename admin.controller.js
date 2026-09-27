@@ -4,6 +4,7 @@ const { success } = require('./apiResponse');
 const ApiError = require('./ApiError');
 const { sanitizeUser } = require('./sanitizeUser');
 const notify = require('./notification.service');
+const audit = require('./audit');
 
 // GET /api/admin/dashboard
 const dashboard = asyncHandler(async (req, res) => {
@@ -93,4 +94,19 @@ const suspendUser = asyncHandler(async (req, res) => {
   return success(res, 200, 'User status updated', { user: sanitizeUser(updated) });
 });
 
-module.exports = { dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser };
+const listAuditLogs = asyncHandler(async (req, res) => {
+  const logs = await prisma.auditLog.findMany({ include: { user: { select: { id: true, fullName: true, mobile: true } } }, orderBy: { createdAt: 'desc' }, take: 200 });
+  return success(res, 200, 'Audit logs fetched', { logs });
+});
+
+const paymentSummary = asyncHandler(async (req, res) => {
+  const [pending, paid, failed, totalPaid] = await Promise.all([
+    prisma.payment.count({ where: { status: 'PENDING' } }),
+    prisma.payment.count({ where: { status: 'PAID' } }),
+    prisma.payment.count({ where: { status: 'FAILED' } }),
+    prisma.payment.aggregate({ where: { status: 'PAID' }, _sum: { amount: true } }),
+  ]);
+  return success(res, 200, 'Payment summary', { pending, paid, failed, totalPaid: totalPaid._sum.amount || 0 });
+});
+
+module.exports = { dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary };
