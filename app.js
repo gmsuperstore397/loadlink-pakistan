@@ -917,6 +917,15 @@ let deferredInstallPrompt = null;
 function initPwa() {
   if (!('serviceWorker' in navigator)) return;
 
+  const installDesktop = $('#installAppBtn');
+  const installMobile = $('#installAppBtnMobile');
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  if (isStandalone) {
+    if (installDesktop) installDesktop.hidden = true;
+    if (installMobile) installMobile.hidden = true;
+  }
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then((registration) => {
       // A new service worker took control after an update — reload once, quietly.
@@ -948,13 +957,22 @@ function initPwa() {
   });
 
   const doInstall = async () => {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    if (outcome === 'accepted') toast('App install ho raha hai...');
-    deferredInstallPrompt = null;
-    $('#installAppBtn').hidden = true;
-    $('#installAppBtnMobile').hidden = true;
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') toast('App install ho raha hai...');
+      deferredInstallPrompt = null;
+      $('#installAppBtn').hidden = true;
+      $('#installAppBtnMobile').hidden = true;
+      return;
+    }
+
+    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    if (isIos && !isStandalone) {
+      toast('iPhone/iPad par Share button dabayein aur “Add to Home Screen” select karein.');
+    } else {
+      toast('Install option abhi browser ne available nahi kiya. Chrome/Edge mein thori dair baad dobara try karein.');
+    }
   };
   $('#installAppBtn').addEventListener('click', doInstall);
   $('#installAppBtnMobile').addEventListener('click', doInstall);
