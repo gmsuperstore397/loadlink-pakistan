@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { jwtSecret, jwtExpiresIn } = require('../config/env');
+const { jwtSecret, jwtExpiresIn } = require('./env');
 
 function signToken(payload) {
   return jwt.sign(payload, jwtSecret, { expiresIn: jwtExpiresIn });
