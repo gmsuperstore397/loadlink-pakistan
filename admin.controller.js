@@ -109,4 +109,22 @@ const paymentSummary = asyncHandler(async (req, res) => {
   return success(res, 200, 'Payment summary', { pending, paid, failed, totalPaid: totalPaid._sum.amount || 0 });
 });
 
+const expiringDocuments = asyncHandler(async (req, res) => {
+  const until = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const [drivers, vehicles] = await Promise.all([
+    prisma.driverProfile.findMany({
+      where: { OR: [
+        { cnicExpiryDate: { lte: until } },
+        { licenseExpiryDate: { lte: until } },
+      ] },
+      include: { user: { select: { id: true, fullName: true, mobile: true } } },
+    }),
+    prisma.vehicle.findMany({
+      where: { documentExpiryDate: { lte: until } },
+      include: { driver: { include: { user: { select: { id: true, fullName: true, mobile: true } } } } },
+    }),
+  ]);
+  return success(res, 200, 'Documents expiring within 30 days', { drivers, vehicles });
+});
+
 module.exports = { dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary };
