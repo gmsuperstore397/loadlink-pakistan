@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary,
+  dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments,
 } = require('./admin.controller');
 const { authenticateUser, requireRole } = require('./auth');
 
