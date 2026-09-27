@@ -4,6 +4,7 @@ const router = express.Router();
 const { health } = require('./health.controller');
 
 router.get('/health', health);
+router.use('/config', require('./config.routes'));
 router.use('/auth', require('./auth.routes'));
 router.use('/loads', require('./load.routes'));
 router.use('/vehicles', require('./vehicle.routes'));
