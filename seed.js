@@ -23,6 +23,7 @@ async function main() {
       role: 'ADMIN',
       city: 'Karachi',
       status: 'ACTIVE',
+      emailVerified: true,
     },
   });
 
