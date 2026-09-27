@@ -37,6 +37,7 @@
     <nav class="nav-desktop" aria-label="Main navigation">
       <a href="#home" data-nav="home">⌂ Home</a>
       <a href="#findtruck" data-nav="findtruck">🚚 Find Truck</a>
+      <a href="#findload" data-nav="marketplace">🛒 Marketplace</a>
       <a href="#postload" data-nav="postload">📦 Post Load</a>
       <a href="#returnloads" data-nav="returnloads">🔄 Return Loads</a>
       <a href="#livetrips" data-nav="livetrips">📍 Live Trips</a>
@@ -57,6 +58,7 @@
   <div class="nav-mobile" id="navMobile">
     <a href="#home" data-nav="home">Home</a>
     <a href="#findtruck" data-nav="findtruck">Find Truck</a>
+    <a href="#findload" data-nav="marketplace">Marketplace</a>
     <a href="#postload" data-nav="postload">Post Load</a>
     <a href="#returnloads" data-nav="returnloads">Return Loads</a>
     <a href="#livetrips" data-nav="livetrips">Live Trips</a>
@@ -274,7 +276,8 @@
 <!-- ============== FIND LOAD ============== -->
 <section class="find-load" id="findload">
   <div class="section-inner">
-    <h2>📦 Find Load</h2>
+    <h2>🛒 Marketplace</h2>
+    <p class="section-desc">Customers ke posted loads yahan automatically show honge.</p>
     <div class="filter-bar">
       <input type="text" id="flPickup" placeholder="Pickup">
       <input type="text" id="flDestination" placeholder="Destination">
@@ -307,6 +310,29 @@
   <div class="section-inner">
     <h2>📍 Live Trips</h2>
     <div class="results-grid" id="ltResults"><p class="muted-empty">Login to see your live trips.</p></div>
+  </div>
+</section>
+
+<!-- ============== CUSTOMER PROFILE ============== -->
+<section class="profile-section" id="profile" hidden>
+  <div class="section-inner">
+    <div class="card profile-card">
+      <div class="profile-avatar" id="profileAvatar">👤</div>
+      <div>
+        <h2 id="profileName">Customer</h2>
+        <p id="profileRole" class="section-desc">Customer</p>
+        <p>📱 <span id="profileMobile">—</span> · ✉️ <span id="profileEmail">—</span></p>
+        <p>📍 <span id="profileCity">City not added</span></p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>📦 My Posted Loads</h3>
+      <p class="section-desc">Jo loads aap ne post kiye hain, woh yahan bhi show honge.</p>
+      <div class="results-grid" id="profileLoads">
+        <p class="muted-empty">Profile posts load ho rahe hain...</p>
+      </div>
+    </div>
   </div>
 </section>
 
