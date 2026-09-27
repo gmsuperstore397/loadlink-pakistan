@@ -1,14 +1,42 @@
 const crypto = require('crypto');
 
 async function sendEmail(to, subject, text) {
-  if (!to || !process.env.RESEND_API_KEY) return false;
+  if (!to) return false;
+
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: String(process.env.GMAIL_APP_PASSWORD).replace(/\s+/g, ''),
+      },
+    });
+    const from = process.env.EMAIL_FROM || process.env.GMAIL_USER;
+    try {
+      await transporter.sendMail({ from, to, subject, text });
+      return true;
+    } catch (error) {
+      console.error('Gmail email delivery failed:', error.message);
+      return false;
+    }
+  }
+
+  if (!process.env.RESEND_API_KEY) return false;
   const from = process.env.EMAIL_FROM || 'LoadLink Pakistan <onboarding@resend.dev>';
-  const resp = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject, text }),
-  });
-  return resp.ok;
+  try {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to: [to], subject, text }),
+    });
+    return resp.ok;
+  } catch (error) {
+    console.error('Resend email delivery failed:', error.message);
+    return false;
+  }
 }
 
 function normalizePhone(to) {
@@ -51,8 +79,6 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-module.exports = { sendEmail, sendSms, sendWhatsApp, randomToken, hashToken };
-
 async function sendOtpEmail(to, code) {
   if (!to) return false;
   const subject = 'LoadLink Pakistan - Email Verification OTP';
@@ -60,4 +86,4 @@ async function sendOtpEmail(to, code) {
   return sendEmail(to, subject, text);
 }
 
-module.exports.sendOtpEmail = sendOtpEmail;
+module.exports = { sendEmail, sendSms, sendWhatsApp, randomToken, hashToken, sendOtpEmail };
