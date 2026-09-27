@@ -22,9 +22,6 @@ const registerDriverRules = [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('cnic').trim().notEmpty().withMessage('CNIC is required'),
   body('drivingLicense').trim().notEmpty().withMessage('Driving license number is required'),
-  body('vehicleType').trim().notEmpty().withMessage('Vehicle type is required'),
-  body('vehicleNumber').trim().notEmpty().withMessage('Vehicle number is required'),
-  body('capacityKg').isFloat({ gt: 0 }).withMessage('Vehicle capacity must be greater than 0'),
 ];
 
 module.exports = { registerCustomerRules, registerDriverRules, loginRules };
