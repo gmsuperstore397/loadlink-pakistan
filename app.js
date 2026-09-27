@@ -210,15 +210,20 @@ function initNav() {
    ============================================================ */
 function openModal(id) { $(`#${id}`).classList.add('open'); }
 function closeModal(id) { $(`#${id}`).classList.remove('open'); }
+function openDriverSignup() {
+  openModal('signupModal');
+  setSignupTab('driver');
+  requestAnimationFrame(() => setSignupTab('driver'));
+}
 
 function initAuthModals() {
   $('#loginBtn').addEventListener('click', () => openModal('loginModal'));
   $('#loginBtnMobile').addEventListener('click', () => openModal('loginModal'));
   $('#signupBtn').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
   $('#signupBtnMobile').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
-  $('#heroDriverBtn').addEventListener('click', () => {
-    openModal('signupModal');
-    setSignupTab('driver');
+  $('#heroDriverBtn').addEventListener('click', (event) => {
+    event.preventDefault();
+    openDriverSignup();
   });
 
   $$('.modal-close').forEach((btn) => btn.addEventListener('click', () => closeModal(btn.dataset.close)));
