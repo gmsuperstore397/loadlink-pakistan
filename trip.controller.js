@@ -6,10 +6,14 @@ const notify = require('./notification.service');
 
 // GET /api/trips
 const listTrips = asyncHandler(async (req, res) => {
-  const where = req.user.driverProfile ? { driverId: req.user.driverProfile.id } : {};
+  const where = req.user.role === 'ADMIN'
+    ? {}
+    : req.user.driverProfile
+      ? { driverId: req.user.driverProfile.id }
+      : { load: { customerId: req.user.id } };
   const trips = await prisma.trip.findMany({
     where,
-    include: { load: true, vehicle: true },
+    include: { load: true, vehicle: true, driver: { include: { user: { select: { id: true, fullName: true } } } } },
     orderBy: { createdAt: 'desc' },
   });
   return success(res, 200, 'Trips fetched', { trips });
