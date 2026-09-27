@@ -744,4 +744,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }, { threshold: 0.2 });
   io.observe($('#livetrips'));
+  window.__tripPoller = setInterval(() => { if (state.user && document.visibilityState === 'visible') loadLiveTrips(); }, 10000);
 });
