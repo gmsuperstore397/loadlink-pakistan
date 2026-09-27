@@ -294,6 +294,8 @@ function initDashboard() {
 }
 
 async function initPushNotifications() {
+  if (!window.VAPID_PUBLIC_KEY) { try { const cfg = await apiRequest('/config/public'); window.VAPID_PUBLIC_KEY = cfg.vapidPublicKey; } catch (_) {} }
+
   if (!state.user || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
   if (!window.VAPID_PUBLIC_KEY) return;
   try {
