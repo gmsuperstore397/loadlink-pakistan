@@ -113,6 +113,7 @@ model User {
   ratingsGiven  Rating[] @relation("RatingsGiven")
   ratingsReceived Rating[] @relation("RatingsReceived")
   passwordResetTokens PasswordResetToken[]
+  otpVerifications OtpVerification[]
   pushSubscriptions PushSubscription[]
   payments Payment[]
   auditLogs AuditLog[]
@@ -279,6 +280,20 @@ model Payment {
 
   @@index([userId, status])
   @@index([providerReference])
+}
+
+model OtpVerification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String   @default("SIGNUP")
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose, expiresAt])
 }
 
 model PasswordResetToken {
