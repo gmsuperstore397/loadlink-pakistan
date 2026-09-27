@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { randomToken, hashToken, sendEmail, sendSms } = require('./delivery.service');
+const { randomToken, hashToken, sendEmail, sendSms, sendOtpSms } = require('./delivery.service');
 const prisma = require('./prisma');
 const asyncHandler = require('./asyncHandler');
 const { success, fail } = require('./apiResponse');
@@ -22,8 +22,18 @@ const register = asyncHandler(async (req, res) => {
     data: { fullName, mobile, email: email || null, passwordHash, city, role: 'CUSTOMER' },
   });
 
-  const token = signToken({ id: user.id, role: user.role });
-  return success(res, 201, 'Account created successfully', { token, user: sanitizeUser(user) });
+  const otp = String(crypto.randomInt(100000, 1000000));
+  await prisma.otpVerification.deleteMany({ where: { userId: user.id, purpose: 'SIGNUP', usedAt: null } });
+  await prisma.otpVerification.create({
+    data: { userId: user.id, purpose: 'SIGNUP', codeHash: hashToken(otp), expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+  });
+  const sent = await sendOtpSms(user.mobile, otp).catch(() => false);
+  return success(res, 201, sent ? 'OTP sent to your mobile number' : 'Account created. OTP SMS is not configured yet.', {
+    verificationRequired: true,
+    otpDeliveryConfigured: sent,
+    user: sanitizeUser(user),
+    ...(process.env.NODE_ENV !== 'production' && !sent ? { developmentOtp: otp } : {}),
+  });
 });
 
 // POST /api/auth/login
@@ -39,6 +49,7 @@ const login = asyncHandler(async (req, res) => {
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new ApiError(401, 'Invalid credentials');
+  if (!user.mobileVerified) throw new ApiError(403, 'Mobile number verify karein. OTP required hai.');
   if (user.status === 'SUSPENDED') throw new ApiError(403, 'This account has been suspended');
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
@@ -86,6 +97,52 @@ const resetPassword = asyncHandler(async (req, res) => {
   return success(res, 200, 'Password reset successfully', { user: sanitizeUser(user) });
 });
 
+// POST /api/auth/verify-otp
+const verifyOtp = asyncHandler(async (req, res) => {
+  const { mobile, otp } = req.body;
+  if (!mobile || !/^\d{6}$/.test(String(otp || ''))) throw new ApiError(400, 'Mobile aur 6-digit OTP required hai');
+  const user = await prisma.user.findUnique({ where: { mobile } });
+  if (!user) throw new ApiError(404, 'Account not found');
+  if (user.mobileVerified) return success(res, 200, 'Mobile already verified', { user: sanitizeUser(user) });
+
+  const record = await prisma.otpVerification.findFirst({
+    where: { userId: user.id, purpose: 'SIGNUP', usedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!record) throw new ApiError(400, 'OTP expired or not found. Resend OTP karein.');
+  if (record.attempts >= 5) throw new ApiError(429, 'Too many OTP attempts. Resend OTP karein.');
+  const validOtp = hashToken(String(otp)) === record.codeHash;
+  if (!validOtp) {
+    await prisma.otpVerification.update({ where: { id: record.id }, data: { attempts: { increment: 1 } } });
+    throw new ApiError(400, 'Invalid OTP');
+  }
+  const verifiedUser = await prisma.$transaction(async (tx) => {
+    await tx.otpVerification.update({ where: { id: record.id }, data: { usedAt: new Date() } });
+    return tx.user.update({ where: { id: user.id }, data: { mobileVerified: true } });
+  });
+  const token = signToken({ id: verifiedUser.id, role: verifiedUser.role });
+  return success(res, 200, 'Mobile verified successfully', { token, user: sanitizeUser(verifiedUser) });
+});
+
+// POST /api/auth/resend-otp
+const resendOtp = asyncHandler(async (req, res) => {
+  const { mobile } = req.body;
+  if (!mobile) throw new ApiError(400, 'Mobile is required');
+  const user = await prisma.user.findUnique({ where: { mobile } });
+  if (!user) throw new ApiError(404, 'Account not found');
+  if (user.mobileVerified) return success(res, 200, 'Mobile already verified');
+  const recent = await prisma.otpVerification.findFirst({ where: { userId: user.id, purpose: 'SIGNUP', createdAt: { gt: new Date(Date.now() - 60 * 1000) } } });
+  if (recent) throw new ApiError(429, '1 minute baad OTP dobara bhejein');
+  const otp = String(crypto.randomInt(100000, 1000000));
+  await prisma.otpVerification.deleteMany({ where: { userId: user.id, purpose: 'SIGNUP', usedAt: null } });
+  await prisma.otpVerification.create({ data: { userId: user.id, purpose: 'SIGNUP', codeHash: hashToken(otp), expiresAt: new Date(Date.now() + 10 * 60 * 1000) } });
+  const sent = await sendOtpSms(user.mobile, otp).catch(() => false);
+  return success(res, 200, sent ? 'OTP resent' : 'OTP generated but SMS delivery is not configured', {
+    otpDeliveryConfigured: sent,
+    ...(process.env.NODE_ENV !== 'production' && !sent ? { developmentOtp: otp } : {}),
+  });
+});
+
 // POST /api/auth/logout  (JWTs are stateless; client discards the token)
 const logout = asyncHandler(async (req, res) => {
   return success(res, 200, 'Logged out successfully');
@@ -96,4 +153,4 @@ const me = asyncHandler(async (req, res) => {
   return success(res, 200, 'Current user', { user: sanitizeUser(req.user) });
 });
 
-module.exports = { register, login, logout, me, forgotPassword, resetPassword };
+module.exports = { register, login, logout, me, forgotPassword, resetPassword, verifyOtp, resendOtp };
