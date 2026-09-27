@@ -6,7 +6,7 @@
 //  - API write requests (POST/PATCH/PUT/DELETE): network-only, never cached.
 //  - Navigation requests while offline: fall back to offline.html.
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHELL_CACHE = `loadlink-shell-${VERSION}`;
 const RUNTIME_CACHE = `loadlink-runtime-${VERSION}`;
 const API_CACHE = `loadlink-api-${VERSION}`;
@@ -91,19 +91,15 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // ---- API GET: network-first, cache fallback ----
+  // ---- API requests: never cache account data.
+  // API GET responses can contain user-specific data, so serving a cached
+  // response to another account/device state could expose stale private data.
   if (isApiRequest(url)) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(API_CACHE).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || Response.json(
-          { success: false, message: 'Offline — showing no cached data for this request', errors: [] },
-          { status: 503 },
-        ))),
+      fetch(request).catch(() => new Response(
+        JSON.stringify({ success: false, message: 'Offline — live data is unavailable', errors: [] }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } },
+      )),
     );
     return;
   }
