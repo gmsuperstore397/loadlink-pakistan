@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const {
   listTrips, getTrip, getLiveTrip, updateLocation, updateTripStatus,
-} = require('../controllers/trip.controller');
-const { authenticateUser, requireRole } = require('../middleware/auth');
+} = require('./trip.controller');
+const { authenticateUser, requireRole } = require('./auth');
 
 router.get('/', authenticateUser, listTrips);
 router.get('/:id', authenticateUser, getTrip);
