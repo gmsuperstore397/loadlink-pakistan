@@ -5,9 +5,9 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-const { port, frontendUrl, nodeEnv } = require('./config/env');
-const routes = require('./routes');
-const { errorHandler, notFound } = require('./middleware/errorHandler');
+const { port, frontendUrl, nodeEnv } = require('./env');
+const routes = require('./index');
+const { errorHandler, notFound } = require('./errorHandler');
 
 const app = express();
 
@@ -29,14 +29,14 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 // Static: uploaded driver/vehicle documents (never expose passwordHash or secrets here)
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api', routes);
 
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`LoadLink Pakistan API running on http://localhost:${port}`);
   console.log(`Health check: http://localhost:${port}/api/health`);
 });
