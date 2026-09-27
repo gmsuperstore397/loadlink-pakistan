@@ -327,6 +327,33 @@
       </div>
     </div>
 
+    <div class="card" id="driverVehiclesCard" style="margin-top:18px" hidden>
+      <h3>🚚 Meri Gaariyan</h3>
+      <p class="section-desc">Apni ek ya multiple gaariyan yahan add aur manage karein.</p>
+      <form id="addVehicleForm" class="modal-form" style="margin-top:14px">
+        <div class="field-row">
+          <div class="field"><label>Vehicle Type</label><select id="vVehicleType" required></select></div>
+          <div class="field"><label>Vehicle Number</label><input id="vVehicleNumber" required placeholder="LEA-1234"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Capacity (kg)</label><input id="vCapacity" type="number" min="1" required></div>
+          <div class="field"><label>Brand</label><input id="vBrand" placeholder="Toyota"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Model</label><input id="vModel" placeholder="Hino 500"></div>
+          <div class="field"><label>Year</label><input id="vYear" type="number" min="1950" max="2100"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Vehicle Document (optional)</label><input id="vDocument" type="file" accept="image/jpeg,image/png,application/pdf"></div>
+          <div class="field"><label>Document Expiry (optional)</label><input id="vDocumentExpiry" type="date"></div>
+        </div>
+        <button type="submit" class="btn btn-primary">➕ Add Vehicle</button>
+      </form>
+      <div class="results-grid" id="driverVehicles" style="margin-top:14px">
+        <p class="muted-empty">Vehicles load ho rahi hain...</p>
+      </div>
+    </div>
+
     <div class="card" style="margin-top:18px">
       <h3>📦 My Posted Loads</h3>
       <p class="section-desc">Jo loads aap ne post kiye hain, woh yahan bhi show honge.</p>
