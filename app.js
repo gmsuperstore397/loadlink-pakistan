@@ -120,6 +120,8 @@ const createLoad = (payload) => apiRequest('/loads', { method: 'POST', body: pay
 const getMyLoads = () => apiRequest('/loads/mine');
 const getRecommendations = (payload) => apiRequest('/recommendations/vehicle', { method: 'POST', body: payload });
 const findVehicles = (query) => apiRequest(`/vehicles/available?${new URLSearchParams(query)}`);
+const getMyVehicles = () => apiRequest('/vehicles/mine');
+const createVehicle = (body) => apiRequest('/vehicles', { method: 'POST', body, isForm: true });
 const findLoads = (query) => apiRequest(`/loads?${new URLSearchParams(query)}`);
 const getReturnLoads = (query) => apiRequest(`/return-loads?${new URLSearchParams(query)}`);
 const createBooking = (body) => apiRequest('/bookings', { method: 'POST', body });
@@ -347,7 +349,7 @@ function initAuthModals() {
     } catch (err) { toast(err.message); }
   });
 
-  // driver signup
+  // driver signup — account/personal verification only; vehicles are added later from My Profile
   $('#driverSignupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -366,19 +368,12 @@ function initAuthModals() {
     fd.append('cnic', $('#dCnic').value.trim());
     fd.append('city', $('#dCity').value.trim());
     fd.append('password', $('#dPassword').value);
-    fd.append('vehicleType', $('#dVehicleType').value);
-    fd.append('vehicleNumber', $('#dVehicleNumber').value.trim());
-    fd.append('capacityKg', $('#dCapacity').value);
     fd.append('drivingLicense', $('#dLicense').value.trim());
-    fd.append('brand', $('#dBrand').value.trim());
-    fd.append('model', $('#dModel').value.trim());
-    fd.append('year', $('#dYear').value);
     fd.append('cnicExpiryDate', $('#dCnicExpiry').value);
     fd.append('licenseExpiryDate', $('#dLicenseExpiry').value);
     const cnicDoc = $('#dCnicDoc').files?.[0];
     const licenseDoc = $('#dLicenseDoc').files?.[0];
-    const vehicleDoc = $('#dVehicleDoc').files?.[0];
-    const documents = [cnicDoc, licenseDoc, vehicleDoc].filter(Boolean);
+    const documents = [cnicDoc, licenseDoc].filter(Boolean);
     if (documents.some((file) => file.size > 5 * 1024 * 1024)) {
       toast('Har document 5MB se chhota hona chahiye.');
       button.disabled = false;
@@ -387,7 +382,6 @@ function initAuthModals() {
     }
     if (cnicDoc) fd.append('cnicDoc', cnicDoc);
     if (licenseDoc) fd.append('licenseDoc', licenseDoc);
-    if (vehicleDoc) fd.append('vehicleDoc', vehicleDoc);
     try {
       const result = await registerTransporter(fd);
       state.pendingOtpEmail = $('#dEmail').value.trim().toLowerCase();
@@ -508,6 +502,7 @@ function initDashboard() {
     } catch (err) { toast(err.message); }
   });
   $('#dashboard').addEventListener('click', () => { if (state.user) loadDashboard(); });
+  initDriverVehicles();
 }
 
 async function initPushNotifications() {
@@ -587,7 +582,11 @@ async function loadProfile() {
   $('#profileCity').textContent = state.user.city || 'City not added';
   applyProfilePhoto();
 
-  if (state.user.role !== 'CUSTOMER') {
+  const vehicleCard = $('#driverVehiclesCard');
+  if (vehicleCard) vehicleCard.hidden = state.user.role !== 'DRIVER';
+
+  if (state.user.role === 'DRIVER') {
+    await loadDriverVehicles();
     $('#profileLoads').innerHTML = '<p class="muted-empty">Driver profile ke loads yahan show nahi hote.</p>';
     return;
   }
@@ -599,6 +598,58 @@ async function loadProfile() {
     $('#profileLoads').innerHTML = '<p class="muted-empty">Profile posts load nahi ho sake.</p>';
   }
 }
+
+async function loadDriverVehicles() {
+  const list = $('#driverVehicles');
+  if (!list || !state.user || state.user.role !== 'DRIVER') return;
+  try {
+    const result = await getMyVehicles();
+    const vehicles = result.vehicles || [];
+    list.innerHTML = vehicles.map(v => `
+      <div class="result-card">
+        <b>🚚 ${v.vehicleType}</b>
+        <p>${v.vehicleNumber} · ${Number(v.capacityKg).toLocaleString()} kg${v.brand ? ' · ' + v.brand : ''}${v.model ? ' ' + v.model : ''}</p>
+        <small>Status: ${v.status} · Verification: ${v.isVerified ? 'Verified' : 'Pending'}</small>
+      </div>
+    `).join('') || '<p class="muted-empty">Abhi koi gaari add nahi hui.</p>';
+  } catch (err) {
+    list.innerHTML = '<p class="muted-empty">Vehicles load nahi ho sakin.</p>';
+  }
+}
+
+function initDriverVehicles() {
+  const form = $('#addVehicleForm');
+  if (!form) return;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!state.user || state.user.role !== 'DRIVER') return toast('Driver account se login karein.');
+    if (!form.checkValidity()) return form.reportValidity();
+    const file = $('#vDocument').files?.[0];
+    if (file && file.size > 5 * 1024 * 1024) return toast('Vehicle document 5MB se chhota hona chahiye.');
+    const fd = new FormData();
+    fd.append('vehicleType', $('#vVehicleType').value);
+    fd.append('vehicleNumber', $('#vVehicleNumber').value.trim());
+    fd.append('capacityKg', $('#vCapacity').value);
+    fd.append('brand', $('#vBrand').value.trim());
+    fd.append('model', $('#vModel').value.trim());
+    fd.append('year', $('#vYear').value);
+    fd.append('documentExpiryDate', $('#vDocumentExpiry').value);
+    if (file) fd.append('vehicleDoc', file);
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      await createVehicle(fd);
+      form.reset();
+      await loadDriverVehicles();
+      toast('Gaari add ho gayi. Verification admin karega.');
+    } catch (err) {
+      toast(err.message || 'Gaari add nahi ho saki.');
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 
 function updateAuthUI() {
   const loggedIn = !!state.user;
@@ -643,7 +694,6 @@ function renderCategories() {
   ['#ftVehicleType', '#flVehicleType', '#rlVehicleType'].forEach((sel) => {
     $(sel).insertAdjacentHTML('beforeend', opts);
   });
-  $('#dVehicleType').innerHTML = opts;
 }
 
 /* ============================================================
