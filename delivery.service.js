@@ -9,6 +9,9 @@ async function sendEmail(to, subject, text) {
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
       auth: {
         user: process.env.GMAIL_USER,
         pass: String(process.env.GMAIL_APP_PASSWORD).replace(/\s+/g, ''),
