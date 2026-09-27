@@ -225,7 +225,7 @@ function initAuthModals() {
   $('#customerSignupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      const user = await registerUser({
+      const result = await registerUser({
         fullName: $('#cFullName').value.trim(),
         mobile: $('#cMobile').value.trim(),
         email: $('#cEmail').value.trim() || undefined,
