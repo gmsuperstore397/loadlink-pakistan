@@ -6,7 +6,7 @@
 //  - API write requests (POST/PATCH/PUT/DELETE): network-only, never cached.
 //  - Navigation requests while offline: fall back to offline.html.
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL_CACHE = `loadlink-shell-${VERSION}`;
 const RUNTIME_CACHE = `loadlink-runtime-${VERSION}`;
 const API_CACHE = `loadlink-api-${VERSION}`;
