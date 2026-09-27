@@ -119,7 +119,7 @@ const acceptBooking = (id, agreedFare) => apiRequest(`/bookings/${id}/accept`, {
 const rejectBooking = (id) => apiRequest(`/bookings/${id}/reject`, { method: 'PATCH' });
 const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
-const getMyBookings = () => apiRequest('/bookings/my');
+
 const getTrips = () => apiRequest('/trips');
 const updateTripLocation = (tripId, latitude, longitude) => apiRequest(`/trips/${tripId}/location`, { method: 'PATCH', body: { latitude, longitude } });
 const updateTripStatus = (tripId, status) => apiRequest(`/trips/${tripId}/status`, { method: 'PATCH', body: { status } });
