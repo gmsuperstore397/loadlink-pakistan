@@ -117,6 +117,15 @@ const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST',
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
 const getMyBookings = () => apiRequest('/bookings/my');
 const getTrips = () => apiRequest('/trips');
+const forgotPassword = (identifier) => apiRequest('/auth/forgot-password', { method: 'POST', body: identifier.includes('@') ? { email: identifier } : { mobile: identifier } });
+const resetPassword = (token, password) => apiRequest('/auth/reset-password', { method: 'POST', body: { token, password } });
+const getNotifications = () => apiRequest('/notifications');
+const getUnreadCount = () => apiRequest('/notifications/unread-count');
+const markAllRead = () => apiRequest('/notifications/read-all', { method: 'PATCH' });
+const createPayment = (body) => apiRequest('/payments', { method: 'POST', body });
+const getPayments = () => apiRequest('/payments');
+const subscribePush = (subscription) => apiRequest('/push/subscribe', { method: 'POST', body: subscription });
+
 
 /* ============================================================
    NAVIGATION
@@ -165,7 +174,28 @@ function initAuthModals() {
   }));
 
   $('#forgotPasswordBtn').addEventListener('click', () => {
-    toast('Password reset ke liye apni registered mobile/email par support se rabta karein.');
+    closeModal('loginModal');
+    openModal('resetPasswordModal');
+  });
+  $('#requestResetBtn').addEventListener('click', async () => {
+    const identifier = $('#resetIdentifier').value.trim();
+    if (!identifier) return toast('Mobile ya email enter karein.');
+    try {
+      const result = await forgotPassword(identifier);
+      if (result.developmentResetToken) {
+        $('#resetToken').value = result.developmentResetToken;
+        toast('Development reset token mil gaya.');
+      } else toast(result.message || 'Reset instructions bhej di gayi hain.');
+    } catch (err) { toast(err.message); }
+  });
+  $('#resetPasswordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await resetPassword($('#resetToken').value.trim(), $('#resetNewPassword').value);
+      toast('Password reset ho gaya. Ab login karein.');
+      closeModal('resetPasswordModal');
+      openModal('loginModal');
+    } catch (err) { toast(err.message); }
   });
 
   // login form
@@ -227,11 +257,69 @@ function setSignupTab(role) {
   $('#driverSignupForm').hidden = role !== 'driver';
 }
 
+async function loadDashboard() {
+  if (!state.user) return;
+  try {
+    const [n, p, u] = await Promise.all([getNotifications(), getPayments(), getUnreadCount()]);
+    $('#unreadBadge').textContent = u.count ? `(${u.count})` : '';
+    $('#notificationList').innerHTML = (n.notifications || []).map(x => `
+      <div class="result-card"><b>${x.title}</b><p>${x.message}</p><small>${new Date(x.createdAt).toLocaleString()}</small></div>
+    `).join('') || '<p class="muted-empty">No notifications.</p>';
+    $('#paymentList').innerHTML = (p.payments || []).map(x => `
+      <div class="result-card"><b>PKR ${Number(x.amount).toLocaleString()}</b><p>${x.method} · ${x.status}</p><small>${new Date(x.createdAt).toLocaleString()}</small></div>
+    `).join('') || '<p class="muted-empty">No payments.</p>';
+  } catch (err) {}
+}
+
+function initDashboard() {
+  $('#markAllReadBtn').addEventListener('click', async () => {
+    if (!state.user) return toast('Pehle login karein.');
+    try { await markAllRead(); await loadDashboard(); toast('Notifications read mark ho gayi hain.'); } catch (err) { toast(err.message); }
+  });
+  $('#paymentForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!state.user) return toast('Payment ke liye pehle login karein.');
+    try {
+      const result = await createPayment({
+        tripId: $('#paymentTripId').value.trim() || undefined,
+        amount: Number($('#paymentAmount').value),
+        method: $('#paymentMethod').value,
+      });
+      toast(result.checkoutConfigured ? 'Payment checkout ready hai.' : 'Payment record create ho gaya. Merchant checkout configure karna baqi hai.');
+      if (result.checkoutUrl) window.open(result.checkoutUrl, '_blank');
+      await loadDashboard();
+    } catch (err) { toast(err.message); }
+  });
+  $('#dashboard').addEventListener('click', () => { if (state.user) loadDashboard(); });
+}
+
+async function initPushNotifications() {
+  if (!state.user || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!window.VAPID_PUBLIC_KEY) return;
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(window.VAPID_PUBLIC_KEY) });
+    await subscribePush(subscription.toJSON());
+  } catch (err) { console.warn('Push subscription failed', err); }
+}
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+
 function updateAuthUI() {
   const loggedIn = !!state.user;
   $('#loginBtn').style.display = loggedIn ? 'none' : '';
   $('#signupBtn').textContent = loggedIn ? `👤 ${state.user.fullName.split(' ')[0]}` : 'Sign Up';
+  $('#dashboard').style.display = loggedIn ? '' : 'none';
   if (loggedIn) {
+    loadDashboard();
+    initPushNotifications();
     $('#signupBtn').onclick = () => {
       if (confirm('Logout?')) { clearSession(); location.reload(); }
     };
@@ -612,6 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderCategories();
   initPostLoadForm();
   initSearchSections();
+  initDashboard();
   updateAuthUI();
   initPwa();
   initConnectivityWatch();
