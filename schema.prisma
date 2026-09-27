@@ -102,6 +102,7 @@ model User {
   role         Role       @default(CUSTOMER)
   city         String?
   status       UserStatus @default(ACTIVE)
+  emailVerified Boolean @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   lastLoginAt  DateTime?
