@@ -903,45 +903,11 @@ async function loadLiveTrips() {
             ${t.status === 'IN_TRANSIT' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="NEAR_DESTINATION">Near Destination</button>' : ''}
             ${t.status === 'NEAR_DESTINATION' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="DELIVERED">Delivered</button>' : ''}
           </div>` : ''}
-        });
-      });
-    }).catch((err) => console.warn('Service worker registration failed:', err));
-  });
-
-  // "Add to Home Screen" / install prompt (Android/Chrome/Edge)
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    $('#installAppBtn').hidden = false;
-    $('#installAppBtnMobile').hidden = false;
-  });
-
-  const doInstall = async () => {
-    if (deferredInstallPrompt) {
-      deferredInstallPrompt.prompt();
-      const { outcome } = await deferredInstallPrompt.userChoice;
-      if (outcome === 'accepted') toast('App install ho raha hai...');
-      deferredInstallPrompt = null;
-      $('#installAppBtn').hidden = true;
-      $('#installAppBtnMobile').hidden = true;
-      return;
-    }
-
-    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-    if (isIos && !isStandalone) {
-      toast('iPhone/iPad par Share button dabayein aur “Add to Home Screen” select karein.');
-    } else {
-      toast('Install option abhi browser ne available nahi kiya. Chrome/Edge mein thori dair baad dobara try karein.');
-    }
-  };
-  $('#installAppBtn').addEventListener('click', doInstall);
-  $('#installAppBtnMobile').addEventListener('click', doInstall);
-
-  window.addEventListener('appinstalled', () => {
-    toast('LoadLink Pakistan install ho gaya!');
-    $('#installAppBtn').hidden = true;
-    $('#installAppBtnMobile').hidden = true;
-  });
+      </div>
+    `).join('');
+  } catch (err) {
+    el.innerHTML = '<p class="muted-empty">Could not load live trips.</p>';
+  }
 }
 
 function showUpdateBanner(registration) {
