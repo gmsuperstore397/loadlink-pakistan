@@ -1,8 +1,8 @@
-const prisma = require('../config/prisma');
-const asyncHandler = require('../utils/asyncHandler');
-const { success, fail } = require('../utils/apiResponse');
-const ApiError = require('../utils/ApiError');
-const notify = require('../services/notification.service');
+const prisma = require('./prisma');
+const asyncHandler = require('./asyncHandler');
+const { success, fail } = require('./apiResponse');
+const ApiError = require('./ApiError');
+const notify = require('./notification.service');
 
 // POST /api/loads  (customer only)
 const createLoad = asyncHandler(async (req, res) => {
