@@ -89,8 +89,10 @@ function clearSession() {
 }
 
 async function loginUser(mobileOrEmail, password) {
-  const isEmail = mobileOrEmail.includes('@');
-  const body = { password, ...(isEmail ? { email: mobileOrEmail } : { mobile: mobileOrEmail }) };
+  const identifier = String(mobileOrEmail || '').trim();
+  const isEmail = identifier.includes('@');
+  const normalizedIdentifier = isEmail ? identifier.toLowerCase() : identifier.replace(/\s+/g, '');
+  const body = { password, ...(isEmail ? { email: normalizedIdentifier } : { mobile: normalizedIdentifier }) };
   const data = await apiRequest('/auth/login', { method: 'POST', body });
   saveSession(data.token, data.user);
   return data.user;
@@ -229,7 +231,7 @@ function initAuthModals() {
     openModal('resetPasswordModal');
   });
   $('#requestResetBtn').addEventListener('click', async () => {
-    const identifier = $('#resetIdentifier').value.trim();
+    const identifier = $('#resetIdentifier').value.trim().toLowerCase();
     if (!identifier) return toast('Mobile ya email enter karein.');
     try {
       const result = await forgotPassword(identifier);
@@ -284,7 +286,7 @@ function initAuthModals() {
         password: $('#cPassword').value,
         city: $('#cCity').value.trim() || undefined,
       });
-      state.pendingOtpEmail = email;
+      state.pendingOtpEmail = email.toLowerCase();
       closeModal('signupModal');
       openModal('otpModal');
       if (result.developmentOtp) {
@@ -361,7 +363,7 @@ function initAuthModals() {
     if (vehicleDoc) fd.append('vehicleDoc', vehicleDoc);
     try {
       const result = await registerTransporter(fd);
-      state.pendingOtpEmail = $('#dEmail').value.trim();
+      state.pendingOtpEmail = $('#dEmail').value.trim().toLowerCase();
       closeModal('signupModal');
       openModal('otpModal');
       if (result.developmentOtp) {
