@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const {
   createBooking, myBookings, getBooking, acceptBooking, rejectBooking, cancelBooking,
-} = require('../controllers/booking.controller');
-const { createBookingRules } = require('../validators/booking.validator');
-const validate = require('../middleware/validate');
-const { authenticateUser, requireRole } = require('../middleware/auth');
+} = require('./booking.controller');
+const { createBookingRules } = require('./booking.validator');
+const validate = require('./validate');
+const { authenticateUser, requireRole } = require('./auth');
 
 router.post('/', authenticateUser, requireRole('CUSTOMER'), createBookingRules, validate, createBooking);
 router.get('/my', authenticateUser, myBookings);
