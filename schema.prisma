@@ -197,6 +197,9 @@ model Booking {
   vehicleId  String
   vehicle    Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   status     BookingStatus @default(REQUESTED)
+  agreedFare Float?
+  platformFee Float?
+  driverPayout Float?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
