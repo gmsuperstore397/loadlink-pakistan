@@ -621,13 +621,11 @@ function startDriverTracking(trips) {
 async function loadLiveTrips() {
   const el = $('#ltResults');
   if (!state.user) { el.innerHTML = '<p class="muted-empty">Login to see your live trips.</p>'; return; }
-
   try {
     const { trips } = await getTrips();
     if (!trips.length) { el.innerHTML = '<p class="muted-empty">No active trips.</p>'; return; }
     startDriverTracking(trips);
     el.innerHTML = trips.map((t) => `
-
       <div class="result-card">
         <div class="rc-top">
           <h4>Trip #${t.id.slice(0, 8)}</h4>
@@ -636,6 +634,12 @@ async function loadLiveTrips() {
         <p>${t.pickup} → ${t.destination}</p>
         <p>Vehicle: ${t.vehicle?.vehicleType || '—'}</p>
         <p>Last updated: ${new Date(t.updatedAt).toLocaleString()}</p>
+        ${state.user.role === 'DRIVER' && t.status !== 'DELIVERED' ? `
+          <div class="field-row">
+            <button class="btn btn-outline trip-status-btn" data-trip="${t.id}" data-status="PICKED_UP">Picked Up</button>
+            <button class="btn btn-outline trip-status-btn" data-trip="${t.id}" data-status="IN_TRANSIT">In Transit</button>
+            <button class="btn btn-primary trip-status-btn" data-trip="${t.id}" data-status="DELIVERED">Delivered</button>
+          </div>` : ''}
       </div>
     `).join('');
   } catch (err) {
