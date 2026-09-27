@@ -1,13 +1,13 @@
 const multer = require('multer');
 const path = require('path');
 const crypto = require('crypto');
-const ApiError = require('../utils/ApiError');
+const ApiError = require('./ApiError');
 
 const ALLOWED_MIME = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB per file
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', '..', 'uploads')),
+  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
   filename: (req, file, cb) => {
     // Never trust the original filename; generate a safe random one, keep the extension.
     const ext = path.extname(file.originalname).toLowerCase();
