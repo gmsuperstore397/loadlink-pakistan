@@ -148,6 +148,28 @@ const subscribePush = (subscription) => apiRequest('/push/subscribe', { method: 
 /* ============================================================
    NAVIGATION
    ============================================================ */
+function initHeroSlider() {
+  const slides = $('.hero-slide');
+  const dots = $('.hero-dot');
+  if (slides.length < 2) return;
+  let current = 0;
+  let timer = null;
+  const show = (index) => {
+    current = (index + slides.length) % slides.length;
+    slides.forEach((s, i) => s.classList.toggle('active', i === current));
+    dots.forEach((d, i) => d.classList.toggle('active', i === current));
+  };
+  const restart = () => {
+    clearInterval(timer);
+    timer = setInterval(() => show(current + 1), 6000);
+  };
+  $('#heroPrev').addEventListener('click', () => { show(current - 1); restart(); });
+  $('#heroNext').addEventListener('click', () => { show(current + 1); restart(); });
+  dots.forEach((d) => d.addEventListener('click', () => { show(Number(d.dataset.heroSlide)); restart(); }));
+  show(0);
+  restart();
+}
+
 function initNav() {
   const navTargets = { home: '#home', findtruck: '#findtruck', postload: '#postload', findload: '#findload', returnloads: '#returnloads', livetrips: '#livetrips', categories: '#categories' };
   $('[data-nav]').forEach((el) => {
@@ -822,6 +844,7 @@ function initConnectivityWatch() {
 document.addEventListener('DOMContentLoaded', () => {
   $('#year').textContent = new Date().getFullYear();
   initNav();
+  initHeroSlider();
   initAuthModals();
   initMapModal();
   renderCategories();
