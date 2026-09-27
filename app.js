@@ -113,6 +113,7 @@ const getRecommendations = (payload) => apiRequest('/recommendations/vehicle', {
 const findVehicles = (query) => apiRequest(`/vehicles/available?${new URLSearchParams(query)}`);
 const findLoads = (query) => apiRequest(`/loads?${new URLSearchParams(query)}`);
 const getReturnLoads = (query) => apiRequest(`/return-loads?${new URLSearchParams(query)}`);
+const createBooking = (body) => apiRequest('/bookings', { method: 'POST', body });
 const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
 const getMyBookings = () => apiRequest('/bookings/my');
@@ -429,7 +430,7 @@ function initPostLoadForm() {
     }
 
     try {
-      await createLoad({
+      const createdLoad = await createLoad({
         pickupAddress: pickup,
         pickupLatitude: state.pickupCoords?.lat,
         pickupLongitude: state.pickupCoords?.lng,
@@ -448,50 +449,55 @@ function initPostLoadForm() {
         pickupLatitude: state.pickupCoords?.lat,
         pickupLongitude: state.pickupCoords?.lng,
       });
-      renderRecommendation(rec, { pickup, destination, weightKg });
+      renderRecommendation(rec, { pickup, destination, weightKg, loadId: createdLoad.load.id });
     } catch (err) {
       toast(err.message);
     }
   });
 }
 
-function renderRecommendation(rec, { pickup, destination, weightKg }) {
+function renderRecommendation(rec, { pickup, destination, weightKg, loadId }) {
   const body = $('#recommendationBody');
   const distance = (state.pickupCoords && state.destinationCoords)
     ? haversineKm(state.pickupCoords, state.destinationCoords).toFixed(1) + ' km'
     : 'N/A (select locations on map for exact distance)';
-
-  let fareLine = '';
+  let fareLine = 'N/A';
   if (state.pickupCoords && state.destinationCoords) {
+    fareLine = '<span id="fareEstimateLine">Calculating…</span>';
     estimateFare({
       pickupLat: state.pickupCoords.lat, pickupLng: state.pickupCoords.lng,
       destinationLat: state.destinationCoords.lat, destinationLng: state.destinationCoords.lng,
       vehicleType: rec.recommendedVehicleTypes?.[0] || rec.preferredVehicle, weightKg,
     }).then((f) => {
-      $('#fareEstimateLine').textContent = f.estimatedFare
-        ? `Rs. ${f.estimatedFare.toLocaleString()} (estimate only, not final)`
-        : 'Not available';
+      $('#fareEstimateLine').textContent = f.estimatedFare ? `Rs. ${f.estimatedFare.toLocaleString()} (estimate)` : 'Not available';
     }).catch(() => {});
-    fareLine = '<span id="fareEstimateLine">Calculating…</span>';
-  } else {
-    fareLine = 'N/A';
   }
-
   const vehiclesHtml = (rec.nearbyVehicles || []).slice(0, 5).map((v) => `
     <div class="rec-vehicle">
       <b>${v.vehicleType}</b> · ${v.capacityKg} kg capacity
       ${v.distanceKm != null ? ` · ${v.distanceKm} km away` : ''}
       ${v.isVerified ? ' · ✅ Verified' : ''}
+      ${loadId && v.isVerified ? `<button class="btn btn-primary book-vehicle-btn" data-load="${loadId}" data-driver="${v.driverId}" data-vehicle="${v.id}">Book this vehicle</button>` : ''}
     </div>
   `).join('') || '<p class="muted-empty">No matching vehicles available right now.</p>';
-
   body.innerHTML = `
     <div class="rec-line"><span>Distance</span><span>${distance}</span></div>
     <div class="rec-line"><span>Load Type</span><span>${(rec.recommendedVehicleTypes || []).join(', ') || 'N/A'}</span></div>
-    <div class="rec-line"><span>Estimated Fare</span>${fareLine}</div>
+    <div class="rec-line"><span>Estimated Fare</span><span>${fareLine}</span></div>
     ${vehiclesHtml}
   `;
 }
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.book-vehicle-btn');
+  if (!btn) return;
+  try {
+    await createBooking({ loadId: btn.dataset.load, driverId: btn.dataset.driver, vehicleId: btn.dataset.vehicle });
+    toast('Booking request driver ko bhej di gayi hai.');
+    btn.disabled = true;
+    btn.textContent = 'Request sent';
+  } catch (err) { toast(err.message); }
+});
 
 function haversineKm(a, b) {
   const R = 6371;
