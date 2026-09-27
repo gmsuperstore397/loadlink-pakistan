@@ -6,7 +6,7 @@
 //  - API write requests (POST/PATCH/PUT/DELETE): network-only, never cached.
 //  - Navigation requests while offline: fall back to offline.html.
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHELL_CACHE = `loadlink-shell-${VERSION}`;
 const RUNTIME_CACHE = `loadlink-runtime-${VERSION}`;
 const API_CACHE = `loadlink-api-${VERSION}`;
@@ -122,22 +122,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ---- Navigation requests: cache-first, offline.html fallback ----
+  // ---- Navigation: network-first so deployed HTML is picked up immediately ----
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match(request)
-        .then((cached) => cached || fetch(request))
-        .catch(() => caches.match('./offline.html')),
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('./offline.html'))),
     );
     return;
   }
 
-  // ---- Everything else (app shell CSS/JS/images): cache-first ----
+  // ---- App shell assets: network-first, cache fallback offline ----
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      const copy = response.clone();
-      caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
-      return response;
-    }).catch(() => cached)),
+    fetch(request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+        return response;
+      })
+      .catch(() => caches.match(request)),
   );
 });
