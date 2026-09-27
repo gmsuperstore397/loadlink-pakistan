@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const {
   dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser,
-} = require('../controllers/admin.controller');
-const { authenticateUser, requireRole } = require('../middleware/auth');
+} = require('./admin.controller');
+const { authenticateUser, requireRole } = require('./auth');
 
 router.use(authenticateUser, requireRole('ADMIN'));
 
