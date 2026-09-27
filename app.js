@@ -898,51 +898,11 @@ async function loadLiveTrips() {
         <p>Last updated: ${new Date(t.updatedAt).toLocaleString()}</p>
         ${state.user.role === 'DRIVER' && t.status !== 'DELIVERED' ? `
           <div class="field-row">
-            <button class="btn btn-outline trip-status-btn" data-trip="${t.id}" data-status="PICKED_UP">Picked Up</button>
-            <button class="btn btn-outline trip-status-btn" data-trip="${t.id}" data-status="IN_TRANSIT">In Transit</button>
-            <button class="btn btn-primary trip-status-btn" data-trip="${t.id}" data-status="DELIVERED">Delivered</button>
+            ${t.status === 'ASSIGNED' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="PICKED_UP">Picked Up</button>' : ''}
+            ${t.status === 'PICKED_UP' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="IN_TRANSIT">In Transit</button>' : ''}
+            ${t.status === 'IN_TRANSIT' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="NEAR_DESTINATION">Near Destination</button>' : ''}
+            ${t.status === 'NEAR_DESTINATION' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="DELIVERED">Delivered</button>' : ''}
           </div>` : ''}
-      </div>
-    `).join('');
-  } catch (err) {
-    el.innerHTML = '<p class="muted-empty">Could not load live trips.</p>';
-  }
-}
-
-/* ============================================================
-   PWA: service worker, install prompt, update banner
-   ============================================================ */
-let deferredInstallPrompt = null;
-
-function initPwa() {
-  if (!('serviceWorker' in navigator)) return;
-
-  const installDesktop = $('#installAppBtn');
-  const installMobile = $('#installAppBtnMobile');
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-  if (isStandalone) {
-    if (installDesktop) installDesktop.hidden = true;
-    if (installMobile) installMobile.hidden = true;
-  }
-
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').then((registration) => {
-      // A new service worker took control after an update — reload once, quietly.
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        location.reload();
-      });
-
-      // A new version has finished installing and is waiting to activate.
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            showUpdateBanner(registration);
-          }
         });
       });
     }).catch((err) => console.warn('Service worker registration failed:', err));
