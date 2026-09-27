@@ -5,19 +5,19 @@ const { success } = require('./apiResponse');
 const { signToken } = require('./jwt');
 const { sanitizeUser } = require('./sanitizeUser');
 const { randomInt } = require('crypto');
-const { hashToken, sendOtpSms } = require('./delivery.service');
+const { hashToken, sendOtpEmail } = require('./delivery.service');
 const ApiError = require('./ApiError');
 
 // POST /api/transporters/register  (driver + first vehicle, in one step)
 const registerTransporter = asyncHandler(async (req, res) => {
   const {
-    fullName, mobile, city, password,
+    fullName, mobile, email, city, password,
     cnic, drivingLicense, cnicExpiryDate, licenseExpiryDate,
     vehicleType, vehicleNumber, capacityKg, brand, model, year,
   } = req.body;
 
-  const existingUser = await prisma.user.findUnique({ where: { mobile } });
-  if (existingUser) throw new ApiError(409, 'Mobile number is already registered');
+  const existingUser = await prisma.user.findFirst({ where: { OR: [{ mobile }, { email }] } });
+  if (existingUser) throw new ApiError(409, 'Mobile or email is already registered');
 
   const existingVehicle = await prisma.vehicle.findUnique({ where: { vehicleNumber } });
   if (existingVehicle) throw new ApiError(409, 'A vehicle with this number is already registered');
@@ -33,6 +33,7 @@ const registerTransporter = asyncHandler(async (req, res) => {
     data: {
       fullName,
       mobile,
+      email,
       city,
       passwordHash,
       role: 'DRIVER',
@@ -68,8 +69,8 @@ const registerTransporter = asyncHandler(async (req, res) => {
   await prisma.otpVerification.create({
     data: { userId: user.id, purpose: 'SIGNUP', codeHash: hashToken(otp), expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
   });
-  const sent = await sendOtpSms(user.mobile, otp).catch(() => false);
-  return success(res, 201, sent ? 'Driver account created. OTP sent for mobile verification.' : 'Driver account created. OTP SMS is not configured yet.', {
+  const sent = await sendOtpEmail(user.email, otp).catch(() => false);
+  return success(res, 201, sent ? 'Driver account created. OTP sent to email.' : 'Driver account created. Email OTP is not configured yet.', {
     verificationRequired: true,
     otpDeliveryConfigured: sent,
     user: sanitizeUser(user),
