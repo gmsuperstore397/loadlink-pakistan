@@ -1,5 +1,5 @@
-const { distanceKm } = require('../utils/geo');
-const { baseFare, perKmRate } = require('../config/env');
+const { distanceKm } = require('./geo');
+const { baseFare, perKmRate } = require('./env');
 
 // Vehicle-type fare multipliers relative to the base per-km rate. Configurable rates;
 // this is an estimate only, never presented as a guaranteed final price.
