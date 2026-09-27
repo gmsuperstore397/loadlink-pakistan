@@ -176,8 +176,12 @@ function initNav() {
   document.querySelectorAll('[data-nav]').forEach((el) => {
     el.addEventListener('click', (e) => {
       const target = navTargets[el.dataset.nav];
-      if (target) {
+      if (el.dataset.nav === 'profile') {
         e.preventDefault();
+        showProfile();
+      } else if (target) {
+        e.preventDefault();
+        exitProfileView();
         document.querySelector(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
       $('#navMobile').classList.remove('open');
@@ -444,6 +448,7 @@ function initDashboard() {
     clearSession();
     location.reload();
   });
+  $('#profileBackBtn').addEventListener('click', () => exitProfileView());
   $('#markAllReadBtn').addEventListener('click', async () => {
     if (!state.user) return toast('Pehle login karein.');
     try { await markAllRead(); await loadDashboard(); toast('Notifications read mark ho gayi hain.'); } catch (err) { toast(err.message); }
@@ -487,11 +492,19 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 function showProfile() {
+  if (!state.user) return openModal('loginModal');
   const section = $('#profile');
   if (!section) return;
+  document.body.classList.add('profile-view');
   section.hidden = false;
-  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   loadProfile();
+}
+
+function exitProfileView() {
+  document.body.classList.remove('profile-view');
+  $('#profile').hidden = true;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function loadProfile() {
@@ -523,7 +536,7 @@ function updateAuthUI() {
   $('#signupBtn').textContent = loggedIn ? '👤 My Profile' : 'Sign Up';
   $('#signupBtnMobile').textContent = loggedIn ? '👤 My Profile' : 'Sign Up';
   $('#dashboard').style.display = loggedIn ? '' : 'none';
-  $('#profile').hidden = !loggedIn;
+  $('#profile').hidden = !(loggedIn && document.body.classList.contains('profile-view'));
   $('#adminDashboard').hidden = !(loggedIn && state.user.role === 'ADMIN');
   $('#driverBookingsCard').hidden = !(loggedIn && state.user.role === 'DRIVER');
 
