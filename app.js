@@ -104,6 +104,15 @@ async function registerTransporter(formData) {
   return apiRequest('/transporters/register', { method: 'POST', body: formData, isForm: true });
 }
 
+const verifyOtp = (email, otp) => apiRequest('/auth/verify-otp', {
+  method: 'POST',
+  body: { email, otp },
+});
+const resendOtp = (email) => apiRequest('/auth/resend-otp', {
+  method: 'POST',
+  body: { email },
+});
+
 /* ---------------- feature API ---------------- */
 const createLoad = (payload) => apiRequest('/loads', { method: 'POST', body: payload });
 const getRecommendations = (payload) => apiRequest('/recommendations/vehicle', { method: 'POST', body: payload });
@@ -140,16 +149,22 @@ const subscribePush = (subscription) => apiRequest('/push/subscribe', { method: 
    NAVIGATION
    ============================================================ */
 function initNav() {
+  const navTargets = { home: '#home', findtruck: '#findtruck', postload: '#postload', findload: '#findload', returnloads: '#returnloads', livetrips: '#livetrips', categories: '#categories' };
+  $('[data-nav]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      const target = navTargets[el.dataset.nav];
+      if (target) {
+        e.preventDefault();
+        document.querySelector(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      $('#navMobile').classList.remove('open');
+    });
+  });
+
   $('#hamburgerBtn').addEventListener('click', () => {
     const nav = $('#navMobile');
     const open = nav.classList.toggle('open');
     $('#hamburgerBtn').setAttribute('aria-expanded', String(open));
-  });
-
-  $$('[data-nav]').forEach((el) => {
-    el.addEventListener('click', (e) => {
-      $('#navMobile').classList.remove('open');
-    });
   });
 
   document.addEventListener('keydown', (e) => {
@@ -253,7 +268,7 @@ function initAuthModals() {
   $('#resendOtpBtn').addEventListener('click', async () => {
     try {
       const result = await resendOtp(state.pendingOtpEmail);
-      toast(result.otpDeliveryConfigured ? 'OTP dobara bhej diya gaya.' : 'SMS provider configure nahi hai.');
+      toast(result.otpDeliveryConfigured ? 'OTP dobara bhej diya gaya.' : 'Email provider configure nahi hai.');
     } catch (err) { toast(err.message); }
   });
 
@@ -275,7 +290,7 @@ function initAuthModals() {
       const result = await registerTransporter(fd);
       state.pendingOtpEmail = $('#dEmail').value.trim();
       closeModal('signupModal'); openModal('otpModal');
-      toast(result.otpDeliveryConfigured ? 'OTP SMS bhej diya gaya hai.' : 'OTP generated hai; SMS provider configure karna baqi hai.');
+      toast(result.otpDeliveryConfigured ? 'Email OTP bhej diya gaya hai.' : 'Email provider configure karna baqi hai.');
     } catch (err) { toast(err.message); }
   });
 }
