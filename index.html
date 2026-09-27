@@ -378,7 +378,7 @@
       <div class="field"><label>Name</label><input type="text" id="cFullName" required></div>
       <div class="field-row">
         <div class="field"><label>Mobile</label><input type="text" id="cMobile" required></div>
-        <div class="field"><label>Email</label><input type="email" id="cEmail"></div>
+        <div class="field"><label>Email (OTP yahan aayega)</label><input type="email" id="cEmail" required></div>
       </div>
       <div class="field"><label>Password</label><input type="password" id="cPassword" minlength="6" required></div>
       <div class="field"><label>City</label><input type="text" id="cCity"></div>
@@ -389,6 +389,9 @@
       <div class="field"><label>Name</label><input type="text" id="dFullName" required></div>
       <div class="field-row">
         <div class="field"><label>Mobile</label><input type="text" id="dMobile" required></div>
+        <div class="field"><label>Email (OTP yahan aayega)</label><input type="email" id="dEmail" required></div>
+      </div>
+      <div class="field-row">
         <div class="field"><label>CNIC</label><input type="text" id="dCnic" required></div>
       </div>
       <div class="field-row">
@@ -415,10 +418,10 @@
 <div class="modal" id="otpModal">
   <div class="modal-box">
     <div class="modal-header">
-      <strong>Mobile OTP Verification</strong>
+      <strong>Email OTP Verification</strong>
       <button type="button" class="modal-close" data-close="otpModal">×</button>
     </div>
-    <p class="section-desc small">Aapke mobile number par 6-digit OTP bheja gaya hai. OTP 10 minutes tak valid hai.</p>
+    <p class="section-desc small">Aapke email par 6-digit OTP bheja gaya hai. OTP 10 minutes tak valid hai.</p>
     <form id="otpForm" class="modal-form">
       <div class="field"><label for="otpCode">6-digit OTP</label><input id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\d{6}" required></div>
       <button type="submit" class="btn btn-primary btn-block">Verify OTP</button>
