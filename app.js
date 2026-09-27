@@ -126,6 +126,12 @@ const getUnreadCount = () => apiRequest('/notifications/unread-count');
 const markAllRead = () => apiRequest('/notifications/read-all', { method: 'PATCH' });
 const createPayment = (body) => apiRequest('/payments', { method: 'POST', body });
 const getPayments = () => apiRequest('/payments');
+const getAdminDashboard = () => apiRequest('/admin/dashboard');
+const getAdminPayments = () => apiRequest('/admin/payments/summary');
+const getAdminDocuments = () => apiRequest('/admin/documents/expiring');
+const getPendingDrivers = () => apiRequest('/admin/transporters/pending');
+const verifyDriver = (id) => apiRequest(`/admin/transporters/${id}/verify`, { method: 'PATCH' });
+const rejectDriver = (id, reason) => apiRequest(`/admin/transporters/${id}/reject`, { method: 'PATCH', body: { reason } });
 const subscribePush = (subscription) => apiRequest('/push/subscribe', { method: 'POST', body: subscription });
 
 
@@ -259,6 +265,18 @@ function setSignupTab(role) {
   $('#driverSignupForm').hidden = role !== 'driver';
 }
 
+async function loadAdminDashboard() {
+  if (!state.user || state.user.role !== 'ADMIN') return;
+  try {
+    const [stats, payments, docs, drivers] = await Promise.all([getAdminDashboard(), getAdminPayments(), getAdminDocuments(), getPendingDrivers()]);
+    $('#adminDashboard').hidden = false;
+    $('#adminStats').innerHTML = Object.entries(stats).map(([k,v]) => `<p><b>${k}</b>: ${v}</p>`).join('');
+    $('#adminPayments').innerHTML = `<p>Pending: ${payments.pending}</p><p>Paid: ${payments.paid}</p><p>Total paid: PKR ${Number(payments.totalPaid).toLocaleString()}</p>`;
+    $('#adminDocuments').innerHTML = `<p>Drivers with expiring docs: ${docs.drivers.length}</p><p>Vehicles with expiring docs: ${docs.vehicles.length}</p>`;
+    $('#adminDrivers').innerHTML = drivers.pending.map(d => `<div class="result-card"><b>${d.user.fullName}</b><p>${d.user.mobile} · ${d.verification}</p><button class="btn btn-primary admin-verify-btn" data-driver="${d.id}">Verify</button><button class="btn btn-outline admin-reject-btn" data-driver="${d.id}">Reject</button></div>`).join('') || '<p class="muted-empty">No pending drivers.</p>';
+  } catch (err) { console.warn('Admin dashboard failed', err); }
+}
+
 async function loadDashboard() {
   if (!state.user) return;
   try {
@@ -280,6 +298,15 @@ document.addEventListener('click', async (e) => {
     await updateTripStatus(btn.dataset.trip, btn.dataset.status);
     toast('Trip status update ho gaya.');
     await loadLiveTrips();
+  } catch (err) { toast(err.message); }
+});
+
+document.addEventListener('click', async (e) => {
+  const verify = e.target.closest('.admin-verify-btn');
+  const reject = e.target.closest('.admin-reject-btn');
+  try {
+    if (verify) { await verifyDriver(verify.dataset.driver); toast('Driver verified.'); await loadAdminDashboard(); }
+    if (reject) { const reason = prompt('Rejection reason?') || 'Documents not approved'; await rejectDriver(reject.dataset.driver, reason); toast('Driver rejected.'); await loadAdminDashboard(); }
   } catch (err) { toast(err.message); }
 });
 
@@ -331,8 +358,10 @@ function updateAuthUI() {
   $('#loginBtn').style.display = loggedIn ? 'none' : '';
   $('#signupBtn').textContent = loggedIn ? `👤 ${state.user.fullName.split(' ')[0]}` : 'Sign Up';
   $('#dashboard').style.display = loggedIn ? '' : 'none';
+  $('#adminDashboard').hidden = !(loggedIn && state.user.role === 'ADMIN');
   if (loggedIn) {
     loadDashboard();
+    loadAdminDashboard();
     initPushNotifications();
     $('#signupBtn').onclick = () => {
       if (confirm('Logout?')) { clearSession(); location.reload(); }
