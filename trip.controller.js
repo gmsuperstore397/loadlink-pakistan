@@ -1,8 +1,8 @@
-const prisma = require('../config/prisma');
-const asyncHandler = require('../utils/asyncHandler');
-const { success } = require('../utils/apiResponse');
-const ApiError = require('../utils/ApiError');
-const notify = require('../services/notification.service');
+const prisma = require('./prisma');
+const asyncHandler = require('./asyncHandler');
+const { success } = require('./apiResponse');
+const ApiError = require('./ApiError');
+const notify = require('./notification.service');
 
 // GET /api/trips
 const listTrips = asyncHandler(async (req, res) => {
