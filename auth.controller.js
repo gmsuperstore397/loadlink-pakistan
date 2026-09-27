@@ -12,15 +12,42 @@ const ApiError = require('./ApiError');
 const register = asyncHandler(async (req, res) => {
   const { fullName, mobile, email, password, city } = req.body;
 
-  const existing = await prisma.user.findFirst({
-    where: { OR: [{ mobile }, ...(email ? [{ email }] : [])] },
-  });
-  if (existing) throw new ApiError(409, 'Mobile or email is already registered');
+  const normalizedMobile = String(mobile || '').replace(/\s+/g, '');
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
-    data: { fullName, mobile, email: email || null, passwordHash, city, role: 'CUSTOMER' },
-  });
+  const [mobileUser, emailUser] = await Promise.all([
+    normalizedMobile ? prisma.user.findFirst({ where: { mobile: normalizedMobile } }) : null,
+    normalizedEmail ? prisma.user.findUnique({ where: { email: normalizedEmail } }) : null,
+  ]);
+
+  const existingIds = [mobileUser?.id, emailUser?.id].filter(Boolean);
+  const uniqueExistingIds = [...new Set(existingIds)];
+
+  // A previous signup may have created the account before email delivery failed.
+  // If that account is still unverified, reuse it and issue a fresh OTP instead
+  // of incorrectly blocking the user with "already registered".
+  let user;
+  if (uniqueExistingIds.length === 1 && (!mobileUser?.emailVerified && !emailUser?.emailVerified)) {
+    const passwordHash = await bcrypt.hash(password, 10);
+    user = await prisma.user.update({
+      where: { id: uniqueExistingIds[0] },
+      data: {
+        fullName,
+        mobile: normalizedMobile,
+        email: normalizedEmail,
+        passwordHash,
+        city,
+        status: 'ACTIVE',
+      },
+    });
+  } else if (uniqueExistingIds.length > 0) {
+    throw new ApiError(409, 'Mobile or email is already registered');
+  } else {
+    const passwordHash = await bcrypt.hash(password, 10);
+    user = await prisma.user.create({
+      data: { fullName, mobile: normalizedMobile, email: normalizedEmail, passwordHash, city, role: 'CUSTOMER' },
+    });
+  }
 
   const otp = String(crypto.randomInt(100000, 1000000));
   await prisma.otpVerification.deleteMany({ where: { userId: user.id, purpose: 'SIGNUP', usedAt: null } });
