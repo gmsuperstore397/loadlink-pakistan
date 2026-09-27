@@ -114,6 +114,9 @@ const findVehicles = (query) => apiRequest(`/vehicles/available?${new URLSearchP
 const findLoads = (query) => apiRequest(`/loads?${new URLSearchParams(query)}`);
 const getReturnLoads = (query) => apiRequest(`/return-loads?${new URLSearchParams(query)}`);
 const createBooking = (body) => apiRequest('/bookings', { method: 'POST', body });
+const getMyBookings = () => apiRequest('/bookings/my');
+const acceptBooking = (id, agreedFare) => apiRequest(`/bookings/${id}/accept`, { method: 'PATCH', body: agreedFare ? { agreedFare: Number(agreedFare) } : {} });
+const rejectBooking = (id) => apiRequest(`/bookings/${id}/reject`, { method: 'PATCH' });
 const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
 const getMyBookings = () => apiRequest('/bookings/my');
@@ -282,6 +285,12 @@ async function loadDashboard() {
   if (!state.user) return;
   try {
     const [n, p, u] = await Promise.all([getNotifications(), getPayments(), getUnreadCount()]);
+    if (state.user.role === 'DRIVER') {
+      const b = await getMyBookings();
+      const pending = (b.bookings || []).filter(x => x.status === 'REQUESTED');
+      $('#driverBookingsCard').hidden = false;
+      $('#driverBookings').innerHTML = pending.map(x => '<div class="result-card"><b>' + x.load.pickupAddress + ' → ' + x.load.destinationAddress + '</b><p>' + x.load.description + ' · ' + x.load.weightKg + ' kg</p><button class="btn btn-primary accept-booking-btn" data-booking="' + x.id + '">Accept</button> <button class="btn btn-outline reject-booking-btn" data-booking="' + x.id + '">Reject</button></div>').join('') || '<p class="muted-empty">No pending booking requests.</p>';
+    }
     $('#unreadBadge').textContent = u.count ? `(${u.count})` : '';
     $('#notificationList').innerHTML = (n.notifications || []).map(x => `
       <div class="result-card"><b>${x.title}</b><p>${x.message}</p><small>${new Date(x.createdAt).toLocaleString()}</small></div>
@@ -308,6 +317,24 @@ document.addEventListener('click', async (e) => {
   try {
     if (verify) { await verifyDriver(verify.dataset.driver); toast('Driver verified.'); await loadAdminDashboard(); }
     if (reject) { const reason = prompt('Rejection reason?') || 'Documents not approved'; await rejectDriver(reject.dataset.driver, reason); toast('Driver rejected.'); await loadAdminDashboard(); }
+  } catch (err) { toast(err.message); }
+});
+
+document.addEventListener('click', async (e) => {
+  const accept = e.target.closest('.accept-booking-btn');
+  const reject = e.target.closest('.reject-booking-btn');
+  try {
+    if (accept) {
+      const fare = prompt('Agreed fare (PKR), optional:');
+      await acceptBooking(accept.dataset.booking, fare);
+      toast('Booking accept ho gayi aur trip create ho gaya.');
+      await loadDashboard(); await loadLiveTrips();
+    }
+    if (reject) {
+      await rejectBooking(reject.dataset.booking);
+      toast('Booking reject kar di gayi.');
+      await loadDashboard();
+    }
   } catch (err) { toast(err.message); }
 });
 
@@ -360,6 +387,7 @@ function updateAuthUI() {
   $('#signupBtn').textContent = loggedIn ? `👤 ${state.user.fullName.split(' ')[0]}` : 'Sign Up';
   $('#dashboard').style.display = loggedIn ? '' : 'none';
   $('#adminDashboard').hidden = !(loggedIn && state.user.role === 'ADMIN');
+  $('#driverBookingsCard').hidden = !(loggedIn && state.user.role === 'DRIVER');
   if (loggedIn) {
     loadDashboard();
     loadAdminDashboard();
