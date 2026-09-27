@@ -797,6 +797,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initSearchSections();
   initDashboard();
   updateAuthUI();
+  const resetToken = new URLSearchParams(location.search).get('reset');
+  if (resetToken) { $('#resetToken').value = resetToken; openModal('resetPasswordModal'); }
   initPwa();
   initConnectivityWatch();
 
