@@ -3,7 +3,7 @@ const { body } = require('express-validator');
 const registerCustomerRules = [
   body('fullName').trim().notEmpty().withMessage('Full name is required'),
   body('mobile').trim().isLength({ min: 10 }).withMessage('Valid mobile number is required'),
-  body('email').optional({ values: 'falsy' }).isEmail().withMessage('A valid email is required'),
+  body('email').trim().isEmail().withMessage('A valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('city').optional().trim(),
 ];
