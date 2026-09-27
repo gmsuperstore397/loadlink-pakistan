@@ -4,6 +4,8 @@ const asyncHandler = require('./asyncHandler');
 const { success } = require('./apiResponse');
 const { signToken } = require('./jwt');
 const { sanitizeUser } = require('./sanitizeUser');
+const { randomInt } = require('crypto');
+const { hashToken, sendOtpSms } = require('./delivery.service');
 const ApiError = require('./ApiError');
 
 // POST /api/transporters/register  (driver + first vehicle, in one step)
@@ -62,10 +64,16 @@ const registerTransporter = asyncHandler(async (req, res) => {
     include: { driverProfile: { include: { vehicles: true } } },
   });
 
-  const token = signToken({ id: user.id, role: user.role });
-  return success(res, 201, 'Driver account created. Pending admin verification.', {
-    token,
+  const otp = String(randomInt(100000, 1000000));
+  await prisma.otpVerification.create({
+    data: { userId: user.id, purpose: 'SIGNUP', codeHash: hashToken(otp), expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+  });
+  const sent = await sendOtpSms(user.mobile, otp).catch(() => false);
+  return success(res, 201, sent ? 'Driver account created. OTP sent for mobile verification.' : 'Driver account created. OTP SMS is not configured yet.', {
+    verificationRequired: true,
+    otpDeliveryConfigured: sent,
     user: sanitizeUser(user),
+    ...(process.env.NODE_ENV !== 'production' && !sent ? { developmentOtp: otp } : {}),
   });
 });
 
