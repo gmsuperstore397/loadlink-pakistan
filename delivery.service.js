@@ -3,6 +3,29 @@ const crypto = require('crypto');
 async function sendEmail(to, subject, text) {
   if (!to) return false;
 
+  if (process.env.RESEND_API_KEY) {
+    const from = process.env.EMAIL_FROM || 'LoadLink Pakistan <onboarding@resend.dev>';
+    try {
+      const resp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ from, to: [to], subject, text }),
+      });
+      if (!resp.ok) {
+        const detail = await resp.text().catch(() => '');
+        console.error('Resend email delivery failed:', resp.status, detail);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Resend email delivery failed:', error.message);
+      return false;
+    }
+  }
+
   if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
     const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
@@ -27,19 +50,7 @@ async function sendEmail(to, subject, text) {
     }
   }
 
-  if (!process.env.RESEND_API_KEY) return false;
-  const from = process.env.EMAIL_FROM || 'LoadLink Pakistan <onboarding@resend.dev>';
-  try {
-    const resp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [to], subject, text }),
-    });
-    return resp.ok;
-  } catch (error) {
-    console.error('Resend email delivery failed:', error.message);
-    return false;
-  }
+  return false;
 }
 
 function normalizePhone(to) {
