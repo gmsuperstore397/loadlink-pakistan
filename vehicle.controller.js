@@ -15,6 +15,16 @@ const listVehicles = asyncHandler(async (req, res) => {
   return success(res, 200, 'Vehicles fetched', { vehicles });
 });
 
+// GET /api/vehicles/mine  (owning driver only)
+const listMyVehicles = asyncHandler(async (req, res) => {
+  if (!req.user.driverProfile) throw new ApiError(403, 'Driver profile required');
+  const vehicles = await prisma.vehicle.findMany({
+    where: { driverId: req.user.driverProfile.id },
+    orderBy: { createdAt: 'desc' },
+  });
+  return success(res, 200, 'My vehicles fetched', { vehicles });
+});
+
 // GET /api/vehicles/available
 const listAvailableVehicles = asyncHandler(async (req, res) => {
   const { vehicleType, minCapacity, lat, lng, verifiedOnly } = req.query;
@@ -104,4 +114,4 @@ const updateVehicle = asyncHandler(async (req, res) => {
   return success(res, 200, 'Vehicle updated', { vehicle: updated });
 });
 
-module.exports = { listVehicles, listAvailableVehicles, getVehicle, createVehicle, updateVehicle };
+module.exports = { listVehicles, listMyVehicles, listAvailableVehicles, getVehicle, createVehicle, updateVehicle };
