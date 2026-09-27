@@ -16,62 +16,143 @@ const registerTransporter = asyncHandler(async (req, res) => {
     vehicleType, vehicleNumber, capacityKg, brand, model, year,
   } = req.body;
 
-  const existingUser = await prisma.user.findFirst({ where: { OR: [{ mobile }, { email }] } });
-  if (existingUser) throw new ApiError(409, 'Mobile or email is already registered');
+  const normalizedMobile = String(mobile || '').replace(/\s+/g, '');
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
 
-  const existingVehicle = await prisma.vehicle.findUnique({ where: { vehicleNumber } });
-  if (existingVehicle) throw new ApiError(409, 'A vehicle with this number is already registered');
-
-  // req.files (multer.fields) may carry cnicDoc / licenseDoc / vehicleDoc
-  const cnicDocUrl = req.files?.cnicDoc?.[0] ? `/uploads/${req.files.cnicDoc[0].filename}` : null;
-  const licenseDocUrl = req.files?.licenseDoc?.[0] ? `/uploads/${req.files.licenseDoc[0].filename}` : null;
-  const vehicleDocUrl = req.files?.vehicleDoc?.[0] ? `/uploads/${req.files.vehicleDoc[0].filename}` : null;
-
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  const user = await prisma.user.create({
-    data: {
-      fullName,
-      mobile,
-      email,
-      city,
-      passwordHash,
-      role: 'DRIVER',
-      driverProfile: {
-        create: {
-          cnic,
-          cnicDocUrl,
-          drivingLicense,
-          cnicExpiryDate: cnicExpiryDate ? new Date(cnicExpiryDate) : null,
-          licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : null,
-          licenseDocUrl,
-          verification: 'PENDING_VERIFICATION',
-          vehicles: {
-            create: {
-              vehicleType,
-              vehicleNumber,
-              capacityKg: Number(capacityKg),
-              brand: brand || null,
-              model: model || null,
-              year: year ? Number(year) : null,
-              documentUrl: vehicleDocUrl,
-              status: 'OFFLINE',
-              isVerified: false,
-            },
-          },
-        },
-      },
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { mobile: normalizedMobile },
+        ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+      ],
     },
     include: { driverProfile: { include: { vehicles: true } } },
   });
 
+  // If the first signup created the driver before email delivery failed,
+  // allow the same unverified driver to continue instead of saying "already registered".
+  const reusableDriver = existingUser &&
+    existingUser.role === 'DRIVER' &&
+    !existingUser.emailVerified;
+
+  const existingVehicle = await prisma.vehicle.findUnique({ where: { vehicleNumber } });
+  if (existingVehicle && (!reusableDriver || existingVehicle.driverId !== existingUser.driverProfile?.id)) {
+    throw new ApiError(409, 'A vehicle with this number is already registered');
+  }
+
+  const cnicDocUrl = req.files?.cnicDoc?.[0] ? `/uploads/${req.files.cnicDoc[0].filename}` : null;
+  const licenseDocUrl = req.files?.licenseDoc?.[0] ? `/uploads/${req.files.licenseDoc[0].filename}` : null;
+  const vehicleDocUrl = req.files?.vehicleDoc?.[0] ? `/uploads/${req.files.vehicleDoc[0].filename}` : null;
+
+  let user;
+
+  if (reusableDriver && existingUser.driverProfile) {
+    const passwordHash = await bcrypt.hash(password, 10);
+    user = await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        fullName,
+        mobile: normalizedMobile,
+        email: normalizedEmail,
+        city,
+        passwordHash,
+        status: 'ACTIVE',
+        driverProfile: {
+          update: {
+            cnic,
+            drivingLicense,
+            cnicDocUrl: cnicDocUrl || undefined,
+            licenseDocUrl: licenseDocUrl || undefined,
+            cnicExpiryDate: cnicExpiryDate ? new Date(cnicExpiryDate) : null,
+            licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : null,
+            vehicles: existingVehicle
+              ? { update: { where: { id: existingVehicle.id }, data: {
+                  vehicleType,
+                  vehicleNumber,
+                  capacityKg: Number(capacityKg),
+                  brand: brand || null,
+                  model: model || null,
+                  year: year ? Number(year) : null,
+                  documentUrl: vehicleDocUrl || undefined,
+                  status: 'OFFLINE',
+                  isVerified: false,
+                } } }
+              : { create: {
+                  vehicleType,
+                  vehicleNumber,
+                  capacityKg: Number(capacityKg),
+                  brand: brand || null,
+                  model: model || null,
+                  year: year ? Number(year) : null,
+                  documentUrl: vehicleDocUrl,
+                  status: 'OFFLINE',
+                  isVerified: false,
+                } },
+          },
+        },
+      },
+      include: { driverProfile: { include: { vehicles: true } } },
+    });
+  } else if (existingUser) {
+    throw new ApiError(409, 'Mobile or email is already registered');
+  } else {
+    const passwordHash = await bcrypt.hash(password, 10);
+    user = await prisma.user.create({
+      data: {
+        fullName,
+        mobile: normalizedMobile,
+        email: normalizedEmail,
+        city,
+        passwordHash,
+        role: 'DRIVER',
+        driverProfile: {
+          create: {
+            cnic,
+            cnicDocUrl,
+            drivingLicense,
+            cnicExpiryDate: cnicExpiryDate ? new Date(cnicExpiryDate) : null,
+            licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : null,
+            licenseDocUrl,
+            verification: 'PENDING_VERIFICATION',
+            vehicles: {
+              create: {
+                vehicleType,
+                vehicleNumber,
+                capacityKg: Number(capacityKg),
+                brand: brand || null,
+                model: model || null,
+                year: year ? Number(year) : null,
+                documentUrl: vehicleDocUrl,
+                status: 'OFFLINE',
+                isVerified: false,
+              },
+            },
+          },
+        },
+      },
+      include: { driverProfile: { include: { vehicles: true } } },
+    });
+  }
+
   const otp = String(randomInt(100000, 1000000));
-  await prisma.otpVerification.create({
-    data: { userId: user.id, purpose: 'SIGNUP', codeHash: hashToken(otp), expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+  await prisma.otpVerification.deleteMany({
+    where: { userId: user.id, purpose: 'SIGNUP', usedAt: null },
   });
-  const sent = await sendOtpEmail(user.email, otp).catch(() => false);
+  await prisma.otpVerification.create({
+    data: {
+      userId: user.id,
+      purpose: 'SIGNUP',
+      codeHash: hashToken(otp),
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    },
+  });
+
+  const sent = user.email ? await sendOtpEmail(user.email, otp).catch(() => false) : false;
   const devOtpMode = String(process.env.OTP_DEV_MODE || '').toLowerCase() === 'true';
-  return success(res, 201, sent ? 'Driver account created. OTP sent to email.' : 'Driver account created. Email OTP is not configured yet.', {
+
+  return success(res, 201, sent
+    ? 'Driver account created. OTP sent to email.'
+    : 'Driver account created. Email OTP is not configured yet.', {
     verificationRequired: true,
     otpDeliveryConfigured: sent,
     user: sanitizeUser(user),
