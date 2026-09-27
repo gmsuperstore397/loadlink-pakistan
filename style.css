@@ -416,3 +416,10 @@ button{font-family:inherit;cursor:pointer}
   .profile-card{align-items:flex-start}
   .profile-avatar{width:58px;height:58px;flex-basis:58px;font-size:26px}
 }
+
+
+/* ---------- Dedicated profile view ---------- */
+body.profile-view > section:not(#profile),
+body.profile-view > footer,
+body.profile-view > .update-banner{display:none !important}
+body.profile-view #profile{display:block !important;min-height:calc(100vh - 70px);background:var(--light);padding-top:20px}
