@@ -35,6 +35,15 @@ const registerTransporter = asyncHandler(async (req, res) => {
     existingUser.role === 'DRIVER' &&
     !existingUser.emailVerified;
 
+  if (existingUser) {
+    console.log('DRIVER_SIGNUP_EXISTING_ACCOUNT', JSON.stringify({
+      role: existingUser.role,
+      emailVerified: !!existingUser.emailVerified,
+      hasDriverProfile: !!existingUser.driverProfile,
+      hasVehicle: !!existingUser.driverProfile?.vehicles?.length,
+    }));
+  }
+
   const existingVehicle = await prisma.vehicle.findUnique({ where: { vehicleNumber } });
   if (existingVehicle && (!reusableDriver || existingVehicle.driverId !== existingUser.driverProfile?.id)) {
     throw new ApiError(409, 'A vehicle with this number is already registered');
@@ -94,6 +103,12 @@ const registerTransporter = asyncHandler(async (req, res) => {
       include: { driverProfile: { include: { vehicles: true } } },
     });
   } else if (existingUser) {
+    if (existingUser.role === 'DRIVER' && existingUser.emailVerified) {
+      throw new ApiError(409, 'Driver account already exists. Please login instead of signing up again.');
+    }
+    if (existingUser.role === 'CUSTOMER') {
+      throw new ApiError(409, 'This mobile or email is already registered as a customer. Please use a different mobile/email for a driver account.');
+    }
     throw new ApiError(409, 'Mobile or email is already registered');
   } else {
     const passwordHash = await bcrypt.hash(password, 10);
