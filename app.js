@@ -694,6 +694,7 @@ function renderCategories() {
   ['#ftVehicleType', '#flVehicleType', '#rlVehicleType'].forEach((sel) => {
     $(sel).insertAdjacentHTML('beforeend', opts);
   });
+  if ($('#vVehicleType')) $('#vVehicleType').innerHTML = '<option value="">Select vehicle type</option>' + opts;
 }
 
 /* ============================================================
