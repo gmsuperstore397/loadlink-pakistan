@@ -15,6 +15,11 @@ services:
         fromDatabase:
           name: loadlink-pakistan-db
           property: connectionString
+      - key: PUBLIC_APP_URL
+        fromService:
+          name: loadlink-pakistan
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: ADMIN_MOBILE
         sync: false
       - key: ADMIN_EMAIL
