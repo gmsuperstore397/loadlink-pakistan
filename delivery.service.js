@@ -12,7 +12,7 @@ async function sendEmail(to, subject, text) {
 }
 
 function normalizePhone(to) {
-  const value = String(to || '').replace(/\\s+/g, '');
+  const value = String(to || '').replace(/\s+/g, '');
   if (value.startsWith('03')) return '+92' + value.slice(1);
   return value;
 }
@@ -33,7 +33,14 @@ async function sendSms(to, message) {
 async function sendWhatsApp(to, message) {
   to = normalizePhone(to);
   if (!to || !process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_WHATSAPP_FROM) return false;
-  return sendSms(to, message.replace(/^/, 'whatsapp:'));
+  const body = new URLSearchParams({ To: `whatsapp:${to}`, From: process.env.TWILIO_WHATSAPP_FROM, Body: message });
+  const auth = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64');
+  const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, {
+    method: 'POST',
+    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  return resp.ok;
 }
 
 function randomToken() {
