@@ -1,0 +1,626 @@
+'use strict';
+
+/* ============================================================
+   LOADLINK PAKISTAN — Frontend application logic
+   Talks to the backend REST API. No password is ever stored
+   in localStorage — only the JWT token.
+   ============================================================ */
+
+const API_BASE_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:5000/api'
+  : 'https://your-domain.com/api';
+
+const VEHICLE_TYPES = [
+  'Loader Rickshaw', 'Suzuki Loader', 'Mazda', 'Shazore', 'Mini Truck',
+  'Pickup', 'Mini Van', '10 Wheeler', '12 Wheeler', '14 Wheeler',
+  '16 Wheeler', '18 Wheeler', '22 Wheeler', 'Trailer', 'Container',
+];
+
+const VEHICLE_CAPACITY = {
+  'Loader Rickshaw': '500 KG', 'Suzuki Loader': '1 Ton', 'Mazda': '2 Ton',
+  'Shazore': '3 Ton', 'Mini Truck': '5 Ton', 'Pickup': '1 Ton', 'Mini Van': '1.5 Ton',
+  '10 Wheeler': '10 Ton', '12 Wheeler': '12 Ton', '14 Wheeler': '14 Ton',
+  '16 Wheeler': '16 Ton', '18 Wheeler': '18 Ton', '22 Wheeler': '22 Ton',
+  'Trailer': '40 Ton', 'Container': '40 Ton',
+};
+
+const state = {
+  token: localStorage.getItem('ll_token') || null,
+  user: JSON.parse(localStorage.getItem('ll_user') || 'null'),
+  map: null,
+  mapMarker: null,
+  mapTarget: null, // 'pickup' | 'destination'
+  pickupCoords: null,
+  destinationCoords: null,
+};
+
+/* ---------------- generic helpers ---------------- */
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+function toast(message) {
+  const el = $('#toast');
+  el.textContent = message;
+  el.style.display = 'block';
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+
+async function apiRequest(path, { method = 'GET', body, isForm = false } = {}) {
+  const headers = {};
+  if (!isForm) headers['Content-Type'] = 'application/json';
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+
+  let resp;
+  try {
+    resp = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
+    });
+  } catch (e) {
+    toast('Server se connection nahi ho saka. Thori dair baad dobara try karein.');
+    throw e;
+  }
+
+  let data;
+  try { data = await resp.json(); } catch (e) { data = {}; }
+
+  if (!resp.ok) {
+    const message = data.message || 'Something went wrong';
+    throw new Error(message);
+  }
+  return data.data || {};
+}
+
+/* ---------------- auth API ---------------- */
+function saveSession(token, user) {
+  state.token = token;
+  state.user = user;
+  localStorage.setItem('ll_token', token);
+  localStorage.setItem('ll_user', JSON.stringify(user));
+}
+function clearSession() {
+  state.token = null;
+  state.user = null;
+  localStorage.removeItem('ll_token');
+  localStorage.removeItem('ll_user');
+}
+
+async function loginUser(mobileOrEmail, password) {
+  const isEmail = mobileOrEmail.includes('@');
+  const body = { password, ...(isEmail ? { email: mobileOrEmail } : { mobile: mobileOrEmail }) };
+  const data = await apiRequest('/auth/login', { method: 'POST', body });
+  saveSession(data.token, data.user);
+  return data.user;
+}
+
+async function registerUser(payload) {
+  const data = await apiRequest('/auth/register', { method: 'POST', body: payload });
+  saveSession(data.token, data.user);
+  return data.user;
+}
+
+async function registerTransporter(formData) {
+  const data = await apiRequest('/transporters/register', { method: 'POST', body: formData, isForm: true });
+  saveSession(data.token, data.user);
+  return data.user;
+}
+
+/* ---------------- feature API ---------------- */
+const createLoad = (payload) => apiRequest('/loads', { method: 'POST', body: payload });
+const getRecommendations = (payload) => apiRequest('/recommendations/vehicle', { method: 'POST', body: payload });
+const findVehicles = (query) => apiRequest(`/vehicles/available?${new URLSearchParams(query)}`);
+const findLoads = (query) => apiRequest(`/loads?${new URLSearchParams(query)}`);
+const getReturnLoads = (query) => apiRequest(`/return-loads?${new URLSearchParams(query)}`);
+const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
+const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
+const getMyBookings = () => apiRequest('/bookings/my');
+const getTrips = () => apiRequest('/trips');
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+function initNav() {
+  $('#hamburgerBtn').addEventListener('click', () => {
+    const nav = $('#navMobile');
+    const open = nav.classList.toggle('open');
+    $('#hamburgerBtn').setAttribute('aria-expanded', String(open));
+  });
+
+  $$('[data-nav]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      $('#navMobile').classList.remove('open');
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModal('loginModal');
+      closeModal('signupModal');
+      closeMapModal();
+    }
+  });
+}
+
+/* ============================================================
+   MODALS (login / signup)
+   ============================================================ */
+function openModal(id) { $(`#${id}`).classList.add('open'); }
+function closeModal(id) { $(`#${id}`).classList.remove('open'); }
+
+function initAuthModals() {
+  $('#loginBtn').addEventListener('click', () => openModal('loginModal'));
+  $('#loginBtnMobile').addEventListener('click', () => openModal('loginModal'));
+  $('#signupBtn').addEventListener('click', () => openModal('signupModal'));
+  $('#signupBtnMobile').addEventListener('click', () => openModal('signupModal'));
+  $('#heroDriverBtn').addEventListener('click', () => {
+    openModal('signupModal');
+    setSignupTab('driver');
+  });
+
+  $$('.modal-close').forEach((btn) => btn.addEventListener('click', () => closeModal(btn.dataset.close)));
+  $$('.modal').forEach((modal) => modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.remove('open');
+  }));
+
+  $('#forgotPasswordBtn').addEventListener('click', () => {
+    toast('Password reset ke liye apni registered mobile/email par support se rabta karein.');
+  });
+
+  // login form
+  $('#loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const user = await loginUser($('#loginIdentifier').value.trim(), $('#loginPassword').value);
+      toast(`Welcome back, ${user.fullName}!`);
+      closeModal('loginModal');
+      updateAuthUI();
+    } catch (err) { toast(err.message); }
+  });
+
+  // signup tabs
+  $$('.signup-tab').forEach((tab) => tab.addEventListener('click', () => setSignupTab(tab.dataset.role)));
+
+  // customer signup
+  $('#customerSignupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const user = await registerUser({
+        fullName: $('#cFullName').value.trim(),
+        mobile: $('#cMobile').value.trim(),
+        email: $('#cEmail').value.trim() || undefined,
+        password: $('#cPassword').value,
+        city: $('#cCity').value.trim() || undefined,
+      });
+      toast(`Account created. Welcome, ${user.fullName}!`);
+      closeModal('signupModal');
+      updateAuthUI();
+    } catch (err) { toast(err.message); }
+  });
+
+  // driver signup
+  $('#driverSignupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append('fullName', $('#dFullName').value.trim());
+    fd.append('mobile', $('#dMobile').value.trim());
+    fd.append('cnic', $('#dCnic').value.trim());
+    fd.append('city', $('#dCity').value.trim());
+    fd.append('password', $('#dPassword').value);
+    fd.append('vehicleType', $('#dVehicleType').value);
+    fd.append('vehicleNumber', $('#dVehicleNumber').value.trim());
+    fd.append('capacityKg', $('#dCapacity').value);
+    fd.append('drivingLicense', $('#dLicense').value.trim());
+    try {
+      const user = await registerTransporter(fd);
+      toast('Driver account created. Verification pending.');
+      closeModal('signupModal');
+      updateAuthUI();
+    } catch (err) { toast(err.message); }
+  });
+}
+
+function setSignupTab(role) {
+  $$('.signup-tab').forEach((t) => t.classList.toggle('active', t.dataset.role === role));
+  $('#customerSignupForm').hidden = role !== 'customer';
+  $('#driverSignupForm').hidden = role !== 'driver';
+}
+
+function updateAuthUI() {
+  const loggedIn = !!state.user;
+  $('#loginBtn').style.display = loggedIn ? 'none' : '';
+  $('#signupBtn').textContent = loggedIn ? `👤 ${state.user.fullName.split(' ')[0]}` : 'Sign Up';
+  if (loggedIn) {
+    $('#signupBtn').onclick = () => {
+      if (confirm('Logout?')) { clearSession(); location.reload(); }
+    };
+  }
+}
+
+/* ============================================================
+   VEHICLE CATEGORIES
+   ============================================================ */
+function renderCategories() {
+  const grid = $('#categoryGrid');
+  grid.innerHTML = VEHICLE_TYPES.map((v) => `
+    <button type="button" class="category-chip" data-vehicle="${v}">
+      ${v}<small>${VEHICLE_CAPACITY[v] || ''}</small>
+    </button>
+  `).join('');
+
+  grid.addEventListener('click', (e) => {
+    const chip = e.target.closest('.category-chip');
+    if (!chip) return;
+    $('#preferredVehicle').value = chip.dataset.vehicle;
+    $('#postload').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // Populate vehicle-type <select> filters across the page
+  const opts = VEHICLE_TYPES.map((v) => `<option>${v}</option>`).join('');
+  ['#ftVehicleType', '#flVehicleType', '#rlVehicleType'].forEach((sel) => {
+    $(sel).insertAdjacentHTML('beforeend', opts);
+  });
+  $('#dVehicleType').innerHTML = opts;
+}
+
+/* ============================================================
+   POST LOAD FORM + VALIDATION + RECOMMENDATION
+   ============================================================ */
+function initPostLoadForm() {
+  $('#heroPostLoadBtn').addEventListener('click', () => $('#postload').scrollIntoView({ behavior: 'smooth' }));
+
+  $('#loadDescription').addEventListener('input', (e) => {
+    $('#descCount').textContent = e.target.value.length;
+  });
+
+  $('#loadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const pickup = $('#pickup').value.trim();
+    const destination = $('#destination').value.trim();
+    const description = $('#loadDescription').value.trim();
+    const weightRaw = $('#weight').value;
+    const unit = $('#weightUnit').value;
+    const preferredVehicle = $('#preferredVehicle').value;
+
+    if (!pickup) return toast('Pickup location enter karein.');
+    if (!destination) return toast('Destination enter karein.');
+    if (!description) return toast('Saman ki detail enter karein.');
+    if (!weightRaw || Number(weightRaw) <= 0) return toast('Approx. weight enter karein.');
+
+    const weightKg = unit === 'ton' ? Number(weightRaw) * 1000 : Number(weightRaw);
+
+    if (!state.user) {
+      toast('Load post karne ke liye pehle login/signup karein.');
+      openModal('loginModal');
+      return;
+    }
+
+    try {
+      await createLoad({
+        pickupAddress: pickup,
+        pickupLatitude: state.pickupCoords?.lat,
+        pickupLongitude: state.pickupCoords?.lng,
+        destinationAddress: destination,
+        destinationLatitude: state.destinationCoords?.lat,
+        destinationLongitude: state.destinationCoords?.lng,
+        description,
+        weightKg,
+        preferredVehicle: preferredVehicle || undefined,
+      });
+      toast('Load posted successfully!');
+
+      const rec = await getRecommendations({
+        weightKg,
+        preferredVehicle: preferredVehicle || undefined,
+        pickupLatitude: state.pickupCoords?.lat,
+        pickupLongitude: state.pickupCoords?.lng,
+      });
+      renderRecommendation(rec, { pickup, destination, weightKg });
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+}
+
+function renderRecommendation(rec, { pickup, destination, weightKg }) {
+  const body = $('#recommendationBody');
+  const distance = (state.pickupCoords && state.destinationCoords)
+    ? haversineKm(state.pickupCoords, state.destinationCoords).toFixed(1) + ' km'
+    : 'N/A (select locations on map for exact distance)';
+
+  let fareLine = '';
+  if (state.pickupCoords && state.destinationCoords) {
+    estimateFare({
+      pickupLat: state.pickupCoords.lat, pickupLng: state.pickupCoords.lng,
+      destinationLat: state.destinationCoords.lat, destinationLng: state.destinationCoords.lng,
+      vehicleType: rec.recommendedVehicleTypes?.[0] || rec.preferredVehicle, weightKg,
+    }).then((f) => {
+      $('#fareEstimateLine').textContent = f.estimatedFare
+        ? `Rs. ${f.estimatedFare.toLocaleString()} (estimate only, not final)`
+        : 'Not available';
+    }).catch(() => {});
+    fareLine = '<span id="fareEstimateLine">Calculating…</span>';
+  } else {
+    fareLine = 'N/A';
+  }
+
+  const vehiclesHtml = (rec.nearbyVehicles || []).slice(0, 5).map((v) => `
+    <div class="rec-vehicle">
+      <b>${v.vehicleType}</b> · ${v.capacityKg} kg capacity
+      ${v.distanceKm != null ? ` · ${v.distanceKm} km away` : ''}
+      ${v.isVerified ? ' · ✅ Verified' : ''}
+    </div>
+  `).join('') || '<p class="muted-empty">No matching vehicles available right now.</p>';
+
+  body.innerHTML = `
+    <div class="rec-line"><span>Distance</span><span>${distance}</span></div>
+    <div class="rec-line"><span>Load Type</span><span>${(rec.recommendedVehicleTypes || []).join(', ') || 'N/A'}</span></div>
+    <div class="rec-line"><span>Estimated Fare</span>${fareLine}</div>
+    ${vehiclesHtml}
+  `;
+}
+
+function haversineKm(a, b) {
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lng - a.lng);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+/* ============================================================
+   MAP MODAL (Leaflet + OpenStreetMap)
+   ============================================================ */
+function initMapModal() {
+  $$('.map-btn').forEach((btn) => btn.addEventListener('click', () => openMapModal(btn.dataset.mapTarget)));
+  $('#mapModalClose').addEventListener('click', closeMapModal);
+  $('#mapModal').addEventListener('click', (e) => { if (e.target.id === 'mapModal') closeMapModal(); });
+  $('#confirmLocation').addEventListener('click', confirmMapLocation);
+}
+
+function openMapModal(target) {
+  state.mapTarget = target;
+  $('#mapModalTitle').textContent = target === 'pickup' ? 'Select Pickup Location' : 'Select Destination Location';
+  $('#selectedLocation').value = '';
+  $('#mapModal').classList.add('open');
+
+  if (!state.map) {
+    state.map = L.map('locationMap').setView([24.8607, 67.0011], 6); // Karachi default
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+    }).addTo(state.map);
+    state.map.on('click', onMapClick);
+  }
+  setTimeout(() => state.map.invalidateSize(), 60);
+}
+
+function closeMapModal() { $('#mapModal').classList.remove('open'); }
+
+async function onMapClick(e) {
+  const { lat, lng } = e.latlng;
+  if (state.mapMarker) state.map.removeLayer(state.mapMarker);
+  state.mapMarker = L.marker([lat, lng]).addTo(state.map);
+
+  $('#selectedLocation').value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  state._pendingCoords = { lat, lng };
+
+  try {
+    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14`);
+    const data = await resp.json();
+    if (data && data.display_name) $('#selectedLocation').value = data.display_name;
+  } catch (err) {
+    // Reverse geocoding unavailable — coordinates already shown.
+  }
+}
+
+function confirmMapLocation() {
+  const value = $('#selectedLocation').value;
+  if (!value || !state._pendingCoords) { toast('Pehle map par ek location select karein.'); return; }
+
+  if (state.mapTarget === 'pickup') {
+    $('#pickup').value = value;
+    state.pickupCoords = state._pendingCoords;
+  } else {
+    $('#destination').value = value;
+    state.destinationCoords = state._pendingCoords;
+  }
+  closeMapModal();
+}
+
+/* ============================================================
+   FIND TRUCK / FIND LOAD / RETURN LOADS
+   ============================================================ */
+function initSearchSections() {
+  $('#ftSearchBtn').addEventListener('click', async () => {
+    try {
+      const results = await findVehicles({
+        ...($('#ftVehicleType').value && { vehicleType: $('#ftVehicleType').value }),
+        ...($('#ftCapacity').value && { minCapacity: $('#ftCapacity').value }),
+        ...($('#ftVerifiedOnly').checked && { verifiedOnly: 'true' }),
+      });
+      renderVehicleResults(results.vehicles || []);
+    } catch (err) { toast(err.message); }
+  });
+
+  $('#flSearchBtn').addEventListener('click', async () => {
+    try {
+      const results = await findLoads({
+        ...($('#flPickup').value && { pickup: $('#flPickup').value }),
+        ...($('#flDestination').value && { destination: $('#flDestination').value }),
+        ...($('#flVehicleType').value && { vehicleType: $('#flVehicleType').value }),
+        ...($('#flWeight').value && { maxWeight: $('#flWeight').value }),
+      });
+      renderLoadResults(results.loads || []);
+    } catch (err) { toast(err.message); }
+  });
+
+  $('#rlSearchBtn').addEventListener('click', async () => {
+    try {
+      const results = await getReturnLoads({
+        ...($('#rlReturnDestination').value && { returnDestination: $('#rlReturnDestination').value }),
+        ...($('#rlVehicleType').value && { vehicleType: $('#rlVehicleType').value }),
+        ...($('#rlRadius').value && { radiusKm: $('#rlRadius').value }),
+      });
+      renderLoadResults(results.loads || [], '#rlResults');
+    } catch (err) { toast(err.message); }
+  });
+}
+
+function renderVehicleResults(vehicles) {
+  const el = $('#ftResults');
+  if (!vehicles.length) { el.innerHTML = '<p class="muted-empty">No vehicles found.</p>'; return; }
+  el.innerHTML = vehicles.map((v) => `
+    <div class="result-card">
+      <div class="rc-top">
+        <h4>${v.vehicleType}</h4>
+        ${v.isVerified ? '<span class="badge-pill">✅ Verified</span>' : ''}
+      </div>
+      <p>Capacity: ${v.capacityKg} kg</p>
+      ${v.distanceKm != null ? `<p>${v.distanceKm} km away</p>` : ''}
+      <p>Status: ${v.status}</p>
+      <p>Driver: ${v.driver?.user?.fullName || '—'}</p>
+    </div>
+  `).join('');
+}
+
+function renderLoadResults(loads, targetSel = '#flResults') {
+  const el = $(targetSel);
+  if (!loads.length) { el.innerHTML = '<p class="muted-empty">No loads found.</p>'; return; }
+  el.innerHTML = loads.map((l) => `
+    <div class="result-card">
+      <div class="rc-top">
+        <h4>${l.pickupAddress} → ${l.destinationAddress}</h4>
+        <span class="badge-pill">${l.status}</span>
+      </div>
+      <p>${l.description}</p>
+      <p>Weight: ${l.weightKg} kg · Vehicle: ${l.preferredVehicle || 'Any suitable'}</p>
+    </div>
+  `).join('');
+}
+
+/* ============================================================
+   LIVE TRIPS
+   ============================================================ */
+async function loadLiveTrips() {
+  const el = $('#ltResults');
+  if (!state.user) { el.innerHTML = '<p class="muted-empty">Login to see your live trips.</p>'; return; }
+
+  try {
+    const { trips } = await getTrips();
+    if (!trips.length) { el.innerHTML = '<p class="muted-empty">No active trips.</p>'; return; }
+    el.innerHTML = trips.map((t) => `
+      <div class="result-card">
+        <div class="rc-top">
+          <h4>Trip #${t.id.slice(0, 8)}</h4>
+          <span class="badge-pill">${t.status}</span>
+        </div>
+        <p>${t.pickup} → ${t.destination}</p>
+        <p>Vehicle: ${t.vehicle?.vehicleType || '—'}</p>
+        <p>Last updated: ${new Date(t.updatedAt).toLocaleString()}</p>
+      </div>
+    `).join('');
+  } catch (err) {
+    el.innerHTML = '<p class="muted-empty">Could not load live trips.</p>';
+  }
+}
+
+/* ============================================================
+   PWA: service worker, install prompt, update banner
+   ============================================================ */
+let deferredInstallPrompt = null;
+
+function initPwa() {
+  if (!('serviceWorker' in navigator)) return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then((registration) => {
+      // A new service worker took control after an update — reload once, quietly.
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        location.reload();
+      });
+
+      // A new version has finished installing and is waiting to activate.
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner(registration);
+          }
+        });
+      });
+    }).catch((err) => console.warn('Service worker registration failed:', err));
+  });
+
+  // "Add to Home Screen" / install prompt (Android/Chrome/Edge)
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    $('#installAppBtn').hidden = false;
+    $('#installAppBtnMobile').hidden = false;
+  });
+
+  const doInstall = async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === 'accepted') toast('App install ho raha hai...');
+    deferredInstallPrompt = null;
+    $('#installAppBtn').hidden = true;
+    $('#installAppBtnMobile').hidden = true;
+  };
+  $('#installAppBtn').addEventListener('click', doInstall);
+  $('#installAppBtnMobile').addEventListener('click', doInstall);
+
+  window.addEventListener('appinstalled', () => {
+    toast('LoadLink Pakistan install ho gaya!');
+    $('#installAppBtn').hidden = true;
+    $('#installAppBtnMobile').hidden = true;
+  });
+}
+
+function showUpdateBanner(registration) {
+  const banner = $('#updateBanner');
+  banner.hidden = false;
+  $('#updateBannerBtn').onclick = () => {
+    if (registration.waiting) registration.waiting.postMessage('SKIP_WAITING');
+    banner.hidden = true;
+  };
+}
+
+/* ============================================================
+   OFFLINE / ONLINE STATUS
+   ============================================================ */
+function initConnectivityWatch() {
+  window.addEventListener('offline', () => toast('Aap offline hain. Kuch features kaam nahi karenge.'));
+  window.addEventListener('online', () => toast('Connection wapas aa gaya.'));
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  $('#year').textContent = new Date().getFullYear();
+  initNav();
+  initAuthModals();
+  initMapModal();
+  renderCategories();
+  initPostLoadForm();
+  initSearchSections();
+  updateAuthUI();
+  initPwa();
+  initConnectivityWatch();
+
+  // Live Trips section loads lazily when scrolled into view
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) { loadLiveTrips(); io.disconnect(); }
+    });
+  }, { threshold: 0.2 });
+  io.observe($('#livetrips'));
+});

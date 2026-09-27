@@ -1,0 +1,230 @@
+// LoadLink Pakistan - Prisma schema
+// PostgreSQL database. Run:
+//   npx prisma generate
+//   npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  DRIVER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+  SUSPENDED
+}
+
+enum LoadStatus {
+  POSTED
+  SEARCHING
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum BookingStatus {
+  REQUESTED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum TripStatus {
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  NEAR_DESTINATION
+  DELIVERED
+}
+
+enum DriverVerification {
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+}
+
+enum NotificationType {
+  LOAD_POSTED
+  BOOKING_REQUEST
+  BOOKING_ACCEPTED
+  BOOKING_REJECTED
+  TRIP_STARTED
+  TRIP_UPDATED
+  TRIP_DELIVERED
+  ACCOUNT_VERIFIED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  fullName     String
+  mobile       String     @unique
+  email        String?    @unique
+  passwordHash String
+  role         Role       @default(CUSTOMER)
+  city         String?
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  lastLoginAt  DateTime?
+
+  driverProfile DriverProfile?
+  loads         Load[]
+  bookingsAsCustomer Booking[] @relation("CustomerBookings")
+  notifications Notification[]
+  ratingsGiven  Rating[] @relation("RatingsGiven")
+  ratingsReceived Rating[] @relation("RatingsReceived")
+}
+
+model DriverProfile {
+  id               String             @id @default(uuid())
+  userId           String             @unique
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cnic             String
+  cnicDocUrl       String?
+  drivingLicense   String
+  licenseDocUrl    String?
+  verification     DriverVerification @default(PENDING_VERIFICATION)
+  rejectionReason  String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  vehicles Vehicle[]
+  bookingsAsDriver Booking[] @relation("DriverBookings")
+  trips    Trip[]
+}
+
+model Vehicle {
+  id            String        @id @default(uuid())
+  driverId      String
+  driver        DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicleType   String
+  vehicleNumber String        @unique
+  capacityKg    Int
+  brand         String?
+  model         String?
+  year          Int?
+  documentUrl   String?
+  status        VehicleStatus @default(OFFLINE)
+  isVerified    Boolean       @default(false)
+  latitude      Float?
+  longitude     Float?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  bookings Booking[]
+  trips    Trip[]
+}
+
+model Load {
+  id                    String     @id @default(uuid())
+  customerId            String
+  customer              User       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  pickupAddress         String
+  pickupLatitude        Float?
+  pickupLongitude       Float?
+
+  destinationAddress    String
+  destinationLatitude   Float?
+  destinationLongitude  Float?
+
+  description           String
+  weightKg               Float
+  preferredVehicle       String?
+  status                 LoadStatus @default(POSTED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[]
+  trips    Trip[]
+}
+
+model Booking {
+  id         String        @id @default(uuid())
+  loadId     String
+  load       Load          @relation(fields: [loadId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   User          @relation("CustomerBookings", fields: [customerId], references: [id], onDelete: Cascade)
+  driverId   String
+  driver     DriverProfile @relation("DriverBookings", fields: [driverId], references: [id], onDelete: Cascade)
+  vehicleId  String
+  vehicle    Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  status     BookingStatus @default(REQUESTED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip Trip?
+}
+
+model Trip {
+  id          String        @id @default(uuid())
+  bookingId   String        @unique
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  loadId      String
+  load        Load          @relation(fields: [loadId], references: [id], onDelete: Cascade)
+  driverId    String
+  driver      DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicleId   String
+  vehicle     Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  pickup          String
+  destination     String
+  currentLatitude  Float?
+  currentLongitude Float?
+  status          TripStatus @default(ASSIGNED)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime   @default(now())
+
+  ratings Rating[]
+}
+
+model Rating {
+  id         String   @id @default(uuid())
+  tripId     String
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  fromUserId String
+  fromUser   User     @relation("RatingsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User     @relation("RatingsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@unique([tripId, fromUserId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}

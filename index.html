@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#062b45">
+<meta name="description" content="Pakistan ka Truck & Load Marketplace — post loads, find trucks, track live trips.">
+<title>LoadLink Pakistan — Truck &amp; Load Marketplace</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LoadLink PK">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ============== HEADER ============== -->
+<header class="site-header" id="siteHeader">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-emoji">🚛</span>
+      <span class="brand-text">LoadLink<br><small>PAKISTAN</small></span>
+    </div>
+
+    <nav class="nav-desktop" aria-label="Main navigation">
+      <a href="#home" data-nav="home">⌂ Home</a>
+      <a href="#postload" data-nav="findtruck">🚚 Find Truck</a>
+      <a href="#postload" data-nav="postload">📦 Post Load</a>
+      <a href="#returnloads" data-nav="returnloads">🔄 Return Loads</a>
+      <a href="#livetrips" data-nav="livetrips">♟ Live Trips</a>
+      <a href="#more" id="moreLink">More</a>
+    </nav>
+
+    <div class="nav-auth">
+      <button class="btn btn-outline" id="installAppBtn" hidden>⬇️ Install App</button>
+      <button class="btn btn-ghost" id="loginBtn">Login</button>
+      <button class="btn btn-primary" id="signupBtn">Sign Up</button>
+    </div>
+
+    <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <div class="nav-mobile" id="navMobile">
+    <a href="#home" data-nav="home">Home</a>
+    <a href="#postload" data-nav="findtruck">Find Truck</a>
+    <a href="#postload" data-nav="postload">Post Load</a>
+    <a href="#returnloads" data-nav="returnloads">Return Loads</a>
+    <a href="#livetrips" data-nav="livetrips">Live Trips</a>
+    <a href="#categories">Categories</a>
+    <div class="nav-mobile-auth">
+      <button class="btn btn-ghost" id="loginBtnMobile">Login</button>
+      <button class="btn btn-primary" id="signupBtnMobile">Sign Up</button>
+    </div>
+    <button class="btn btn-outline" id="installAppBtnMobile" hidden style="margin-top:8px">⬇️ Install App</button>
+  </div>
+</header>
+
+<!-- App-update available banner (PWA) -->
+<div class="update-banner" id="updateBanner" hidden>
+  <span>🔄 Naya version available hai.</span>
+  <button type="button" id="updateBannerBtn">Update karein</button>
+</div>
+
+<!-- ============== HERO ============== -->
+<section class="hero" id="home">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="badge">📍 Pakistan ka No. 1 Truck &amp; Load Marketplace</span>
+      <h1>Load bhejna hai?<br><span class="highlight">Truck chahiye?</span><br>Sab ek jagah.</h1>
+      <p class="hero-desc">Apne saman ke liye suitable vehicle dhoondhein ya apni khali gaari ke liye next load hasil karein.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-lg" id="heroPostLoadBtn">📦 Mujhe Load Bhejna Hai</button>
+        <button class="btn btn-outline btn-lg" id="heroDriverBtn">🚚 Mere Paas Gaari Hai</button>
+      </div>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="route-card">
+        <div class="route-point">Karachi</div>
+        <div class="route-line"></div>
+        <div class="route-point">Lahore</div>
+        <div class="route-truck">🚛</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== QUICK FEATURES ============== -->
+<section class="quick-features">
+  <div class="section-inner">
+    <div class="features-grid">
+      <div class="feature-card" data-nav="findtruck">
+        <div class="feature-icon">🚚</div>
+        <h3>Find Vehicle</h3>
+        <p>Nearby trucks &amp; drivers</p>
+      </div>
+      <div class="feature-card" data-nav="postload">
+        <div class="feature-icon">📦</div>
+        <h3>Find Load</h3>
+        <p>Available loads near you</p>
+      </div>
+      <div class="feature-card" data-nav="returnloads">
+        <div class="feature-icon">🔄</div>
+        <h3>Return Loads</h3>
+        <p>Avoid empty trips</p>
+      </div>
+      <div class="feature-card" data-nav="livetrips">
+        <div class="feature-icon">📍</div>
+        <h3>Live Trips</h3>
+        <p>Track your shipment</p>
+      </div>
+      <div class="feature-card feature-wide">
+        <div class="feature-icon">🛡️</div>
+        <h3>Verified Transporters</h3>
+        <p>Trusted &amp; verified</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== POST LOAD ============== -->
+<section class="post-load" id="postload">
+  <div class="section-inner">
+    <h2>Post a Load</h2>
+    <p class="section-desc">Apne saman ki detail dein, aur suitable gaariyon ki list dekhein.</p>
+
+    <div class="post-load-grid">
+      <!-- LEFT: form -->
+      <div class="card">
+        <form id="loadForm" novalidate>
+          <div class="field">
+            <label for="pickup">📍 Kahan se saman uthana hai?</label>
+            <div class="field-with-btn">
+              <input type="text" id="pickup" placeholder="Search location or select on map" autocomplete="off">
+              <button type="button" class="map-btn" data-map-target="pickup" aria-label="Select pickup on map">🗺️</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="destination">🏁 Kahan tak saman le jana hai?</label>
+            <div class="field-with-btn">
+              <input type="text" id="destination" placeholder="Search location or select on map" autocomplete="off">
+              <button type="button" class="map-btn" data-map-target="destination" aria-label="Select destination on map">🗺️</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="loadDescription">⚖️ Aap kya bhejna chahte hain?</label>
+            <textarea id="loadDescription" maxlength="500" rows="4" placeholder="Saman ki detail likhein..."></textarea>
+            <div class="char-counter"><span id="descCount">0</span>/500</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="weight">⚖️ Approx. Weight</label>
+              <input type="number" id="weight" min="1" placeholder="e.g. 2000">
+            </div>
+            <div class="field">
+              <label for="weightUnit">Unit</label>
+              <select id="weightUnit">
+                <option value="kg">kg</option>
+                <option value="ton">Ton</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="preferredVehicle">Preferred Vehicle</label>
+            <select id="preferredVehicle">
+              <option value="">System recommend kare</option>
+              <option>Loader Rickshaw</option>
+              <option>Suzuki Loader</option>
+              <option>Mazda</option>
+              <option>Shazore</option>
+              <option>Mini Truck</option>
+              <option>Pickup</option>
+              <option>Mini Van</option>
+              <option>10 Wheeler</option>
+              <option>12 Wheeler</option>
+              <option>14 Wheeler</option>
+              <option>16 Wheeler</option>
+              <option>18 Wheeler</option>
+              <option>22 Wheeler</option>
+              <option>Trailer</option>
+              <option>Container</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">🔍 Find Suitable Vehicles</button>
+        </form>
+      </div>
+
+      <!-- RIGHT: recommendation -->
+      <div class="card" id="recommendationCard">
+        <h3>Smart Vehicle Recommendation</h3>
+        <p class="section-desc small">Aapke route, weight aur saman ki detail ke mutabiq hum suitable vehicle suggest karte hain.</p>
+        <div id="recommendationBody" class="recommendation-body">
+          <p class="muted-empty">Enter load details to get recommendation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vehicle categories -->
+    <div class="categories" id="categories">
+      <h3>Vehicle Categories</h3>
+      <div class="category-grid" id="categoryGrid"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== FIND TRUCK ============== -->
+<section class="find-truck" id="findtruck">
+  <div class="section-inner">
+    <h2>🚚 Find Truck</h2>
+    <div class="filter-bar">
+      <input type="text" id="ftLocation" placeholder="Current location">
+      <input type="text" id="ftDestination" placeholder="Destination">
+      <select id="ftVehicleType"><option value="">Vehicle type</option></select>
+      <input type="number" id="ftCapacity" placeholder="Min capacity (kg)">
+      <label class="checkbox-inline"><input type="checkbox" id="ftVerifiedOnly"> Verified only</label>
+      <button class="btn btn-primary" id="ftSearchBtn">Search</button>
+    </div>
+    <div class="results-grid" id="ftResults"><p class="muted-empty">Search to see available vehicles.</p></div>
+  </div>
+</section>
+
+<!-- ============== FIND LOAD ============== -->
+<section class="find-load" id="findload">
+  <div class="section-inner">
+    <h2>📦 Find Load</h2>
+    <div class="filter-bar">
+      <input type="text" id="flPickup" placeholder="Pickup">
+      <input type="text" id="flDestination" placeholder="Destination">
+      <select id="flVehicleType"><option value="">Vehicle type</option></select>
+      <input type="number" id="flWeight" placeholder="Max weight (kg)">
+      <button class="btn btn-primary" id="flSearchBtn">Search</button>
+    </div>
+    <div class="results-grid" id="flResults"><p class="muted-empty">Search to see available loads.</p></div>
+  </div>
+</section>
+
+<!-- ============== RETURN LOADS ============== -->
+<section class="return-loads" id="returnloads">
+  <div class="section-inner">
+    <h2>🔄 Return Loads</h2>
+    <p class="section-desc">Transporters can find loads for their return route, aur khali trip avoid kar sakte hain.</p>
+    <div class="filter-bar">
+      <input type="text" id="rlCurrent" placeholder="Current location">
+      <input type="text" id="rlReturnDestination" placeholder="Return destination">
+      <select id="rlVehicleType"><option value="">Vehicle type</option></select>
+      <input type="number" id="rlRadius" placeholder="Radius (km)">
+      <button class="btn btn-primary" id="rlSearchBtn">Search</button>
+    </div>
+    <div class="results-grid" id="rlResults"><p class="muted-empty">Search to see return loads.</p></div>
+  </div>
+</section>
+
+<!-- ============== LIVE TRIPS ============== -->
+<section class="live-trips" id="livetrips">
+  <div class="section-inner">
+    <h2>♟ Live Trips</h2>
+    <div class="results-grid" id="ltResults"><p class="muted-empty">Login to see your live trips.</p></div>
+  </div>
+</section>
+
+<!-- ============== FOOTER ============== -->
+<footer class="site-footer">
+  <div class="section-inner footer-inner">
+    <div class="footer-brand">🚛 LoadLink Pakistan</div>
+    <nav class="footer-links">
+      <a href="#about">About Us</a>
+      <a href="#help">Help &amp; Support</a>
+      <a href="#terms">Terms &amp; Conditions</a>
+      <a href="#privacy">Privacy Policy</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <div class="footer-social">
+      <a href="#" aria-label="Facebook">Facebook</a>
+      <a href="#" aria-label="Instagram">Instagram</a>
+      <a href="#" aria-label="YouTube">YouTube</a>
+      <a href="#" aria-label="X">X</a>
+    </div>
+    <p class="footer-copy">© <span id="year"></span> LoadLink Pakistan. Demo statistics shown are not real usage figures.</p>
+  </div>
+</footer>
+
+<!-- ============== LOGIN MODAL ============== -->
+<div class="modal" id="loginModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <strong>Login</strong>
+      <button type="button" class="modal-close" data-close="loginModal">×</button>
+    </div>
+    <form id="loginForm" class="modal-form">
+      <div class="field">
+        <label for="loginIdentifier">Mobile / Email</label>
+        <input type="text" id="loginIdentifier" required>
+      </div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Login</button>
+      <button type="button" class="link-btn" id="forgotPasswordBtn">Forgot Password?</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============== SIGN UP MODAL ============== -->
+<div class="modal" id="signupModal">
+  <div class="modal-box modal-box-wide">
+    <div class="modal-header">
+      <strong>Sign Up</strong>
+      <button type="button" class="modal-close" data-close="signupModal">×</button>
+    </div>
+    <div class="signup-tabs">
+      <button type="button" class="signup-tab active" data-role="customer">Customer</button>
+      <button type="button" class="signup-tab" data-role="driver">Driver / Transporter</button>
+    </div>
+
+    <form id="customerSignupForm" class="modal-form">
+      <div class="field"><label>Name</label><input type="text" id="cFullName" required></div>
+      <div class="field-row">
+        <div class="field"><label>Mobile</label><input type="text" id="cMobile" required></div>
+        <div class="field"><label>Email</label><input type="email" id="cEmail"></div>
+      </div>
+      <div class="field"><label>Password</label><input type="password" id="cPassword" minlength="6" required></div>
+      <div class="field"><label>City</label><input type="text" id="cCity"></div>
+      <button type="submit" class="btn btn-primary btn-block">Create Customer Account</button>
+    </form>
+
+    <form id="driverSignupForm" class="modal-form" hidden>
+      <div class="field"><label>Name</label><input type="text" id="dFullName" required></div>
+      <div class="field-row">
+        <div class="field"><label>Mobile</label><input type="text" id="dMobile" required></div>
+        <div class="field"><label>CNIC</label><input type="text" id="dCnic" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>City</label><input type="text" id="dCity"></div>
+        <div class="field"><label>Password</label><input type="password" id="dPassword" minlength="6" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Vehicle Type</label>
+          <select id="dVehicleType" required></select>
+        </div>
+        <div class="field"><label>Vehicle Number</label><input type="text" id="dVehicleNumber" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Capacity (kg)</label><input type="number" id="dCapacity" required></div>
+        <div class="field"><label>Driving License</label><input type="text" id="dLicense" required></div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Create Driver Account</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============== MAP MODAL ============== -->
+<div class="map-modal" id="mapModal">
+  <div class="map-modal-box">
+    <div class="map-modal-header">
+      <div>
+        <strong id="mapModalTitle">Select Location</strong>
+        <small>Map par location select karein</small>
+      </div>
+      <button type="button" id="mapModalClose">×</button>
+    </div>
+    <div id="locationMap"></div>
+    <div class="selected-location">
+      <span>📍</span>
+      <input id="selectedLocation" type="text" placeholder="Selected location" readonly>
+    </div>
+    <button type="button" class="confirm-location" id="confirmLocation">Confirm Location</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
