@@ -72,6 +72,25 @@ enum NotificationType {
   TRIP_UPDATED
   TRIP_DELIVERED
   ACCOUNT_VERIFIED
+  PAYMENT_CREATED
+  PAYMENT_PAID
+  PAYMENT_FAILED
+  PASSWORD_RESET
+  SYSTEM
+}
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  EASYPAISA
+  JAZZCASH
+  CARD
 }
 
 model User {
@@ -93,6 +112,10 @@ model User {
   notifications Notification[]
   ratingsGiven  Rating[] @relation("RatingsGiven")
   ratingsReceived Rating[] @relation("RatingsReceived")
+  passwordResetTokens PasswordResetToken[]
+  pushSubscriptions PushSubscription[]
+  payments Payment[]
+  auditLogs AuditLog[]
 }
 
 model DriverProfile {
@@ -107,6 +130,8 @@ model DriverProfile {
   rejectionReason  String?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+  cnicExpiryDate    DateTime?
+  licenseExpiryDate DateTime?
 
   vehicles Vehicle[]
   bookingsAsDriver Booking[] @relation("DriverBookings")
@@ -201,6 +226,7 @@ model Trip {
   createdAt   DateTime   @default(now())
 
   ratings Rating[]
+  payments Payment[]
 }
 
 model Rating {
@@ -227,4 +253,66 @@ model Notification {
   type      NotificationType
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
+}
+
+
+model Payment {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tripId      String?
+  trip        Trip?         @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  amount      Float
+  currency    String        @default("PKR")
+  method      PaymentMethod
+  provider    String?
+  providerReference String?
+  status      PaymentStatus @default(PENDING)
+  metadata    String?
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId, status])
+  @@index([providerReference])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String?
+  entityId  String?
+  ip        String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
 }
