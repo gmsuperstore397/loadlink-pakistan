@@ -10,6 +10,7 @@ const routes = require('./index');
 const { errorHandler, notFound } = require('./errorHandler');
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Security & core middleware
 app.use(helmet({
