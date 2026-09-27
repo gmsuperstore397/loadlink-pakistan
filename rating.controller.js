@@ -1,7 +1,7 @@
-const prisma = require('../config/prisma');
-const asyncHandler = require('../utils/asyncHandler');
-const { success } = require('../utils/apiResponse');
-const ApiError = require('../utils/ApiError');
+const prisma = require('./prisma');
+const asyncHandler = require('./asyncHandler');
+const { success } = require('./apiResponse');
+const ApiError = require('./ApiError');
 
 // POST /api/ratings  (only after a trip is DELIVERED; one rating per user per trip)
 const createRating = asyncHandler(async (req, res) => {
