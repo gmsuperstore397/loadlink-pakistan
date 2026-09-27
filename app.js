@@ -348,6 +348,17 @@ function initAuthModals() {
     fd.append('vehicleNumber', $('#dVehicleNumber').value.trim());
     fd.append('capacityKg', $('#dCapacity').value);
     fd.append('drivingLicense', $('#dLicense').value.trim());
+    fd.append('brand', $('#dBrand').value.trim());
+    fd.append('model', $('#dModel').value.trim());
+    fd.append('year', $('#dYear').value);
+    fd.append('cnicExpiryDate', $('#dCnicExpiry').value);
+    fd.append('licenseExpiryDate', $('#dLicenseExpiry').value);
+    const cnicDoc = $('#dCnicDoc').files?.[0];
+    const licenseDoc = $('#dLicenseDoc').files?.[0];
+    const vehicleDoc = $('#dVehicleDoc').files?.[0];
+    if (cnicDoc) fd.append('cnicDoc', cnicDoc);
+    if (licenseDoc) fd.append('licenseDoc', licenseDoc);
+    if (vehicleDoc) fd.append('vehicleDoc', vehicleDoc);
     try {
       const result = await registerTransporter(fd);
       state.pendingOtpEmail = $('#dEmail').value.trim();
