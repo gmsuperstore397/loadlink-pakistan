@@ -143,6 +143,7 @@ model User {
   spaceRequests SpaceRequest[]
   spaceBookingsAsCustomer SpaceBooking[] @relation("SpaceCustomerBookings")
   auditLogs AuditLog[]
+  deliveryProofs DeliveryProof[]
 }
 
 model DriverProfile {
@@ -330,6 +331,25 @@ model Trip {
 
   ratings Rating[]
   payments Payment[]
+  deliveryProof DeliveryProof?
+}
+
+model DeliveryProof {
+  id           String   @id @default(uuid())
+  tripId       String   @unique
+  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  submittedById String
+  submittedBy   User     @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+  receiverName String
+  receiverPhone String?
+  photoUrl     String?
+  signatureUrl String?
+  notes        String?
+  deliveredAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([submittedById])
 }
 
 model Rating {
