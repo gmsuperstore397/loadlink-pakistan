@@ -74,6 +74,8 @@ async function loadModule(title){
     const data=await api(m.path);
     if(key==='reports'){ renderReports(data); return; }
     const rows=data[key]||[];
+    window.moduleRows = window.moduleRows || {};
+    window.moduleRows[key] = rows;
     $('#moduleTable').thead;
     $('#moduleTable thead').innerHTML='<tr>'+m.columns.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr>';
     $('#moduleTable tbody').innerHTML=rows.length?rows.map(row=>'<tr>'+m.columns.map(c=>'<td>'+esc(val(row,c[0]))+'</td>').join('')+'<td>'+moduleActions(key,row)+'</td></tr>').join(''):'<tr><td colspan="'+(m.columns.length+1)+'">No records found</td></tr>';
@@ -90,12 +92,116 @@ function moduleActions(key,row){
   return '';
 }
 async function patchModule(path,body,title){try{await api(path,{method:'PATCH',body:JSON.stringify(body)});toast('Updated successfully');await loadModule(title);}catch(e){toast(e.message);}}
-async function editCustomer(id){const status=prompt('Customer status: ACTIVE or SUSPENDED','ACTIVE');if(status)await patchModule('/admin/customers/'+id,{status},'Customers');}
+let editState = null;
+
+const EDIT_CONFIG = {
+  customers: {
+    title: 'Edit Customer',
+    path: id => '/admin/customers/' + id,
+    fields: [
+      {key:'fullName', label:'Name', type:'text'},
+      {key:'city', label:'City', type:'text'},
+      {key:'status', label:'Account Status', type:'select', options:['ACTIVE','SUSPENDED']}
+    ]
+  },
+  loads: {
+    title: 'Edit Load',
+    path: id => '/admin/loads/' + id,
+    fields: [
+      {key:'status', label:'Load Status', type:'select', options:['POSTED','SEARCHING','ASSIGNED','PICKED_UP','IN_TRANSIT','DELIVERED','CANCELLED']},
+      {key:'pickupAddress', label:'Pickup Address', type:'text'},
+      {key:'destinationAddress', label:'Destination Address', type:'text'}
+    ]
+  },
+  bookings: {
+    title: 'Update Booking',
+    path: id => '/admin/bookings/' + id,
+    fields: [
+      {key:'status', label:'Booking Status', type:'select', options:['REQUESTED','ACCEPTED','REJECTED','CANCELLED','COMPLETED']},
+      {key:'agreedFare', label:'Agreed Fare (PKR)', type:'number', step:'0.01'}
+    ]
+  },
+  payments: {
+    title: 'Update Payment',
+    path: id => '/admin/payments/' + id,
+    fields: [
+      {key:'status', label:'Payment Status', type:'select', options:['PENDING','PAID','FAILED','CANCELLED','REFUNDED']}
+    ]
+  }
+};
+
+function openEditModal(key, row) {
+  const config = EDIT_CONFIG[key];
+  if (!config) return;
+  editState = {key, id: row.id, config};
+  $('#editModalTitle').textContent = config.title;
+  const box = $('#editFields');
+  box.innerHTML = '';
+  config.fields.forEach(field => {
+    const label = document.createElement('label');
+    label.textContent = field.label;
+    let input;
+    if (field.type === 'select') {
+      input = document.createElement('select');
+      field.options.forEach(option => {
+        const opt = document.createElement('option');
+        opt.value = option;
+        opt.textContent = option;
+        input.appendChild(opt);
+      });
+    } else {
+      input = document.createElement('input');
+      input.type = field.type;
+      if (field.step) input.step = field.step;
+    }
+    input.id = 'editField_' + field.key;
+    input.name = field.key;
+    const value = field.key === 'agreedFare' ? (row[field.key] ?? '') : (row[field.key] ?? '');
+    input.value = value;
+    input.required = field.key !== 'city';
+    label.appendChild(input);
+    box.appendChild(label);
+  });
+  $('#editModal').hidden = false;
+}
+
+function closeEditModal() {
+  $('#editModal').hidden = true;
+  $('#editForm').reset();
+  editState = null;
+}
+
+async function saveEditModal() {
+  if (!editState) return;
+  const body = {};
+  editState.config.fields.forEach(field => {
+    const el = $('#editField_' + field.key);
+    if (field.key === 'agreedFare') {
+      body[field.key] = el.value === '' ? null : Number(el.value);
+    } else {
+      body[field.key] = el.value;
+    }
+  });
+  try {
+    await api(editState.config.path(editState.id), {
+      method:'PATCH',
+      body:JSON.stringify(body)
+    });
+    toast('Updated successfully');
+    const title = MODULES[editState.key].title;
+    closeEditModal();
+    await loadModule(title);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function editCustomer(id){const row=(window.moduleRows?.customers||[]).find(x=>x.id===id);if(row)openEditModal('customers',row);}
 async function toggleCustomerAccount(id,current){const next=current==='SUSPENDED'?'ACTIVE':'SUSPENDED';if(!confirm(next==='SUSPENDED'?'Customer account disable karna hai?':'Customer account enable karna hai?'))return;await patchModule('/admin/customers/'+id+'/status',{status:next},'Customers');}
 async function toggleDriverAccount(id,current){const next=current==='SUSPENDED'?'ACTIVE':'SUSPENDED';if(!confirm(next==='SUSPENDED'?'Driver account disable karna hai?':'Driver account enable karna hai?'))return;await patchModule('/admin/drivers/'+id+'/status',{status:next},'Drivers');}
-async function editLoad(id){const status=prompt('New load status','ACTIVE');if(status)await patchModule('/admin/loads/'+id,{status},'Loads');}
-async function editBooking(id){const status=prompt('Booking status','APPROVED');if(status)await patchModule('/admin/bookings/'+id,{status},'Bookings');}
-async function editPayment(id){const status=prompt('Payment status: PAID / FAILED / PENDING','PAID');if(status)await patchModule('/admin/payments/'+id,{status},'Payments');}
+async function editLoad(id){const row=(window.moduleRows?.loads||[]).find(x=>x.id===id);if(row)openEditModal('loads',row);}
+async function editBooking(id){const row=(window.moduleRows?.bookings||[]).find(x=>x.id===id);if(row)openEditModal('bookings',row);}
+async function editPayment(id){const row=(window.moduleRows?.payments||[]).find(x=>x.id===id);if(row)openEditModal('payments',row);}
 
 function renderReports(data){
   $('#moduleTable thead').innerHTML='<tr><th>Report</th><th>Value</th></tr>';
@@ -253,6 +359,9 @@ $('#moduleRefresh').addEventListener('click', () => { const title=$('#moduleTitl
 
 $('#newManagerBtn').addEventListener('click', () => openManager(null));
 $('#closeManager').addEventListener('click', () => { $('#managerModal').hidden = true; });
+$('#closeEdit').addEventListener('click', closeEditModal);
+$('#editModal').addEventListener('click', (event) => { if (event.target === $('#editModal')) closeEditModal(); });
+$('#editForm').addEventListener('submit', async (event) => { event.preventDefault(); await saveEditModal(); });
 
 $('#managerForm').addEventListener('submit', async (event) => {
   event.preventDefault();
