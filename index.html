@@ -379,6 +379,22 @@
   </div>
 </section>
 
+<div class="modal" id="deliveryProofModal" aria-hidden="true">
+  <div class="modal-card">
+    <button type="button" class="modal-close" data-close="deliveryProofModal">×</button>
+    <h3>📦 Proof of Delivery</h3>
+    <p class="section-desc">Delivery complete hone ke baad receiver ki details aur optional delivery proof save karein.</p>
+    <form id="deliveryProofForm" class="modal-form">
+      <input type="hidden" id="proofTripId">
+      <div class="field"><label>Receiver Name</label><input id="proofReceiverName" required placeholder="Receiver ka naam"></div>
+      <div class="field"><label>Receiver Mobile (optional)</label><input id="proofReceiverPhone" placeholder="03xx-xxxxxxx"></div>
+      <div class="field"><label>Delivery Photo (optional)</label><input id="proofPhoto" type="file" accept="image/jpeg,image/png"></div>
+      <div class="field"><label>Receiver Signature (optional)</label><input id="proofSignature" type="file" accept="image/jpeg,image/png"></div>
+      <div class="field"><label>Notes (optional)</label><textarea id="proofNotes" rows="3" placeholder="Koi delivery note..."></textarea></div>
+      <button type="submit" class="btn btn-primary">💾 Save Proof</button>
+    </form>
+  </div>
+</div>
 <!-- ============== CUSTOMER PROFILE ============== -->
 <section class="profile-section" id="profile" hidden>
   <div class="section-inner">
