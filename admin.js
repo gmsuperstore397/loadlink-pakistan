@@ -231,6 +231,8 @@ function openManager(manager) {
   });
 }
 
+$('#moduleRefresh').addEventListener('click', () => { const title=$('#moduleTitle').textContent; loadModule(title); });
+
 $('#newManagerBtn').addEventListener('click', () => openManager(null));
 $('#closeManager').addEventListener('click', () => { $('#managerModal').hidden = true; });
 
