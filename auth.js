@@ -38,4 +38,29 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { authenticateUser, requireRole };
+
+// Granular permission middleware for MANAGER accounts.
+// ADMIN bypasses permission checks; MANAGER permissions are stored as JSON in User.permissions.
+function hasPermission(user, permission) {
+  if (!user) return false;
+  if (user.role === 'ADMIN') return true;
+  if (user.role !== 'MANAGER') return false;
+  try {
+    const permissions = JSON.parse(user.permissions || '[]');
+    return Array.isArray(permissions) && permissions.includes(permission);
+  } catch (_) {
+    return false;
+  }
+}
+
+function requirePermission(permission) {
+  return (req, res, next) => {
+    if (!req.user) return fail(res, 401, 'Authentication required');
+    if (!hasPermission(req.user, permission)) {
+      return fail(res, 403, 'Manager permission required: ' + permission);
+    }
+    next();
+  };
+}
+
+module.exports = { authenticateUser, requireRole, hasPermission, requirePermission };
