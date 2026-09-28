@@ -1203,7 +1203,7 @@ async function loadLiveTrips() {
         <p>${t.pickup} → ${t.destination}</p>
         <p>Vehicle: ${t.vehicle?.vehicleType || '—'}</p>
         <p>Last updated: ${new Date(t.updatedAt).toLocaleString()}</p>
-        ${state.user.role === 'DRIVER' && t.status !== 'DELIVERED' ? `
+        ${state.user.role === 'DRIVER' ? `
           <div class="field-row">
             ${t.status === 'ASSIGNED' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="PICKED_UP">Picked Up</button>' : ''}
             ${t.status === 'PICKED_UP' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="IN_TRANSIT">In Transit</button>' : ''}
