@@ -39,6 +39,8 @@ const state = {
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
 function toast(message) {
   const el = $('#toast');
   el.textContent = message;
@@ -84,6 +86,9 @@ function saveSession(token, user) {
 function clearSession() {
   state.token = null;
   state.user = null;
+  clearInterval(notificationPollTimer);
+  const panel = $('#notificationPanel');
+  if (panel) panel.hidden = true;
   localStorage.removeItem('ll_token');
   localStorage.removeItem('ll_user');
 }
@@ -152,6 +157,70 @@ const resetPassword = (token, password) => apiRequest('/auth/reset-password', { 
 const getNotifications = () => apiRequest('/notifications');
 const getUnreadCount = () => apiRequest('/notifications/unread-count');
 const markAllRead = () => apiRequest('/notifications/read-all', { method: 'PATCH' });
+const markNotificationRead = (id) => apiRequest('/notifications/' + id + '/read', { method: 'PATCH' });
+
+let notificationPollTimer = null;
+
+function renderNotifications(notifications) {
+  const list = $('#notificationList');
+  if (!list) return;
+  if (!notifications?.length) {
+    list.innerHTML = '<p class="muted-empty">Abhi koi notification nahi.</p>';
+    return;
+  }
+  list.innerHTML = notifications.map((n) => `
+    <button type="button" class="notification-item ${n.isRead ? 'read' : 'unread'}" data-notification-id="${n.id}">
+      <span class="notification-icon">${n.isRead ? '•' : '●'}</span>
+      <span><b>${escapeHtml(n.title)}</b><small>${escapeHtml(n.message)}</small><time>${new Date(n.createdAt).toLocaleString()}</time></span>
+    </button>`).join('');
+}
+
+async function loadNotifications(showPanel = false) {
+  if (!state.user || !state.token) return;
+  try {
+    const result = await getNotifications();
+    const notifications = result.notifications || [];
+    renderNotifications(notifications);
+    const unread = notifications.filter((n) => !n.isRead).length;
+    const badge = $('#notificationBadge');
+    if (badge) {
+      badge.textContent = unread > 99 ? '99+' : String(unread);
+      badge.hidden = unread === 0;
+    }
+    const hint = $('#notificationHint');
+    if (hint) hint.textContent = unread ? `${unread} unread` : 'All caught up';
+    if (showPanel) $('#notificationPanel').hidden = false;
+  } catch (_) {}
+}
+
+function initNotificationCenter() {
+  const btn = $('#notificationBtn');
+  const panel = $('#notificationPanel');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) await loadNotifications(true);
+  });
+  $('#markAllNotifications')?.addEventListener('click', async () => {
+    try {
+      await markAllRead();
+      await loadNotifications(true);
+    } catch (err) { toast(err.message); }
+  });
+  document.addEventListener('click', (e) => {
+    if (!panel.hidden && !panel.contains(e.target) && e.target !== btn) panel.hidden = true;
+    const item = e.target.closest?.('.notification-item');
+    if (!item) return;
+    markNotificationRead(item.dataset.notificationId).then(() => loadNotifications(true)).catch(() => {});
+  });
+}
+
+function startNotificationPolling() {
+  clearInterval(notificationPollTimer);
+  loadNotifications();
+  notificationPollTimer = setInterval(() => loadNotifications(), 30000);
+}
 const createPayment = (body) => apiRequest('/payments', { method: 'POST', body });
 const getPayments = () => apiRequest('/payments');
 const getAdminDashboard = () => apiRequest('/admin/dashboard');
@@ -783,6 +852,8 @@ function openAdminPanel() {
 
 function updateAuthUI() {
   const loggedIn = !!state.user;
+  const notificationBtn = $('#notificationBtn');
+  if (notificationBtn) notificationBtn.hidden = !loggedIn;
   const isAdmin = loggedIn && state.user.role === 'ADMIN';
   $('#loginBtn').style.display = loggedIn ? 'none' : '';
   $('#loginBtnMobile').style.display = loggedIn ? 'none' : '';
@@ -819,6 +890,7 @@ function updateAuthUI() {
     loadMarketplace();
     loadSpaceMarketplace();
     initPushNotifications();
+    startNotificationPolling();
   }
 }
 
