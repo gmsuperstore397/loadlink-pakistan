@@ -139,6 +139,8 @@ const rejectSpaceBooking = (id) => apiRequest(`/space/bookings/${id}/reject`, { 
 const rejectBooking = (id) => apiRequest(`/bookings/${id}/reject`, { method: 'PATCH' });
 const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
+const getDeliveryProof = (tripId) => apiRequest(`/trips/${tripId}/proof`);
+const submitDeliveryProof = (tripId, formData) => apiRequest(`/trips/${tripId}/proof`, { method: 'POST', body: formData, isForm: true });
 
 const getTrips = () => apiRequest('/trips');
 const updateTripLocation = (tripId, latitude, longitude) => apiRequest(`/trips/${tripId}/location`, { method: 'PATCH', body: { latitude, longitude } });
@@ -1207,6 +1209,7 @@ async function loadLiveTrips() {
             ${t.status === 'PICKED_UP' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="IN_TRANSIT">In Transit</button>' : ''}
             ${t.status === 'IN_TRANSIT' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="NEAR_DESTINATION">Near Destination</button>' : ''}
             ${t.status === 'NEAR_DESTINATION' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="DELIVERED">Delivered</button>' : ''}
+            ${t.status === 'DELIVERED' ? '<button class="btn btn-outline delivery-proof-btn" data-trip="' + t.id + '">📦 Add Proof of Delivery</button>' : ''}
           </div>` : ''}
       </div>
     `).join('');
@@ -1214,6 +1217,40 @@ async function loadLiveTrips() {
     el.innerHTML = '<p class="muted-empty">Could not load live trips.</p>';
   }
 }
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.delivery-proof-btn');
+  if (!btn) return;
+  $('#deliveryProofForm').reset();
+  $('#proofTripId').value = btn.dataset.trip;
+  openModal('deliveryProofModal');
+});
+
+document.addEventListener('submit', async (e) => {
+  if (e.target.id !== 'deliveryProofForm') return;
+  e.preventDefault();
+  const form = e.target;
+  const tripId = $('#proofTripId').value;
+  const fd = new FormData();
+  fd.append('receiverName', $('#proofReceiverName').value.trim());
+  fd.append('receiverPhone', $('#proofReceiverPhone').value.trim());
+  fd.append('notes', $('#proofNotes').value.trim());
+  const photo = $('#proofPhoto').files?.[0];
+  const signature = $('#proofSignature').files?.[0];
+  if (photo && photo.size > 5 * 1024 * 1024) return toast('Photo 5MB se chhoti honi chahiye.');
+  if (signature && signature.size > 5 * 1024 * 1024) return toast('Signature 5MB se chhoti honi chahiye.');
+  if (photo) fd.append('photo', photo);
+  if (signature) fd.append('signature', signature);
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    await submitDeliveryProof(tripId, fd);
+    closeModal('deliveryProofModal');
+    toast('Proof of Delivery save ho gaya.');
+    await loadLiveTrips();
+  } catch (err) { toast(err.message); }
+  finally { button.disabled = false; }
+});
 
 function showUpdateBanner(registration) {
   const banner = $('#updateBanner');
