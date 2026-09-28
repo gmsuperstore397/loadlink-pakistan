@@ -48,6 +48,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api', routes);
 
+// Separate team admin portal (ADMIN / MANAGER login).
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+
 // Serve the frontend from the same Render web service.
 app.use(express.static(__dirname));
 app.get('*', (req, res, next) => {
