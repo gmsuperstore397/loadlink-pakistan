@@ -139,6 +139,7 @@ const rejectSpaceBooking = (id) => apiRequest(`/space/bookings/${id}/reject`, { 
 const rejectBooking = (id) => apiRequest(`/bookings/${id}/reject`, { method: 'PATCH' });
 const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
+const getSmartLoadMatches = (loadId) => apiRequest(`/recommendations/load/${loadId}/matches`);
 const getDeliveryProof = (tripId) => apiRequest(`/trips/${tripId}/proof`);
 const submitDeliveryProof = (tripId, formData) => apiRequest(`/trips/${tripId}/proof`, { method: 'POST', body: formData, isForm: true });
 
@@ -938,6 +939,24 @@ function renderRecommendation(rec, { pickup, destination, weightKg, loadId }) {
     <div class="rec-line"><span>Estimated Fare</span><span>${fareLine}</span></div>
     ${vehiclesHtml}
   `;
+  if (loadId) {
+    body.insertAdjacentHTML('beforeend', '<div id="smart-match-results" class="smart-match-results"><p class="muted-empty">🤖 Finding best verified drivers...</p></div>');
+    getSmartLoadMatches(loadId).then((result) => {
+      const el = $('#smart-match-results');
+      if (!el) return;
+      el.innerHTML = result.matches?.length ? '<h4>🤖 Smart Driver Matches</h4>' + result.matches.map((m) => `
+        <div class="rec-vehicle">
+          <b>${m.driver.fullName}</b> · ${m.vehicle.vehicleType} · ${m.vehicle.capacityKg} kg
+          <div><small>Match: <b>${m.matchScore}%</b> · ${m.distanceKm != null ? m.distanceKm + ' km away' : 'distance unavailable'}</small></div>
+          <div><small>${m.reasons.slice(0,3).join(' · ')}</small></div>
+          <button class="btn btn-primary book-vehicle-btn" data-load="${loadId}" data-driver="${m.driverId}" data-vehicle="${m.vehicleId}">Book this matched vehicle</button>
+        </div>
+      `).join('') : '<p class="muted-empty">Abhi koi verified available driver match nahi mila.</p>';
+    }).catch(() => {
+      const el = $('#smart-match-results');
+      if (el) el.innerHTML = '<p class="muted-empty">Smart matching temporarily unavailable.</p>';
+    });
+  }
 }
 
 document.addEventListener('click', async (e) => {
