@@ -77,7 +77,7 @@ const login = asyncHandler(async (req, res) => {
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new ApiError(401, 'Invalid credentials');
-  if (!user.emailVerified) throw new ApiError(403, 'Email verify karein. OTP required hai.');
+  if (!user.emailVerified && user.role !== 'ADMIN') throw new ApiError(403, 'Email verify karein. OTP required hai.');
   if (user.status === 'SUSPENDED') throw new ApiError(403, 'This account has been suspended');
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
