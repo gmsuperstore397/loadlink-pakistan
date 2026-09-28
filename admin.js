@@ -54,7 +54,7 @@ function showSection(name, title = name) {
 
 const MODULES = {
   customers:{permission:'customers.view',title:'Customers',path:'/admin/customers',columns:[['fullName','Name'],['mobile','Mobile'],['email','Email'],['city','City'],['status','Status'],['createdAt','Joined']]},
-  drivers:{permission:'drivers.view',title:'Drivers',path:'/admin/drivers',columns:[['user.fullName','Name'],['user.mobile','Mobile'],['user.city','City'],['user.status','Account'],['verification','Verification'],['vehicles.length','Vehicles']]},
+  drivers:{permission:'drivers.view',title:'Drivers',path:'/admin/drivers',columns:[['user.fullName','Name'],['user.mobile','Mobile'],['user.city','City'],['user.status','Account'],['verification','Verification'],['vehicles.length','Vehicles'],['trustScore','Trust Score']]},
   loads:{permission:'loads.view',title:'Loads',path:'/admin/loads',columns:[['pickupAddress','Pickup'],['destinationAddress','Destination'],['weightKg','Weight KG'],['status','Status'],['customer.fullName','Customer'],['createdAt','Posted']]},
   bookings:{permission:'bookings.view',title:'Bookings',path:'/admin/bookings',columns:[['id','ID'],['status','Status'],['agreedFare','Fare'],['customer.fullName','Customer'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
   payments:{permission:'payments.verify',title:'Payments',path:'/admin/payments',columns:[['id','ID'],['amount','Amount'],['method','Method'],['status','Status'],['user.fullName','User'],['createdAt','Date']]},
