@@ -94,6 +94,24 @@ const suspendUser = asyncHandler(async (req, res) => {
   return success(res, 200, 'User status updated', { user: sanitizeUser(updated) });
 });
 
+const setCustomerAccountStatus = asyncHandler(async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user || user.role !== 'CUSTOMER') throw new ApiError(404, 'Customer not found');
+  const status = req.body.status === 'ACTIVE' ? 'ACTIVE' : 'SUSPENDED';
+  const updated = await prisma.user.update({ where: { id: user.id }, data: { status } });
+  await audit(req, status === 'ACTIVE' ? 'CUSTOMER_ACCOUNT_ENABLED' : 'CUSTOMER_ACCOUNT_DISABLED', 'User', user.id, { status });
+  return success(res, 200, 'Customer account status updated', { user: sanitizeUser(updated) });
+});
+
+const setDriverAccountStatus = asyncHandler(async (req, res) => {
+  const driver = await prisma.driverProfile.findUnique({ where: { id: req.params.id }, include: { user: true } });
+  if (!driver || driver.user.role !== 'DRIVER') throw new ApiError(404, 'Driver not found');
+  const status = req.body.status === 'ACTIVE' ? 'ACTIVE' : 'SUSPENDED';
+  const updated = await prisma.user.update({ where: { id: driver.userId }, data: { status } });
+  await audit(req, status === 'ACTIVE' ? 'DRIVER_ACCOUNT_ENABLED' : 'DRIVER_ACCOUNT_DISABLED', 'User', driver.userId, { status, driverProfileId: driver.id });
+  return success(res, 200, 'Driver account status updated', { user: sanitizeUser(updated) });
+});
+
 
 const updateCustomer = asyncHandler(async (req,res) => {
   const user=await prisma.user.findUnique({where:{id:req.params.id}});
@@ -265,4 +283,4 @@ const reports = asyncHandler(async (req,res) => { const [usersByRole,loadStatus,
 const unlockLocation = asyncHandler(async (req,res) => { const booking=await prisma.spaceBooking.findUnique({where:{id:req.params.id}}); if(!booking) throw new ApiError(404,'Space booking not found'); const updated=await prisma.spaceBooking.update({where:{id:booking.id},data:{exactPickupUnlocked:true}}); await audit(req,'LOCATION_UNLOCKED','SpaceBooking',booking.id,{}); return success(res,200,'Exact pickup location unlocked',{booking:updated}); });
 
 
-module.exports = { updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
