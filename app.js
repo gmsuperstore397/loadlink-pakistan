@@ -1210,6 +1210,7 @@ async function loadLiveTrips() {
             ${t.status === 'IN_TRANSIT' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="NEAR_DESTINATION">Near Destination</button>' : ''}
             ${t.status === 'NEAR_DESTINATION' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="DELIVERED">Delivered</button>' : ''}
             ${t.status === 'DELIVERED' ? '<button class="btn btn-outline delivery-proof-btn" data-trip="' + t.id + '">📦 Add Proof of Delivery</button>' : ''}
+            ${t.status === 'DELIVERED' && state.user.role !== 'DRIVER' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
           </div>` : ''}
       </div>
     `).join('');
@@ -1218,7 +1219,16 @@ async function loadLiveTrips() {
   }
 }
 
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
+  const view = e.target.closest('.view-proof-btn');
+  if (view) {
+    try {
+      const result = await getDeliveryProof(view.dataset.trip);
+      const p = result.proof;
+      toast('POD: ' + p.receiverName + (p.receiverPhone ? ' · ' + p.receiverPhone : '') + (p.notes ? ' · ' + p.notes : ''));
+    } catch (err) { toast(err.message); }
+    return;
+  }
   const btn = e.target.closest('.delivery-proof-btn');
   if (!btn) return;
   $('#deliveryProofForm').reset();
