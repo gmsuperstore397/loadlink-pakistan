@@ -5,3 +5,8 @@
 
 .danger-action{background:#b42318!important}
 .danger-action:hover{background:#8f1d14!important}
+
+.edit-fields{display:grid;gap:12px;margin-bottom:16px}
+.edit-fields label{display:grid;gap:6px;font-weight:600}
+.edit-fields input,.edit-fields select{width:100%;box-sizing:border-box}
+.modal-card{max-height:90vh;overflow:auto}
