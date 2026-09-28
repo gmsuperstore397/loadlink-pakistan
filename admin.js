@@ -1,20 +1,330 @@
-const $=s=>document.querySelector(s);let token=localStorage.getItem('ll_admin_token');let me=null;let permissions=[];
-async function api(path,opt={}){const r=await fetch('/api'+path,{...opt,headers:{'Content-Type':'application/json',Authorization:token?'Bearer '+token:''}});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.message||'Request failed');return j.data||j}
-function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',2500)}
-function setView(logged){$('#loginView').hidden=logged;$('#portal').hidden=!logged}
-function perms(){try{return JSON.parse(me.permissions||'[]')}catch{return[]}}
-function allowed(p){return me?.role==='ADMIN'||perms().includes(p)}
-function nav(){const n=$('#sideNav');n.innerHTML='';[['dashboard.view','📊 Dashboard','dashboard'],['customers.view','👥 Customers','customers'],['drivers.view','🚛 Drivers','drivers'],['loads.view','📦 Loads','loads'],['bookings.view','🤝 Bookings','bookings'],['commission.verify','💰 Commission','commission'],['payments.verify','💳 Payments','payments'],['trips.view','📍 Trips','trips'],['reports.view','📈 Reports','reports']].forEach(([p,t,id])=>{if(allowed(p)){const b=document.createElement('button');b.textContent=t;b.dataset.section=id;b.onclick=()=>showPlaceholder(t);n.appendChild(b)}});if(me?.role==='ADMIN'){const b=document.createElement('button');b.textContent='👨‍💼 Managers';b.onclick=()=>showSection('managers');n.appendChild(b)}}
-function showSection(s){document.querySelectorAll('.section').forEach(x=>x.hidden=true);$('#'+s+'Section').hidden=false;$('#pageTitle').textContent=s[0].toUpperCase()+s.slice(1);if(s==='managers')loadManagers()}
-function showPlaceholder(t){showSection('dashboard');$('#pageTitle').textContent=t;toast('Section foundation ready — next module attach hoga.')}
-async function loadDashboard(){try{const d=await api('/admin/dashboard');const data=d;$('#stats').innerHTML=Object.entries(data).map(([k,v])=>'<div class="stat"><span>'+k.replace(/([A-Z])/g,' $1')+'</span><b>'+v+'</b></div>').join('')}catch(e){toast(e.message)}}
-async function loadPermissions(){const d=await api('/admin/permissions');permissions=d.permissions||[];$('#permissionInfo').innerHTML=permissions.map(p=>'<span class="tag">'+p+'</span>').join('')}
-async function loadManagers(){const d=await api('/admin/managers');const ms=d.managers||[];$('#managerList').innerHTML=ms.length?ms.map(m=>'<div class="manager-row"><div><b>'+m.fullName+'</b><br><small>'+m.email+' · '+m.mobile+'</small></div><div><span class="pill">'+m.status+'</span></div><div class="tags">'+(m.permissions||[]).map(p=>'<span class="tag">'+p+'</span>').join('')+'</div><div><button class="primary" onclick="editManager(\\''+m.id+'\\')">Edit</button> <button class="primary" style="background:#b42318" onclick="toggleManager(\\''+m.id+'\\',\\''+m.status+'\\')">'+(m.status==='ACTIVE'?'Suspend':'Activate')+'</button></div></div>').join(''):'<p class="muted">No managers yet.</p>';window.__managers=ms}
-async function toggleManager(id,status){try{await api('/admin/managers/'+id,{method:'PATCH',body:JSON.stringify({status:status==='ACTIVE'?'SUSPENDED':'ACTIVE'})});toast(status==='ACTIVE'?'Manager suspended':'Manager activated');loadManagers()}catch(e){toast(e.message)}}
-function openManager(m){$('#managerModal').hidden=false;$('#managerId').value=m?.id||'';$('#managerModalTitle').textContent=m?'Edit Manager':'Create Manager';$('#managerName').value=m?.fullName||'';$('#managerEmail').value=m?.email||'';$('#managerMobile').value=m?.mobile||'';$('#managerEmail').disabled=!!m;$('#managerMobile').disabled=!!m;$('#managerPassword').required=!m;$('#managerPassword').value='';$('#permissionChecks').innerHTML=permissions.map(p=>'<label><input type="checkbox" value="'+p+'" '+((m?.permissions||[]).includes(p)?'checked':'')+'>'+p+'</label>').join('')}
-function editManager(id){openManager(window.__managers.find(x=>x.id===id))}
-$('#newManagerBtn').onclick=()=>openManager(null);$('#closeManager').onclick=()=>$('#managerModal').hidden=true;
-$('#managerForm').onsubmit=async e=>{e.preventDefault();const id=$('#managerId').value;const ps=[...document.querySelectorAll('#permissionChecks input:checked')].map(x=>x.value);const body={fullName:$('#managerName').value,permissions:ps};if(!id){Object.assign(body,{email:$('#managerEmail').value,mobile:$('#managerMobile').value,password:$('#managerPassword').value})}else if($('#managerPassword').value)body.password=$('#managerPassword').value;try{await api('/admin/managers'+(id?'/'+id:''),{method:id?'PATCH':'POST',body:JSON.stringify(body)});toast('Manager saved');$('#managerModal').hidden=true;loadManagers()}catch(e){toast(e.message)}}
-$('#loginForm').onsubmit=async e=>{e.preventDefault();$('#loginError').textContent='';try{const identifier=$('#loginId').value.trim();const loginBody=identifier.includes('@')?{email:identifier,password:$('#loginPassword').value}:{mobile:identifier.replace(/\s+/g,''),password:$('#loginPassword').value};const d=await api('/auth/login',{method:'POST',body:JSON.stringify(loginBody)});if(!['ADMIN','MANAGER'].includes(d.user.role))throw new Error('Admin portal sirf team accounts ke liye hai');token=d.token;me=d.user;localStorage.setItem('ll_admin_token',token);setView(true);$('#identity').innerHTML='<b>'+me.fullName+'</b><br><small>'+me.role+'</small>';$('#roleText').textContent=me.role==='ADMIN'?'Full system access':'Permission based access';$('#statusPill').textContent=me.status;nav();if(me.role==='ADMIN'){loadPermissions();loadDashboard();}else{permissions=perms();if(allowed('dashboard.view'))loadDashboard();} }catch(e){$('#loginError').textContent=e.message}}
-$('#logoutBtn').onclick=()=>{localStorage.removeItem('ll_admin_token');token=null;me=null;setView(false)}
-(async()=>{if(!token){setView(false);return}try{const d=await api('/auth/me');me=d.user||d;setView(true);$('#identity').innerHTML='<b>'+me.fullName+'</b><br><small>'+me.role+'</small>';$('#roleText').textContent=me.role==='ADMIN'?'Full system access':'Permission based access';$('#statusPill').textContent=me.status;nav();if(me.role==='ADMIN'||allowed('dashboard.view'))loadDashboard()}catch(e){localStorage.removeItem('ll_admin_token');token=null;setView(false)}})();
+const $ = (s) => document.querySelector(s);
+
+let token = localStorage.getItem('ll_admin_token');
+let me = null;
+let permissionCatalog = [];
+let managers = [];
+
+async function api(path, options = {}) {
+  const response = await fetch('/api' + path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'Request failed');
+  return data.data || data;
+}
+
+function toast(message) {
+  const el = $('#toast');
+  el.textContent = message;
+  el.style.display = 'block';
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2500);
+}
+
+function setView(loggedIn) {
+  $('#loginView').hidden = loggedIn;
+  $('#portal').hidden = !loggedIn;
+}
+
+function myPermissions() {
+  try { return JSON.parse(me?.permissions || '[]'); } catch (_) { return []; }
+}
+
+function allowed(permission) {
+  return me?.role === 'ADMIN' || myPermissions().includes(permission);
+}
+
+function clearSections() {
+  document.querySelectorAll('.section').forEach((section) => { section.hidden = true; });
+}
+
+function showSection(name, title = name) {
+  clearSections();
+  const section = $('#' + name + 'Section');
+  if (section) section.hidden = false;
+  $('#pageTitle').textContent = title;
+  if (name === 'managers') loadManagers();
+}
+
+function renderNav() {
+  const nav = $('#sideNav');
+  nav.innerHTML = '';
+
+  const items = [
+    ['dashboard.view', '📊 Dashboard', 'dashboard'],
+    ['customers.view', '👥 Customers', 'customers'],
+    ['drivers.view', '🚛 Drivers', 'drivers'],
+    ['loads.view', '📦 Loads', 'loads'],
+    ['bookings.view', '🤝 Bookings', 'bookings'],
+    ['commission.verify', '💰 Commission', 'commission'],
+    ['payments.verify', '💳 Payments', 'payments'],
+    ['trips.view', '📍 Trips', 'trips'],
+    ['reports.view', '📈 Reports', 'reports'],
+  ];
+
+  items.forEach(([permission, label, section]) => {
+    if (!allowed(permission)) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      showSection('dashboard', label);
+      toast('Module foundation ready — operational screen next.');
+    });
+    nav.appendChild(button);
+  });
+
+  if (me?.role === 'ADMIN') {
+    const managersButton = document.createElement('button');
+    managersButton.type = 'button';
+    managersButton.textContent = '👨‍💼 Managers';
+    managersButton.addEventListener('click', () => showSection('managers', 'Managers'));
+    nav.appendChild(managersButton);
+
+    const permissionsButton = document.createElement('button');
+    permissionsButton.type = 'button';
+    permissionsButton.textContent = '🔐 Permissions';
+    permissionsButton.addEventListener('click', () => showSection('permissions', 'Permission Matrix'));
+    nav.appendChild(permissionsButton);
+  }
+}
+
+async function loadDashboard() {
+  try {
+    const data = await api('/admin/dashboard');
+    $('#stats').innerHTML = Object.entries(data).map(([key, value]) => (
+      '<div class="stat"><span>' +
+      key.replace(/([A-Z])/g, ' $1') +
+      '</span><b>' + value + '</b></div>'
+    )).join('');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function loadPermissions() {
+  try {
+    const data = await api('/admin/permissions');
+    permissionCatalog = data.permissions || [];
+    $('#permissionInfo').innerHTML = permissionCatalog
+      .map((permission) => '<span class="tag">' + permission + '</span>')
+      .join('');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function renderManagerRow(manager) {
+  const row = document.createElement('div');
+  row.className = 'manager-row';
+
+  const identity = document.createElement('div');
+  identity.innerHTML = '<b>' + manager.fullName + '</b><br><small>' +
+    manager.email + ' · ' + manager.mobile + '</small>';
+
+  const status = document.createElement('div');
+  const pill = document.createElement('span');
+  pill.className = 'pill';
+  pill.textContent = manager.status;
+  status.appendChild(pill);
+
+  const tags = document.createElement('div');
+  tags.className = 'tags';
+  (manager.permissions || []).forEach((permission) => {
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = permission;
+    tags.appendChild(tag);
+  });
+
+  const actions = document.createElement('div');
+  const edit = document.createElement('button');
+  edit.className = 'primary';
+  edit.type = 'button';
+  edit.textContent = 'Edit';
+  edit.addEventListener('click', () => openManager(manager));
+
+  const toggle = document.createElement('button');
+  toggle.className = 'primary';
+  toggle.type = 'button';
+  toggle.style.background = '#b42318';
+  toggle.textContent = manager.status === 'ACTIVE' ? 'Suspend' : 'Activate';
+  toggle.addEventListener('click', () => toggleManager(manager));
+
+  actions.append(edit, document.createTextNode(' '), toggle);
+  row.append(identity, status, tags, actions);
+  return row;
+}
+
+async function loadManagers() {
+  try {
+    const data = await api('/admin/managers');
+    managers = data.managers || [];
+    const container = $('#managerList');
+    container.innerHTML = '';
+    if (!managers.length) {
+      container.innerHTML = '<p class="muted">No managers yet.</p>';
+      return;
+    }
+    managers.forEach((manager) => container.appendChild(renderManagerRow(manager)));
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function toggleManager(manager) {
+  try {
+    await api('/admin/managers/' + manager.id, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status: manager.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE',
+      }),
+    });
+    toast(manager.status === 'ACTIVE' ? 'Manager suspended' : 'Manager activated');
+    await loadManagers();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function openManager(manager) {
+  $('#managerModal').hidden = false;
+  $('#managerId').value = manager?.id || '';
+  $('#managerModalTitle').textContent = manager ? 'Edit Manager' : 'Create Manager';
+  $('#managerName').value = manager?.fullName || '';
+  $('#managerEmail').value = manager?.email || '';
+  $('#managerMobile').value = manager?.mobile || '';
+  $('#managerEmail').disabled = !!manager;
+  $('#managerMobile').disabled = !!manager;
+  $('#managerPassword').required = !manager;
+  $('#managerPassword').value = '';
+
+  $('#permissionChecks').innerHTML = '';
+  permissionCatalog.forEach((permission) => {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = permission;
+    input.checked = (manager?.permissions || []).includes(permission);
+    label.append(input, document.createTextNode(' ' + permission));
+    $('#permissionChecks').appendChild(label);
+  });
+}
+
+$('#newManagerBtn').addEventListener('click', () => openManager(null));
+$('#closeManager').addEventListener('click', () => { $('#managerModal').hidden = true; });
+
+$('#managerForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const id = $('#managerId').value;
+  const selectedPermissions = [...document.querySelectorAll('#permissionChecks input:checked')]
+    .map((input) => input.value);
+
+  const body = {
+    fullName: $('#managerName').value.trim(),
+    permissions: selectedPermissions,
+  };
+
+  if (!id) {
+    Object.assign(body, {
+      email: $('#managerEmail').value.trim(),
+      mobile: $('#managerMobile').value.replace(/\s+/g, ''),
+      password: $('#managerPassword').value,
+    });
+  } else if ($('#managerPassword').value) {
+    body.password = $('#managerPassword').value;
+  }
+
+  try {
+    await api('/admin/managers' + (id ? '/' + id : ''), {
+      method: id ? 'PATCH' : 'POST',
+      body: JSON.stringify(body),
+    });
+    toast('Manager saved');
+    $('#managerModal').hidden = true;
+    await loadManagers();
+  } catch (error) {
+    toast(error.message);
+  }
+});
+
+$('#loginForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  $('#loginError').textContent = '';
+
+  try {
+    const identifier = $('#loginId').value.trim();
+    const password = $('#loginPassword').value;
+    const body = identifier.includes('@')
+      ? { email: identifier.toLowerCase(), password }
+      : { mobile: identifier.replace(/\s+/g, ''), password };
+
+    const data = await api('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    if (!['ADMIN', 'MANAGER'].includes(data.user.role)) {
+      throw new Error('Admin portal sirf team accounts ke liye hai');
+    }
+
+    token = data.token;
+    me = data.user;
+    localStorage.setItem('ll_admin_token', token);
+    initializePortal();
+  } catch (error) {
+    $('#loginError').textContent = error.message;
+  }
+});
+
+function initializePortal() {
+  setView(true);
+  $('#identity').innerHTML = '<b>' + me.fullName + '</b><br><small>' + me.role + '</small>';
+  $('#roleText').textContent = me.role === 'ADMIN'
+    ? 'Full system access'
+    : 'Permission based access';
+  $('#statusPill').textContent = me.status;
+  renderNav();
+
+  if (me.role === 'ADMIN') {
+    loadPermissions();
+    loadDashboard();
+  } else if (allowed('dashboard.view')) {
+    loadDashboard();
+  }
+}
+
+$('#logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem('ll_admin_token');
+  token = null;
+  me = null;
+  setView(false);
+});
+
+(async function restoreSession() {
+  if (!token) {
+    setView(false);
+    return;
+  }
+
+  try {
+    const data = await api('/auth/me');
+    me = data.user || data;
+
+    if (!['ADMIN', 'MANAGER'].includes(me.role)) {
+      throw new Error('Team account required');
+    }
+
+    initializePortal();
+  } catch (_) {
+    localStorage.removeItem('ll_admin_token');
+    token = null;
+    setView(false);
+  }
+})();
