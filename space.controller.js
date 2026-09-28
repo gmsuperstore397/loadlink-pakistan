@@ -94,8 +94,9 @@ const acceptSpaceBooking = asyncHandler(async (req, res) => {
     if (changed.count !== 1) throw new ApiError(400, 'Remaining space is not enough');
     const listingAfter = await tx.spaceListing.findUnique({ where: { id: fresh.spaceListingId } });
     if (listingAfter.availableWeightKg <= 0) await tx.spaceListing.update({ where: { id: fresh.spaceListingId }, data: { status: 'FULL' } });
+    const requestLocked = await tx.spaceRequest.updateMany({ where: { id: fresh.spaceRequestId, status: 'OPEN' }, data: { status: 'BOOKED' } });
+    if (requestLocked.count !== 1) throw new ApiError(400, 'Cargo request has already been booked');
     const accepted = await tx.spaceBooking.update({ where: { id: fresh.id }, data: { status: 'ACCEPTED', agreedFare, exactPickupUnlocked: true } });
-    await tx.spaceRequest.update({ where: { id: fresh.spaceRequestId }, data: { status: 'BOOKED' } });
     await tx.spaceBooking.updateMany({ where: { spaceRequestId: fresh.spaceRequestId, id: { not: fresh.id }, status: 'REQUESTED' }, data: { status: 'REJECTED' } });
     return accepted;
   });
