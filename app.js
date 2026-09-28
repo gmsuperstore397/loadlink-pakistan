@@ -765,11 +765,41 @@ document.addEventListener('click', async (e) => {
   } catch (err) { toast(err.message); }
 });
 
+function openAdminPanel() {
+  if (!state.user || state.user.role !== 'ADMIN') return;
+  closeModal('loginModal');
+  closeModal('signupModal');
+  exitProfileView();
+  const section = $('#adminDashboard');
+  if (!section) return;
+  section.hidden = false;
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  loadAdminDashboard();
+}
+
 function updateAuthUI() {
   const loggedIn = !!state.user;
+  const isAdmin = loggedIn && state.user.role === 'ADMIN';
   $('#loginBtn').style.display = loggedIn ? 'none' : '';
   $('#loginBtnMobile').style.display = loggedIn ? 'none' : '';
   $('#signupBtn').textContent = loggedIn ? '👤 My Profile' : 'Sign Up';
+
+  // Admin Panel is intentionally visible only to an authenticated ADMIN.
+  ['adminPanelBtn', 'adminPanelBtnMobile'].forEach((id) => {
+    let button = $('#' + id);
+    if (!button) {
+      button = document.createElement('button');
+      button.id = id;
+      button.type = 'button';
+      button.className = 'btn btn-primary';
+      button.textContent = '🛠️ Admin Panel';
+      button.addEventListener('click', openAdminPanel);
+      const parent = id.endsWith('Mobile') ? $('.nav-mobile-auth') : $('.nav-auth');
+      if (parent) parent.appendChild(button);
+    }
+    button.hidden = !isAdmin;
+    button.style.display = isAdmin ? '' : 'none';
+  });
   $('#signupBtnMobile').textContent = loggedIn ? '👤 My Profile' : 'Sign Up';
   $('#dashboard').style.display = loggedIn ? '' : 'none';
   $('#profile').hidden = !(loggedIn && document.body.classList.contains('profile-view'));
