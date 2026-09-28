@@ -76,9 +76,24 @@ async function loadModule(title){
     const rows=data[key]||[];
     $('#moduleTable').thead;
     $('#moduleTable thead').innerHTML='<tr>'+m.columns.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr>';
-    $('#moduleTable tbody').innerHTML=rows.length?rows.map(row=>'<tr>'+m.columns.map(c=>'<td>'+esc(val(row,c[0]))+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+m.columns.length+'">No records found</td></tr>';
+    $('#moduleTable tbody').innerHTML=rows.length?rows.map(row=>'<tr>'+m.columns.map(c=>'<td>'+esc(val(row,c[0]))+'</td>').join('')+'<td>'+moduleActions(key,row)+'</td></tr>').join(''):'<tr><td colspan="'+(m.columns.length+1)+'">No records found</td></tr>';
+  $('#moduleTable thead tr').insertAdjacentHTML('beforeend','<th>Actions</th>');
   }catch(e){toast(e.message);}
 }
+function moduleActions(key,row){
+  if(!row?.id)return '';
+  if(key==='customers') return '<button class="primary" type="button" onclick="editCustomer(\''+row.id+'\')">Edit</button>';
+  if(key==='loads') return '<button class="primary" type="button" onclick="editLoad(\''+row.id+'\')">Edit</button>';
+  if(key==='bookings') return '<button class="primary" type="button" onclick="editBooking(\''+row.id+'\')">Update</button>';
+  if(key==='payments') return '<button class="primary" type="button" onclick="editPayment(\''+row.id+'\')">Verify</button>';
+  return '';
+}
+async function patchModule(path,body,title){try{await api(path,{method:'PATCH',body:JSON.stringify(body)});toast('Updated successfully');await loadModule(title);}catch(e){toast(e.message);}}
+async function editCustomer(id){const status=prompt('Status: ACTIVE or SUSPENDED','ACTIVE');if(status)await patchModule('/admin/customers/'+id,{status},'Customers');}
+async function editLoad(id){const status=prompt('New load status','ACTIVE');if(status)await patchModule('/admin/loads/'+id,{status},'Loads');}
+async function editBooking(id){const status=prompt('Booking status','APPROVED');if(status)await patchModule('/admin/bookings/'+id,{status},'Bookings');}
+async function editPayment(id){const status=prompt('Payment status: PAID / FAILED / PENDING','PAID');if(status)await patchModule('/admin/payments/'+id,{status},'Payments');}
+
 function renderReports(data){
   $('#moduleTable thead').innerHTML='<tr><th>Report</th><th>Value</th></tr>';
   const groups=[['Revenue (PKR)',data.revenue],['Users by role',data.usersByRole],['Loads by status',data.loadStatus],['Bookings by status',data.bookingStatus],['Payments by status',data.paymentStatus]];
