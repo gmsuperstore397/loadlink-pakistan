@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#062b45">
+<title>LoadLink Admin Portal</title>
+<link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+<div id="toast"></div>
+<div id="loginView" class="auth-shell">
+  <div class="login-card">
+    <div class="brand">🚛 <span>LoadLink <small>ADMIN PORTAL</small></span></div>
+    <h1>Team Login</h1>
+    <p class="muted">Admin aur authorized managers ke liye.</p>
+    <form id="loginForm">
+      <label>Email / Mobile<input id="loginId" required autocomplete="username"></label>
+      <label>Password<input id="loginPassword" type="password" required autocomplete="current-password"></label>
+      <button class="primary" type="submit">Login</button>
+    </form>
+    <p id="loginError" class="error"></p>
+  </div>
+</div>
+
+<div id="portal" hidden>
+  <aside class="sidebar">
+    <div class="brand">🚛 <span>LoadLink<small>ADMIN</small></span></div>
+    <div id="identity" class="identity"></div>
+    <nav id="sideNav"></nav>
+    <button id="logoutBtn" class="logout">Logout</button>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div><h1 id="pageTitle">Dashboard</h1><p id="roleText"></p></div><span id="statusPill" class="pill"></span></header>
+    <section id="dashboardSection" class="section">
+      <div id="stats" class="stats"></div>
+      <div class="panel"><h2>Quick overview</h2><p class="muted">Team activity aur platform operations yahan manage honge.</p></div>
+    </section>
+    <section id="managersSection" class="section" hidden>
+      <div class="panel">
+        <div class="panel-head"><div><h2>Managers</h2><p class="muted">Admin managers create aur permissions control kar sakta hai.</p></div><button id="newManagerBtn" class="primary">+ Create Manager</button></div>
+        <div id="managerList"></div>
+      </div>
+    </section>
+    <section id="permissionsSection" class="section" hidden>
+      <div class="panel"><h2>Permission Matrix</h2><p class="muted">Har manager ko sirf required access dein.</p><div id="permissionInfo"></div></div>
+    </section>
+  </main>
+</div>
+
+<div id="managerModal" class="modal" hidden>
+  <div class="modal-card">
+    <button class="close" id="closeManager">×</button>
+    <h2 id="managerModalTitle">Create Manager</h2>
+    <form id="managerForm">
+      <input type="hidden" id="managerId">
+      <label>Name<input id="managerName" required></label>
+      <label>Email<input id="managerEmail" type="email" required></label>
+      <label>Mobile<input id="managerMobile" required></label>
+      <label>Password <small>(10+ characters)</small><input id="managerPassword" type="password"></label>
+      <div><b>Permissions</b><div id="permissionChecks" class="checks"></div></div>
+      <button class="primary" type="submit">Save Manager</button>
+    </form>
+  </div>
+</div>
+<script src="/admin.js?v=20260928-1"></script>
+</body>
+</html>
