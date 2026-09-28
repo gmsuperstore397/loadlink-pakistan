@@ -55,6 +55,13 @@ enum SpaceListingStatus {
   CANCELLED
 }
 
+enum SpaceRequestStatus {
+  OPEN
+  BOOKED
+  CANCELLED
+  COMPLETED
+}
+
 enum BookingStatus {
   REQUESTED
   ACCEPTED
@@ -266,7 +273,7 @@ model SpaceRequest {
   vehicleRequirement    String?
   expectedBudget        Float?
   description           String?
-  status                SpaceListingStatus @default(OPEN)
+  status                SpaceRequestStatus @default(OPEN)
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   bookings              SpaceBooking[]
