@@ -47,6 +47,7 @@
     <div class="nav-auth">
       <button class="btn btn-outline" id="installAppBtn" hidden>⬇️ Install App</button>
       <button class="btn btn-ghost" id="loginBtn">Login</button>
+      <button class="btn btn-outline notification-bell" id="notificationBtn" hidden type="button">🔔 <span id="notificationBadge" hidden>0</span></button>
       <button class="btn btn-primary" id="signupBtn">Sign Up</button>
     </div>
 
@@ -70,6 +71,14 @@
     <button class="btn btn-outline" id="installAppBtnMobile" hidden style="margin-top:8px">⬇️ Install App</button>
   </div>
 </header>
+
+<div class="notification-panel" id="notificationPanel" hidden>
+  <div class="notification-head">
+    <div><b>🔔 Notifications</b><small id="notificationHint">Latest updates</small></div>
+    <button type="button" id="markAllNotifications">Mark all read</button>
+  </div>
+  <div id="notificationList" class="notification-list"><p class="muted-empty">No notifications.</p></div>
+</div>
 
 <!-- App-update available banner (PWA) -->
 <div class="update-banner" id="updateBanner" hidden>
@@ -625,6 +634,6 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="app.js?v=20260929-2"></script>
+<script src="app.js?v=20260929-3"></script>
 </body>
 </html>
