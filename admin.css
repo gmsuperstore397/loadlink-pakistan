@@ -2,3 +2,6 @@
 .table-wrap{overflow:auto;margin-top:18px}.table-wrap table{width:100%;border-collapse:collapse;min-width:760px}.table-wrap th,.table-wrap td{padding:12px 10px;border-bottom:1px solid #e7edf2;text-align:left;vertical-align:top;font-size:13px}.table-wrap th{background:#f7fafc;position:sticky;top:0}.table-wrap pre{white-space:pre-wrap;margin:0;font:12px/1.4 ui-monospace,monospace}.module-tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 
 [hidden]{display:none !important}
+
+.danger-action{background:#b42318!important}
+.danger-action:hover{background:#8f1d14!important}
