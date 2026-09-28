@@ -140,6 +140,7 @@ const rejectBooking = (id) => apiRequest(`/bookings/${id}/reject`, { method: 'PA
 const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
 const getSmartLoadMatches = (loadId) => apiRequest(`/recommendations/load/${loadId}/matches`);
+const getDriverTrustScore = (userId) => apiRequest(`/ratings/trust/${userId}`);
 const getDeliveryProof = (tripId) => apiRequest(`/trips/${tripId}/proof`);
 const submitDeliveryProof = (tripId, formData) => apiRequest(`/trips/${tripId}/proof`, { method: 'POST', body: formData, isForm: true });
 
@@ -941,14 +942,22 @@ function renderRecommendation(rec, { pickup, destination, weightKg, loadId }) {
   `;
   if (loadId) {
     body.insertAdjacentHTML('beforeend', '<div id="smart-match-results" class="smart-match-results"><p class="muted-empty">🤖 Finding best verified drivers...</p></div>');
-    getSmartLoadMatches(loadId).then((result) => {
+    getSmartLoadMatches(loadId).then(async (result) => {
       const el = $('#smart-match-results');
       if (!el) return;
-      el.innerHTML = result.matches?.length ? '<h4>🤖 Smart Driver Matches</h4>' + result.matches.map((m) => `
+      if (!result.matches?.length) {
+        el.innerHTML = '<p class="muted-empty">Abhi koi verified available driver match nahi mila.</p>';
+        return;
+      }
+      const matches = await Promise.all(result.matches.map(async (m) => {
+        try { const trust = await getDriverTrustScore(m.driver.id); return { ...m, trust: trust.trust || trust }; }
+        catch (_) { return { ...m, trust: null }; }
+      }));
+      el.innerHTML = '<h4>🤖 Smart Driver Matches</h4>' + matches.map((m) => `
         <div class="rec-vehicle">
           <b>${m.driver.fullName}</b> · ${m.vehicle.vehicleType} · ${m.vehicle.capacityKg} kg
-          <div><small>Match: <b>${m.matchScore}%</b> · ${m.distanceKm != null ? m.distanceKm + ' km away' : 'distance unavailable'}</small></div>
-          <div><small>${m.reasons.slice(0,3).join(' · ')}</small></div>
+          <div><small>Match: <b>${m.matchScore}%</b> · Trust: <b>${m.trust?.score ?? 'New'}</b>/100 · ${m.distanceKm != null ? m.distanceKm + ' km away' : 'distance unavailable'}</small></div>
+          <div><small>${m.trust?.averageRating ? `⭐ ${m.trust.averageRating}/5 (${m.trust.ratingCount}) · ` : ''}${m.reasons.slice(0,3).join(' · ')}</small></div>
           <button class="btn btn-primary book-vehicle-btn" data-load="${loadId}" data-driver="${m.driverId}" data-vehicle="${m.vehicleId}">Book this matched vehicle</button>
         </div>
       `).join('') : '<p class="muted-empty">Abhi koi verified available driver match nahi mila.</p>';
