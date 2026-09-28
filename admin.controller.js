@@ -94,6 +94,46 @@ const suspendUser = asyncHandler(async (req, res) => {
   return success(res, 200, 'User status updated', { user: sanitizeUser(updated) });
 });
 
+
+const updateCustomer = asyncHandler(async (req,res) => {
+  const user=await prisma.user.findUnique({where:{id:req.params.id}});
+  if(!user || user.role!=='CUSTOMER') throw new ApiError(404,'Customer not found');
+  const data={};
+  for(const k of ['fullName','city']) if(req.body[k]!==undefined) data[k]=String(req.body[k]).trim();
+  if(req.body.status!==undefined) data.status=req.body.status==='ACTIVE'?'ACTIVE':'SUSPENDED';
+  const updated=await prisma.user.update({where:{id:user.id},data});
+  await audit(req,'CUSTOMER_UPDATED','User',user.id,data);
+  return success(res,200,'Customer updated',{user:sanitizeUser(updated)});
+});
+
+const updateLoad = asyncHandler(async (req,res) => {
+  const load=await prisma.load.findUnique({where:{id:req.params.id}});
+  if(!load) throw new ApiError(404,'Load not found');
+  const allowed=['status','pickupAddress','destinationAddress'];
+  const data={}; for(const k of allowed) if(req.body[k]!==undefined) data[k]=req.body[k];
+  const updated=await prisma.load.update({where:{id:load.id},data});
+  await audit(req,'LOAD_UPDATED','Load',load.id,data);
+  return success(res,200,'Load updated',{load:updated});
+});
+
+const updateBooking = asyncHandler(async (req,res) => {
+  const booking=await prisma.booking.findUnique({where:{id:req.params.id}});
+  if(!booking) throw new ApiError(404,'Booking not found');
+  const data={}; for(const k of ['status','agreedFare']) if(req.body[k]!==undefined) data[k]=req.body[k];
+  const updated=await prisma.booking.update({where:{id:booking.id},data});
+  await audit(req,'BOOKING_UPDATED','Booking',booking.id,data);
+  return success(res,200,'Booking updated',{booking:updated});
+});
+
+const updatePayment = asyncHandler(async (req,res) => {
+  const payment=await prisma.payment.findUnique({where:{id:req.params.id}});
+  if(!payment) throw new ApiError(404,'Payment not found');
+  if(!['PENDING','PAID','FAILED'].includes(req.body.status)) throw new ApiError(400,'Invalid payment status');
+  const updated=await prisma.payment.update({where:{id:payment.id},data:{status:req.body.status}});
+  await audit(req,'PAYMENT_UPDATED','Payment',payment.id,{status:req.body.status});
+  return success(res,200,'Payment updated',{payment:updated});
+});
+
 const listAuditLogs = asyncHandler(async (req, res) => {
   const logs = await prisma.auditLog.findMany({ include: { user: { select: { id: true, fullName: true, mobile: true } } }, orderBy: { createdAt: 'desc' }, take: 200 });
   return success(res, 200, 'Audit logs fetched', { logs });
@@ -225,4 +265,4 @@ const reports = asyncHandler(async (req,res) => { const [usersByRole,loadStatus,
 const unlockLocation = asyncHandler(async (req,res) => { const booking=await prisma.spaceBooking.findUnique({where:{id:req.params.id}}); if(!booking) throw new ApiError(404,'Space booking not found'); const updated=await prisma.spaceBooking.update({where:{id:booking.id},data:{exactPickupUnlocked:true}}); await audit(req,'LOCATION_UNLOCKED','SpaceBooking',booking.id,{}); return success(res,200,'Exact pickup location unlocked',{booking:updated}); });
 
 
-module.exports = { listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
