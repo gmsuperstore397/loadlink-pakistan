@@ -48,50 +48,64 @@ function showSection(name, title = name) {
   clearSections();
   const section = $('#' + name + 'Section');
   if (section) section.hidden = false;
-  $('#pageTitle').textContent = title;
-  if (name === 'managers') loadManagers();
+  if (name === 'module') { $('#moduleTitle').textContent=title; loadModule(title); }
+  else { $('#pageTitle').textContent = title; if (name === 'managers') loadManagers(); }
 }
 
+const MODULES = {
+  customers:{permission:'customers.view',title:'Customers',path:'/admin/customers',columns:[['fullName','Name'],['mobile','Mobile'],['email','Email'],['city','City'],['status','Status'],['createdAt','Joined']]},
+  drivers:{permission:'drivers.view',title:'Drivers',path:'/admin/drivers',columns:[['user.fullName','Name'],['user.mobile','Mobile'],['user.city','City'],['verification','Verification'],['vehicles.length','Vehicles']]},
+  loads:{permission:'loads.view',title:'Loads',path:'/admin/loads',columns:[['pickupAddress','Pickup'],['destinationAddress','Destination'],['weightKg','Weight KG'],['status','Status'],['customer.fullName','Customer'],['createdAt','Posted']]},
+  bookings:{permission:'bookings.view',title:'Bookings',path:'/admin/bookings',columns:[['id','ID'],['status','Status'],['agreedFare','Fare'],['customer.fullName','Customer'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
+  payments:{permission:'payments.verify',title:'Payments',path:'/admin/payments',columns:[['id','ID'],['amount','Amount'],['method','Method'],['status','Status'],['user.fullName','User'],['createdAt','Date']]},
+  trips:{permission:'trips.view',title:'Trips',path:'/admin/trips',columns:[['id','ID'],['status','Status'],['pickup','Pickup'],['destination','Destination'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
+  reports:{permission:'reports.view',title:'Reports',path:'/admin/reports',columns:[]}
+};
+
+function val(obj,path){ return path.split('.').reduce((v,k)=>v==null?null:v[k],obj); }
+function esc(v){ return String(v ?? '—').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function loadModule(title){
+  const key=Object.keys(MODULES).find(k=>MODULES[k].title===title);
+  if(!key)return;
+  const m=MODULES[key];
+  $('#moduleTitle').textContent=m.title; $('#moduleHint').textContent='Live records from the LoadLink database';
+  try{
+    const data=await api(m.path);
+    if(key==='reports'){ renderReports(data); return; }
+    const rows=data[key]||[];
+    $('#moduleTable').thead;
+    $('#moduleTable thead').innerHTML='<tr>'+m.columns.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr>';
+    $('#moduleTable tbody').innerHTML=rows.length?rows.map(row=>'<tr>'+m.columns.map(c=>'<td>'+esc(val(row,c[0]))+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+m.columns.length+'">No records found</td></tr>';
+  }catch(e){toast(e.message);}
+}
+function renderReports(data){
+  $('#moduleTable thead').innerHTML='<tr><th>Report</th><th>Value</th></tr>';
+  const groups=[['Revenue (PKR)',data.revenue],['Users by role',data.usersByRole],['Loads by status',data.loadStatus],['Bookings by status',data.bookingStatus],['Payments by status',data.paymentStatus]];
+  $('#moduleTable tbody').innerHTML=groups.map(([k,v])=>'<tr><td>'+esc(k)+'</td><td><pre>'+esc(JSON.stringify(v,null,2))+'</pre></td></tr>').join('');
+}
 function renderNav() {
-  const nav = $('#sideNav');
-  nav.innerHTML = '';
-
-  const items = [
-    ['dashboard.view', '📊 Dashboard', 'dashboard'],
-    ['customers.view', '👥 Customers', 'customers'],
-    ['drivers.view', '🚛 Drivers', 'drivers'],
-    ['loads.view', '📦 Loads', 'loads'],
-    ['bookings.view', '🤝 Bookings', 'bookings'],
-    ['commission.verify', '💰 Commission', 'commission'],
-    ['payments.verify', '💳 Payments', 'payments'],
-    ['trips.view', '📍 Trips', 'trips'],
-    ['reports.view', '📈 Reports', 'reports'],
+  const nav=$('#sideNav'); nav.innerHTML='';
+  const items=[
+    ['dashboard.view','📊 Dashboard','dashboard','Dashboard'],
+    ['customers.view','👥 Customers','module','Customers'],
+    ['drivers.view','🚛 Drivers','module','Drivers'],
+    ['loads.view','📦 Loads','module','Loads'],
+    ['bookings.view','🤝 Bookings','module','Bookings'],
+    ['commission.verify','💰 Commission','module','Bookings'],
+    ['payments.verify','💳 Payments','module','Payments'],
+    ['trips.view','📍 Trips','module','Trips'],
+    ['reports.view','📈 Reports','module','Reports']
   ];
-
-  items.forEach(([permission, label, section]) => {
-    if (!allowed(permission)) return;
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = label;
-    button.addEventListener('click', () => {
-      showSection('dashboard', label);
-      toast('Module foundation ready — operational screen next.');
-    });
+  items.forEach(([permission,label,section,title])=>{
+    if(!allowed(permission))return;
+    const button=document.createElement('button'); button.type='button'; button.textContent=label;
+    button.addEventListener('click',()=>{ $('#pageTitle').textContent=title; showSection(section,title); });
     nav.appendChild(button);
   });
-
-  if (me?.role === 'ADMIN') {
-    const managersButton = document.createElement('button');
-    managersButton.type = 'button';
-    managersButton.textContent = '👨‍💼 Managers';
-    managersButton.addEventListener('click', () => showSection('managers', 'Managers'));
-    nav.appendChild(managersButton);
-
-    const permissionsButton = document.createElement('button');
-    permissionsButton.type = 'button';
-    permissionsButton.textContent = '🔐 Permissions';
-    permissionsButton.addEventListener('click', () => showSection('permissions', 'Permission Matrix'));
-    nav.appendChild(permissionsButton);
+  if(me?.role==='ADMIN'){
+    const m=document.createElement('button');m.type='button';m.textContent='👨‍💼 Managers';m.onclick=()=>showSection('managers','Managers');nav.appendChild(m);
+    const p=document.createElement('button');p.type='button';p.textContent='🔐 Permissions';p.onclick=()=>showSection('permissions','Permission Matrix');nav.appendChild(p);
   }
 }
 
