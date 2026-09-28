@@ -127,6 +127,15 @@ const getReturnLoads = (query) => apiRequest(`/return-loads?${new URLSearchParam
 const createBooking = (body) => apiRequest('/bookings', { method: 'POST', body });
 const getMyBookings = () => apiRequest('/bookings/my');
 const acceptBooking = (id, agreedFare) => apiRequest(`/bookings/${id}/accept`, { method: 'PATCH', body: agreedFare ? { agreedFare: Number(agreedFare) } : {} });
+const listSpaceListings = (query = {}) => apiRequest(`/space/listings?${new URLSearchParams(query)}`);
+const listSpaceRequests = (query = {}) => apiRequest(`/space/requests?${new URLSearchParams(query)}`);
+const createSpaceListing = (body) => apiRequest('/space/listings', { method: 'POST', body });
+const createSpaceRequest = (body) => apiRequest('/space/requests', { method: 'POST', body });
+const getSpaceMatches = (id) => apiRequest(`/space/requests/${id}/matches`);
+const createSpaceBooking = (body) => apiRequest('/space/bookings', { method: 'POST', body });
+const getMySpaceBookings = () => apiRequest('/space/bookings/my');
+const acceptSpaceBooking = (id, agreedFare) => apiRequest(`/space/bookings/${id}/accept`, { method: 'PATCH', body: agreedFare ? { agreedFare: Number(agreedFare) } : {} });
+const rejectSpaceBooking = (id) => apiRequest(`/space/bookings/${id}/reject`, { method: 'PATCH' });
 const rejectBooking = (id) => apiRequest(`/bookings/${id}/reject`, { method: 'PATCH' });
 const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
@@ -666,6 +675,96 @@ function initDriverVehicles() {
 }
 
 
+async function loadSpaceMarketplace() {
+  if (!state.user) return;
+  try {
+    const [listingsResult, requestsResult] = await Promise.all([listSpaceListings({}), listSpaceRequests({})]);
+    renderSpaceListings(listingsResult.listings || []);
+    renderSpaceRequests(requestsResult.requests || []);
+    if (state.user.role === 'DRIVER') {
+      const vehicles = await getMyVehicles();
+      $('#spaceVehicle').innerHTML = '<option value="">Select vehicle</option>' + (vehicles.vehicles || []).map(v => '<option value="' + v.id + '" data-capacity="' + v.capacityKg + '">' + v.vehicleType + ' · ' + v.vehicleNumber + ' · ' + v.capacityKg + ' kg</option>').join('');
+      const bookings = await getMySpaceBookings();
+      const pending = (bookings.bookings || []).filter(b => b.status === 'REQUESTED');
+      if ($('#driverBookings')) $('#driverBookings').innerHTML += pending.map(b => '<div class="result-card"><b>📦 Space Request: ' + b.spaceRequest.pickupLocation + ' → ' + b.spaceRequest.destination + '</b><p>' + b.bookedWeightKg + ' kg · ' + b.spaceRequest.cargoType + '</p><button class="btn btn-primary accept-space-booking-btn" data-booking="' + b.id + '">Accept</button> <button class="btn btn-outline reject-space-booking-btn" data-booking="' + b.id + '">Reject</button></div>').join('');
+    }
+  } catch (err) { console.warn('Space marketplace failed', err); }
+}
+
+function renderSpaceListings(listings) {
+  const el = $('#spaceListings');
+  if (!el) return;
+  if (!listings.length) { el.innerHTML = '<p class="muted-empty">Is route par available space nahi mili.</p>'; return; }
+  el.innerHTML = listings.map(l => '<div class="result-card"><div class="rc-top"><h4>🚛 ' + l.fromLocation + ' → ' + l.toLocation + '</h4><span class="badge-pill">' + Math.round(l.availableWeightKg) + ' kg available</span></div><p>Date: ' + new Date(l.travelDate).toLocaleDateString() + ' · Vehicle: ' + l.vehicle.vehicleType + ' · ' + l.vehicle.vehicleNumber + '</p><p>Cargo: ' + (l.cargoType || 'General') + ' · Driver: ' + (l.driver?.user?.fullName || '—') + '</p>' + (state.user?.role === 'CUSTOMER' ? '<button class="btn btn-primary request-space-book-btn" data-listing="' + l.id + '">📦 Book Space</button>' : '') + '</div>').join('');
+}
+
+function renderSpaceRequests(requests) {
+  const el = $('#spaceRequests');
+  if (!el) return;
+  if (!requests.length) { el.innerHTML = '<p class="muted-empty">Abhi koi cargo space request nahi.</p>'; return; }
+  el.innerHTML = requests.map(r => '<div class="result-card"><div class="rc-top"><h4>📦 ' + r.pickupLocation + ' → ' + r.destination + '</h4><span class="badge-pill">' + r.cargoWeightKg + ' kg</span></div><p>Date: ' + new Date(r.travelDate).toLocaleDateString() + ' · Cargo: ' + (r.cargoType || 'General') + '</p><p>' + (r.description || '') + '</p>' + (state.user?.role === 'DRIVER' ? '<button class="btn btn-primary find-space-match-btn" data-request="' + r.id + '">🚛 Is cargo ke liye space offer karein</button>' : '') + '</div>').join('');
+}
+
+function initSpaceMarketplace() {
+  $('#spaceListingForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await createSpaceListing({ vehicleId: $('#spaceVehicle').value, fromLocation: $('#spaceFrom').value.trim(), toLocation: $('#spaceTo').value.trim(), travelDate: $('#spaceDate').value, totalCapacityKg: Number($('#spaceTotal').value), availableWeightKg: Number($('#spaceAvailable').value), cargoType: $('#spaceCargoType').value.trim(), expectedCharges: $('#spaceCharges').value || undefined, exactPickupAddress: $('#spaceExactPickup').value.trim() || undefined });
+      toast('Gaari ka available space post ho gaya.'); e.target.reset(); await loadSpaceMarketplace();
+    } catch (err) { toast(err.message); }
+  });
+  $('#spaceRequestForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const result = await createSpaceRequest({ pickupLocation: $('#reqPickup').value.trim(), destination: $('#reqDestination').value.trim(), travelDate: $('#reqDate').value, cargoWeightKg: Number($('#reqWeight').value), cargoType: $('#reqCargoType').value.trim(), vehicleRequirement: $('#reqVehicle').value.trim(), expectedBudget: $('#reqBudget').value || undefined, description: $('#reqDescription').value.trim() });
+      toast('Cargo space request post ho gayi. Matching spaces check kar raha hoon...');
+      const matches = await getSpaceMatches(result.request.id);
+      renderSpaceListings(matches.listings || []);
+      e.target.reset();
+      await loadSpaceMarketplace();
+    } catch (err) { toast(err.message); }
+  });
+  $('#spaceSearchBtn')?.addEventListener('click', async () => {
+    try { const r = await listSpaceListings({ from: $('#spaceSearchFrom').value.trim(), to: $('#spaceSearchTo').value.trim() }); renderSpaceListings(r.listings || []); } catch (err) { toast(err.message); }
+  });
+}
+
+document.addEventListener('click', async (e) => {
+  const book = e.target.closest('.request-space-book-btn');
+  const accept = e.target.closest('.accept-space-booking-btn');
+  const reject = e.target.closest('.reject-space-booking-btn');
+  const match = e.target.closest('.find-space-match-btn');
+  try {
+    if (book) {
+      const weight = prompt('Kitna weight book karna hai (kg)?');
+      if (!weight || Number(weight) <= 0) return;
+      const reqs = await listSpaceRequests({});
+      const request = (reqs.requests || []).find(r => r.customerId === state.user.id && r.status === 'OPEN' && Number(r.cargoWeightKg) <= Number(weight) && r.pickupLocation.toLowerCase().includes(book.closest('.result-card').querySelector('h4').textContent.split('→')[0].replace('🚛','').trim().toLowerCase()));
+      if (!request) { toast('Pehle apni matching Space Request post karein.'); return; }
+      await createSpaceBooking({ spaceListingId: book.dataset.listing, spaceRequestId: request.id });
+      toast('Space booking request driver ko bhej di gayi hai.');
+      book.disabled = true; book.textContent = 'Request sent';
+    }
+    if (match) {
+      const matches = await getSpaceMatches(match.dataset.request);
+      renderSpaceListings(matches.listings || []);
+      $('#spaceListings')?.scrollIntoView({ behavior: 'smooth' });
+    }
+    if (accept) {
+      const fare = prompt('Agreed fare (PKR), optional:');
+      const result = await acceptSpaceBooking(accept.dataset.booking, fare);
+      toast('Space booking accept ho gayi. Remaining space reduce ho gaya aur pickup location unlock hai.');
+      await loadSpaceMarketplace();
+      if (result.booking?.spaceListing?.exactPickupAddress) toast('Exact pickup: ' + result.booking.spaceListing.exactPickupAddress);
+    }
+    if (reject) {
+      await rejectSpaceBooking(reject.dataset.booking);
+      toast('Space booking reject kar di gayi.');
+      await loadSpaceMarketplace();
+    }
+  } catch (err) { toast(err.message); }
+});
+
 function updateAuthUI() {
   const loggedIn = !!state.user;
   $('#loginBtn').style.display = loggedIn ? 'none' : '';
@@ -676,12 +775,15 @@ function updateAuthUI() {
   $('#profile').hidden = !(loggedIn && document.body.classList.contains('profile-view'));
   $('#adminDashboard').hidden = !(loggedIn && state.user.role === 'ADMIN');
   $('#driverBookingsCard').hidden = !(loggedIn && state.user.role === 'DRIVER');
+  if ($('#driverSpaceCard')) $('#driverSpaceCard').hidden = !(loggedIn && state.user.role === 'DRIVER');
+  if ($('#customerSpaceCard')) $('#customerSpaceCard').hidden = !(loggedIn && state.user.role === 'CUSTOMER');
 
   if (loggedIn) {
     loadDashboard();
     loadAdminDashboard();
     loadProfile();
     loadMarketplace();
+    loadSpaceMarketplace();
     initPushNotifications();
   }
 }
@@ -1112,6 +1214,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderCategories();
   initPostLoadForm();
   initSearchSections();
+  initSpaceMarketplace();
   initDashboard();
   initProfilePhoto();
   if (state.user) loadMarketplace();
