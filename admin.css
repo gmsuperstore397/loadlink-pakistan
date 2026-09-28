@@ -10,3 +10,6 @@
 .edit-fields label{display:grid;gap:6px;font-weight:600}
 .edit-fields input,.edit-fields select{width:100%;box-sizing:border-box}
 .modal-card{max-height:90vh;overflow:auto}
+
+.table-wrap button[data-action],#moduleRefresh{position:relative;z-index:20;pointer-events:auto;touch-action:manipulation}
+.table-wrap td:last-child{position:relative;z-index:10;white-space:nowrap}
