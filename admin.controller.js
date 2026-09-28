@@ -274,7 +274,36 @@ const updateManager = asyncHandler(async (req, res) => {
 
 
 const listCustomers = asyncHandler(async (req,res) => { const users=await prisma.user.findMany({where:{role:'CUSTOMER'},select:{id:true,fullName:true,email:true,mobile:true,city:true,status:true,createdAt:true,lastLoginAt:true},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Customers fetched',{customers:users}); });
-const listDrivers = asyncHandler(async (req,res) => { const drivers=await prisma.driverProfile.findMany({include:{user:{select:{id:true,fullName:true,email:true,mobile:true,city:true,status:true,createdAt:true}},vehicles:true},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Drivers fetched',{drivers}); });
+const listDrivers = asyncHandler(async (req,res) => {
+  const drivers=await prisma.driverProfile.findMany({include:{user:{select:{id:true,fullName:true,email:true,mobile:true,city:true,status:true,createdAt:true}},vehicles:true},orderBy:{createdAt:'desc'},take:300});
+  const userIds=drivers.map(d=>d.userId);
+  const driverIds=drivers.map(d=>d.id);
+  const [ratings,bookingGroups,tripGroups,proofGroups]=await Promise.all([
+    prisma.rating.groupBy({by:['toUserId'],where:{toUserId:{in:userIds}},_avg:{rating:true},_count:{_all:true}}),
+    prisma.booking.groupBy({by:['driverId','status'],where:{driverId:{in:driverIds}},_count:{_all:true}}),
+    prisma.trip.groupBy({by:['driverId','status'],where:{driverId:{in:driverIds}},_count:{_all:true}}),
+    prisma.deliveryProof.groupBy({by:['submittedById'],where:{submittedById:{in:userIds}},_count:{_all:true}}),
+  ]);
+  const enriched=drivers.map((driver)=>{
+    const rating=ratings.find(r=>r.toUserId===driver.userId);
+    const bs=bookingGroups.filter(r=>r.driverId===driver.id);
+    const ts=tripGroups.filter(r=>r.driverId===driver.id);
+    const bookingCount=bs.reduce((s,r)=>s+r._count._all,0);
+    const accepted=bs.filter(r=>['ACCEPTED','COMPLETED'].includes(r.status)).reduce((s,r)=>s+r._count._all,0);
+    const completed=bs.find(r=>r.status==='COMPLETED')?._count._all||0;
+    const delivered=ts.find(r=>r.status==='DELIVERED')?._count._all||0;
+    const proofs=proofGroups.find(r=>r.submittedById===driver.userId)?._count._all||0;
+    const avg=rating?._avg.rating||null;
+    const ratingComponent=avg==null?25:(avg/5)*50;
+    const reliability=bookingCount?(accepted/bookingCount)*15:7.5;
+    const completion=accepted?(completed/accepted)*20:10;
+    const verification=driver.verification==='VERIFIED'?10:0;
+    const proof=delivered?Math.min(1,proofs/delivered)*5:0;
+    const trustScore=Math.round(Math.max(0,Math.min(100,ratingComponent+reliability+completion+verification+proof)));
+    return {...driver,trustScore,trustMeta:{averageRating:avg?Math.round(avg*10)/10:null,ratingCount:rating?._count._all||0,completedTrips:delivered,deliveryProofs:proofs}};
+  });
+  return success(res,200,'Drivers fetched',{drivers:enriched});
+});
 const listLoads = asyncHandler(async (req,res) => { const loads=await prisma.load.findMany({include:{customer:{select:{id:true,fullName:true,mobile:true}},bookings:{select:{id:true,status:true,agreedFare:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Loads fetched',{loads}); });
 const listBookings = asyncHandler(async (req,res) => { const bookings=await prisma.booking.findMany({include:{load:{select:{id:true,pickupAddress:true,destinationAddress:true,status:true,weightKg:true}},customer:{select:{id:true,fullName:true,mobile:true}},driver:{include:{user:{select:{id:true,fullName:true,mobile:true}}}},vehicle:{select:{id:true,vehicleNumber:true,vehicleType:true}},trip:{select:{id:true,status:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Bookings fetched',{bookings}); });
 const listPayments = asyncHandler(async (req,res) => { const payments=await prisma.payment.findMany({include:{user:{select:{id:true,fullName:true,mobile:true}},trip:{select:{id:true,status:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Payments fetched',{payments}); });
