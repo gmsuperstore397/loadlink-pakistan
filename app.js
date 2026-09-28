@@ -695,7 +695,7 @@ function renderSpaceListings(listings) {
   const el = $('#spaceListings');
   if (!el) return;
   if (!listings.length) { el.innerHTML = '<p class="muted-empty">Is route par available space nahi mili.</p>'; return; }
-  el.innerHTML = listings.map(l => '<div class="result-card"><div class="rc-top"><h4>🚛 ' + l.fromLocation + ' → ' + l.toLocation + '</h4><span class="badge-pill">' + Math.round(l.availableWeightKg) + ' kg available</span></div><p>Date: ' + new Date(l.travelDate).toLocaleDateString() + ' · Vehicle: ' + l.vehicle.vehicleType + ' · ' + l.vehicle.vehicleNumber + '</p><p>Cargo: ' + (l.cargoType || 'General') + ' · Driver: ' + (l.driver?.user?.fullName || '—') + '</p>' + (state.user?.role === 'CUSTOMER' ? '<button class="btn btn-primary request-space-book-btn" data-listing="' + l.id + '">📦 Book Space</button>' : '') + '</div>').join('');
+  el.innerHTML = listings.map(l => '<div class="result-card"><div class="rc-top"><h4>🚛 ' + l.fromLocation + ' → ' + l.toLocation + '</h4><span class="badge-pill">' + Math.round(l.availableWeightKg) + ' kg available</span></div><p>Date: ' + new Date(l.travelDate).toLocaleDateString() + ' · Vehicle: ' + l.vehicle.vehicleType + ' · ' + l.vehicle.vehicleNumber + '</p><p>Cargo: ' + (l.cargoType || 'General') + ' · Driver: ' + (l.driver?.user?.fullName || '—') + '</p>' + (state.user?.role === 'CUSTOMER' ? '<button class="btn btn-primary request-space-book-btn" data-listing="' + l.id + '" data-from="' + l.fromLocation + '" data-to="' + l.toLocation + '">📦 Book Space</button>' : '') + '</div>').join('');
 }
 
 function renderSpaceRequests(requests) {
@@ -739,7 +739,7 @@ document.addEventListener('click', async (e) => {
       const weight = prompt('Kitna weight book karna hai (kg)?');
       if (!weight || Number(weight) <= 0) return;
       const reqs = await listSpaceRequests({});
-      const request = (reqs.requests || []).find(r => r.customerId === state.user.id && r.status === 'OPEN' && Number(r.cargoWeightKg) <= Number(weight) && r.pickupLocation.toLowerCase().includes(book.closest('.result-card').querySelector('h4').textContent.split('→')[0].replace('🚛','').trim().toLowerCase()));
+      const request = (reqs.requests || []).find(r => r.customerId === state.user.id && r.status === 'OPEN' && Number(r.cargoWeightKg) === Number(weight) && r.pickupLocation.toLowerCase().includes((book.dataset.from || '').toLowerCase()) && r.destination.toLowerCase().includes((book.dataset.to || '').toLowerCase()));
       if (!request) { toast('Pehle apni matching Space Request post karein.'); return; }
       await createSpaceBooking({ spaceListingId: book.dataset.listing, spaceRequestId: request.id });
       toast('Space booking request driver ko bhej di gayi hai.');
@@ -755,7 +755,7 @@ document.addEventListener('click', async (e) => {
       const result = await acceptSpaceBooking(accept.dataset.booking, fare);
       toast('Space booking accept ho gayi. Remaining space reduce ho gaya aur pickup location unlock hai.');
       await loadSpaceMarketplace();
-      if (result.booking?.spaceListing?.exactPickupAddress) toast('Exact pickup: ' + result.booking.spaceListing.exactPickupAddress);
+      if (result.booking?.exactPickup?.exactPickupAddress) toast('📍 Exact pickup unlock: ' + result.booking.exactPickup.exactPickupAddress);
     }
     if (reject) {
       await rejectSpaceBooking(reject.dataset.booking);
