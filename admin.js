@@ -54,7 +54,7 @@ function showSection(name, title = name) {
 
 const MODULES = {
   customers:{permission:'customers.view',title:'Customers',path:'/admin/customers',columns:[['fullName','Name'],['mobile','Mobile'],['email','Email'],['city','City'],['status','Status'],['createdAt','Joined']]},
-  drivers:{permission:'drivers.view',title:'Drivers',path:'/admin/drivers',columns:[['user.fullName','Name'],['user.mobile','Mobile'],['user.city','City'],['verification','Verification'],['vehicles.length','Vehicles']]},
+  drivers:{permission:'drivers.view',title:'Drivers',path:'/admin/drivers',columns:[['user.fullName','Name'],['user.mobile','Mobile'],['user.city','City'],['user.status','Account'],['verification','Verification'],['vehicles.length','Vehicles']]},
   loads:{permission:'loads.view',title:'Loads',path:'/admin/loads',columns:[['pickupAddress','Pickup'],['destinationAddress','Destination'],['weightKg','Weight KG'],['status','Status'],['customer.fullName','Customer'],['createdAt','Posted']]},
   bookings:{permission:'bookings.view',title:'Bookings',path:'/admin/bookings',columns:[['id','ID'],['status','Status'],['agreedFare','Fare'],['customer.fullName','Customer'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
   payments:{permission:'payments.verify',title:'Payments',path:'/admin/payments',columns:[['id','ID'],['amount','Amount'],['method','Method'],['status','Status'],['user.fullName','User'],['createdAt','Date']]},
@@ -82,14 +82,17 @@ async function loadModule(title){
 }
 function moduleActions(key,row){
   if(!row?.id)return '';
-  if(key==='customers') return '<button class="primary" type="button" onclick="editCustomer(\''+row.id+'\')">Edit</button>';
+  if(key==='customers') return '<button class="primary" type="button" onclick="editCustomer(\''+row.id+'\')">Edit</button> <button class="primary danger-action" type="button" onclick="toggleCustomerAccount(\''+row.id+'\',\''+row.status+'\')">'+(row.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
+  if(key==='drivers') return '<button class="primary danger-action" type="button" onclick="toggleDriverAccount(\''+row.id+'\',\''+(row.user?.status||'ACTIVE')+'\')">'+(row.user?.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
   if(key==='loads') return '<button class="primary" type="button" onclick="editLoad(\''+row.id+'\')">Edit</button>';
   if(key==='bookings') return '<button class="primary" type="button" onclick="editBooking(\''+row.id+'\')">Update</button>';
   if(key==='payments') return '<button class="primary" type="button" onclick="editPayment(\''+row.id+'\')">Verify</button>';
   return '';
 }
 async function patchModule(path,body,title){try{await api(path,{method:'PATCH',body:JSON.stringify(body)});toast('Updated successfully');await loadModule(title);}catch(e){toast(e.message);}}
-async function editCustomer(id){const status=prompt('Status: ACTIVE or SUSPENDED','ACTIVE');if(status)await patchModule('/admin/customers/'+id,{status},'Customers');}
+async function editCustomer(id){const status=prompt('Customer status: ACTIVE or SUSPENDED','ACTIVE');if(status)await patchModule('/admin/customers/'+id,{status},'Customers');}
+async function toggleCustomerAccount(id,current){const next=current==='SUSPENDED'?'ACTIVE':'SUSPENDED';if(!confirm(next==='SUSPENDED'?'Customer account disable karna hai?':'Customer account enable karna hai?'))return;await patchModule('/admin/customers/'+id+'/status',{status:next},'Customers');}
+async function toggleDriverAccount(id,current){const next=current==='SUSPENDED'?'ACTIVE':'SUSPENDED';if(!confirm(next==='SUSPENDED'?'Driver account disable karna hai?':'Driver account enable karna hai?'))return;await patchModule('/admin/drivers/'+id+'/status',{status:next},'Drivers');}
 async function editLoad(id){const status=prompt('New load status','ACTIVE');if(status)await patchModule('/admin/loads/'+id,{status},'Loads');}
 async function editBooking(id){const status=prompt('Booking status','APPROVED');if(status)await patchModule('/admin/bookings/'+id,{status},'Bookings');}
 async function editPayment(id){const status=prompt('Payment status: PAID / FAILED / PENDING','PAID');if(status)await patchModule('/admin/payments/'+id,{status},'Payments');}
