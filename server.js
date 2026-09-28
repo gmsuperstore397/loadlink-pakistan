@@ -8,6 +8,7 @@ const path = require('path');
 const { port, frontendUrl, nodeEnv } = require('./env');
 const routes = require('./index');
 const { errorHandler, notFound } = require('./errorHandler');
+const { bootstrapAdmin } = require('./scripts/bootstrap-admin');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -57,10 +58,27 @@ app.get('*', (req, res, next) => {
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`LoadLink Pakistan API running on http://localhost:${port}`);
-  console.log(`Health check: http://localhost:${port}/api/health`);
-  console.log('LOADLINK_DEPLOY_VERSION: DRIVER-SIGNUP-FIX-20260927');
-});
+async function startServer() {
+  if (String(process.env.ADMIN_BOOTSTRAP_ENABLED || '').toLowerCase() === 'true') {
+    console.log('ADMIN_BOOTSTRAP: enabled — creating/updating admin account before server start');
+    try {
+      await bootstrapAdmin();
+      console.log('ADMIN_BOOTSTRAP: success');
+    } catch (error) {
+      console.error('ADMIN_BOOTSTRAP: failed:', error.message);
+      process.exit(1);
+    }
+  }
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`LoadLink Pakistan API running on http://localhost:${port}`);
+    console.log(`Health check: http://localhost:${port}/api/health`);
+    console.log('LOADLINK_DEPLOY_VERSION: DRIVER-SIGNUP-FIX-20260927');
+  });
+}
+
+if (require.main === module) {
+  startServer();
+}
 
 module.exports = app;
