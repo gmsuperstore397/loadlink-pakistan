@@ -35,11 +35,25 @@ async function bootstrapAdmin() {
   // as the canonical admin account. The conflicting user's mobile is cleared so
   // the requested admin mobile can be attached without violating the unique constraint.
   if (existingByEmail && existingByMobile && existingByEmail.id !== existingByMobile.id) {
+    // mobile is required by the Prisma schema, so it cannot be set to null.
+    // Move the conflicting user's mobile to a generated temporary unique value,
+    // then attach the requested mobile to the canonical email account.
+    let temporaryMobile = '';
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const candidate = '099' + String(Date.now()).slice(-8) + String(attempt);
+      const conflict = await prisma.user.findUnique({ where: { mobile: candidate } });
+      if (!conflict) {
+        temporaryMobile = candidate;
+        break;
+      }
+    }
+    if (!temporaryMobile) throw new Error('Could not generate a temporary unique mobile for the conflicting user.');
+
     await prisma.user.update({
       where: { id: existingByMobile.id },
-      data: { mobile: null },
+      data: { mobile: temporaryMobile },
     });
-    console.log('ADMIN_BOOTSTRAP: conflicting mobile detached from another user; email account selected as admin');
+    console.log('ADMIN_BOOTSTRAP: conflicting mobile moved to a temporary unique value; email account selected as admin');
   }
 
   const existing = existingByEmail || existingByMobile;
