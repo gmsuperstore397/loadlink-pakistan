@@ -960,7 +960,7 @@ function renderRecommendation(rec, { pickup, destination, weightKg, loadId }) {
           <div><small>${m.trust?.averageRating ? `⭐ ${m.trust.averageRating}/5 (${m.trust.ratingCount}) · ` : ''}${m.reasons.slice(0,3).join(' · ')}</small></div>
           <button class="btn btn-primary book-vehicle-btn" data-load="${loadId}" data-driver="${m.driverId}" data-vehicle="${m.vehicleId}">Book this matched vehicle</button>
         </div>
-      `).join('') : '<p class="muted-empty">Abhi koi verified available driver match nahi mila.</p>';
+      `).join('');
     }).catch(() => {
       const el = $('#smart-match-results');
       if (el) el.innerHTML = '<p class="muted-empty">Smart matching temporarily unavailable.</p>';
