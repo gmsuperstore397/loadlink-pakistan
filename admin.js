@@ -84,11 +84,12 @@ async function loadModule(title){
 }
 function moduleActions(key,row){
   if(!row?.id)return '';
-  if(key==='customers') return '<button class="primary" type="button" onclick="editCustomer(\''+row.id+'\')">Edit</button> <button class="primary danger-action" type="button" onclick="toggleCustomerAccount(\''+row.id+'\',\''+row.status+'\')">'+(row.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
-  if(key==='drivers') return '<button class="primary danger-action" type="button" onclick="toggleDriverAccount(\''+row.id+'\',\''+(row.user?.status||'ACTIVE')+'\')">'+(row.user?.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
-  if(key==='loads') return '<button class="primary" type="button" onclick="editLoad(\''+row.id+'\')">Edit</button>';
-  if(key==='bookings') return '<button class="primary" type="button" onclick="editBooking(\''+row.id+'\')">Update</button>';
-  if(key==='payments') return '<button class="primary" type="button" onclick="editPayment(\''+row.id+'\')">Verify</button>';
+  const id=esc(row.id);
+  if(key==='customers') return '<button class="primary" type="button" data-action="edit-customer" data-id="'+id+'">Edit</button> <button class="primary danger-action" type="button" data-action="toggle-customer" data-id="'+id+'" data-status="'+esc(row.status)+'">'+(row.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
+  if(key==='drivers') return '<button class="primary danger-action" type="button" data-action="toggle-driver" data-id="'+id+'" data-status="'+esc(row.user?.status||'ACTIVE')+'">'+(row.user?.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
+  if(key==='loads') return '<button class="primary" type="button" data-action="edit-load" data-id="'+id+'">Edit</button>';
+  if(key==='bookings') return '<button class="primary" type="button" data-action="edit-booking" data-id="'+id+'">Update</button>';
+  if(key==='payments') return '<button class="primary" type="button" data-action="edit-payment" data-id="'+id+'">Verify</button>';
   return '';
 }
 async function patchModule(path,body,title){try{await api(path,{method:'PATCH',body:JSON.stringify(body)});toast('Updated successfully');await loadModule(title);}catch(e){toast(e.message);}}
