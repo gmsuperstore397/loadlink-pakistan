@@ -127,4 +127,91 @@ const expiringDocuments = asyncHandler(async (req, res) => {
   return success(res, 200, 'Documents expiring within 30 days', { drivers, vehicles });
 });
 
-module.exports = { dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments };
+
+const MANAGER_PERMISSIONS = [
+  'dashboard.view',
+  'customers.view',
+  'customers.edit',
+  'drivers.view',
+  'drivers.verify',
+  'drivers.documents',
+  'loads.view',
+  'loads.edit',
+  'bookings.view',
+  'deals.approve',
+  'commission.verify',
+  'payments.verify',
+  'location.unlock',
+  'trips.view',
+  'reports.view',
+];
+
+const listManagers = asyncHandler(async (req, res) => {
+  const managers = await prisma.user.findMany({
+    where: { role: 'MANAGER' },
+    select: { id: true, fullName: true, email: true, mobile: true, status: true, permissions: true, createdAt: true, lastLoginAt: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  return success(res, 200, 'Managers fetched', {
+    managers: managers.map((m) => ({ ...m, permissions: (() => { try { return JSON.parse(m.permissions || '[]'); } catch (_) { return []; } })() })),
+  });
+});
+
+const createManager = asyncHandler(async (req, res) => {
+  const { fullName, email, mobile, password, permissions } = req.body;
+  if (!fullName || !email || !mobile || !password) throw new ApiError(400, 'Name, email, mobile and password are required');
+  if (String(password).length < 10) throw new ApiError(400, 'Password must be at least 10 characters');
+  const requested = Array.isArray(permissions) ? permissions.filter((p) => MANAGER_PERMISSIONS.includes(p)) : [];
+  const bcrypt = require('bcryptjs');
+  const passwordHash = await bcrypt.hash(String(password), 12);
+
+  const existingEmail = await prisma.user.findUnique({ where: { email: String(email).trim().toLowerCase() } });
+  const existingMobile = await prisma.user.findUnique({ where: { mobile: String(mobile).replace(/\s+/g, '') } });
+  if (existingEmail || existingMobile) throw new ApiError(409, 'Email ya mobile pehle se registered hai');
+
+  const manager = await prisma.user.create({
+    data: {
+      fullName: String(fullName).trim(),
+      email: String(email).trim().toLowerCase(),
+      mobile: String(mobile).replace(/\s+/g, ''),
+      passwordHash,
+      role: 'MANAGER',
+      status: 'ACTIVE',
+      emailVerified: true,
+      permissions: JSON.stringify(requested),
+    },
+    select: { id: true, fullName: true, email: true, mobile: true, role: true, status: true, permissions: true, createdAt: true },
+  });
+  await audit(req, 'MANAGER_CREATED', 'User', manager.id, { permissions: requested });
+  return success(res, 201, 'Manager created', {
+    manager: { ...manager, permissions: requested },
+  });
+});
+
+const updateManager = asyncHandler(async (req, res) => {
+  const manager = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!manager || manager.role !== 'MANAGER') throw new ApiError(404, 'Manager not found');
+
+  const data = {};
+  if (req.body.fullName != null) data.fullName = String(req.body.fullName).trim();
+  if (req.body.status === 'ACTIVE' || req.body.status === 'SUSPENDED') data.status = req.body.status;
+  if (Array.isArray(req.body.permissions)) {
+    data.permissions = JSON.stringify(req.body.permissions.filter((p) => MANAGER_PERMISSIONS.includes(p)));
+  }
+  if (req.body.password) {
+    if (String(req.body.password).length < 10) throw new ApiError(400, 'Password must be at least 10 characters');
+    const bcrypt = require('bcryptjs');
+    data.passwordHash = await bcrypt.hash(String(req.body.password), 12);
+  }
+  const updated = await prisma.user.update({
+    where: { id: manager.id },
+    data,
+    select: { id: true, fullName: true, email: true, mobile: true, role: true, status: true, permissions: true, createdAt: true, lastLoginAt: true },
+  });
+  await audit(req, 'MANAGER_UPDATED', 'User', manager.id, { fields: Object.keys(data) });
+  return success(res, 200, 'Manager updated', {
+    manager: { ...updated, permissions: (() => { try { return JSON.parse(updated.permissions || '[]'); } catch (_) { return []; } })() },
+  });
+});
+
+module.exports = { dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
