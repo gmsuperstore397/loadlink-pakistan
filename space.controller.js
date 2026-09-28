@@ -62,8 +62,10 @@ const createSpaceBooking = asyncHandler(async (req, res) => {
   if (listing.driverId === req.user.driverProfile?.id) throw new ApiError(400, 'You cannot book your own space');
   if (listing.status !== 'OPEN' || request.status !== 'OPEN') throw new ApiError(400, 'Space is no longer available');
   if (request.cargoWeightKg > listing.availableWeightKg) throw new ApiError(400, 'Remaining space is not enough');
-  const duplicate = await prisma.spaceBooking.findFirst({ where: { spaceListingId: listing.id, spaceRequestId: request.id, status: 'REQUESTED' } });
-  if (duplicate) throw new ApiError(400, 'Booking request already sent');
+  const duplicate = await prisma.spaceBooking.findFirst({ where: { spaceListingId: listing.id, spaceRequestId: request.id, status: { in: ['REQUESTED', 'ACCEPTED'] } } });
+  if (duplicate) throw new ApiError(400, 'This cargo request already has a booking on this space');
+  const existingAccepted = await prisma.spaceBooking.findFirst({ where: { spaceRequestId: request.id, status: 'ACCEPTED' } });
+  if (existingAccepted) throw new ApiError(400, 'This cargo request is already booked');
   const booking = await prisma.spaceBooking.create({ data: { spaceListingId: listing.id, spaceRequestId: request.id, customerId: req.user.id, driverId: listing.driverId, vehicleId: listing.vehicleId, bookedWeightKg: request.cargoWeightKg } });
   const driver = await prisma.driverProfile.findUnique({ where: { id: listing.driverId } });
   await notify(driver.userId, 'BOOKING_REQUEST', 'New space booking request', request.pickupLocation + ' → ' + request.destination + ': ' + request.cargoWeightKg + ' kg cargo request.');
@@ -86,11 +88,16 @@ const acceptSpaceBooking = asyncHandler(async (req, res) => {
   const updated = await prisma.$transaction(async (tx) => {
     const fresh = await tx.spaceBooking.findUnique({ where: { id: booking.id } });
     if (!fresh || fresh.status !== 'REQUESTED') throw new ApiError(400, 'Booking is no longer pending');
+    const requestState = await tx.spaceRequest.findUnique({ where: { id: fresh.spaceRequestId } });
+    if (!requestState || requestState.status !== 'OPEN') throw new ApiError(400, 'Cargo request is no longer available');
     const changed = await tx.spaceListing.updateMany({ where: { id: fresh.spaceListingId, status: 'OPEN', availableWeightKg: { gte: fresh.bookedWeightKg } }, data: { availableWeightKg: { decrement: fresh.bookedWeightKg } } });
     if (changed.count !== 1) throw new ApiError(400, 'Remaining space is not enough');
     const listingAfter = await tx.spaceListing.findUnique({ where: { id: fresh.spaceListingId } });
     if (listingAfter.availableWeightKg <= 0) await tx.spaceListing.update({ where: { id: fresh.spaceListingId }, data: { status: 'FULL' } });
-    return tx.spaceBooking.update({ where: { id: fresh.id }, data: { status: 'ACCEPTED', agreedFare, exactPickupUnlocked: true } });
+    const accepted = await tx.spaceBooking.update({ where: { id: fresh.id }, data: { status: 'ACCEPTED', agreedFare, exactPickupUnlocked: true } });
+    await tx.spaceRequest.update({ where: { id: fresh.spaceRequestId }, data: { status: 'BOOKED' } });
+    await tx.spaceBooking.updateMany({ where: { spaceRequestId: fresh.spaceRequestId, id: { not: fresh.id }, status: 'REQUESTED' }, data: { status: 'REJECTED' } });
+    return accepted;
   });
   const unlocked = await prisma.spaceListing.findUnique({ where: { id: booking.spaceListingId }, select: { exactPickupAddress: true, exactPickupLatitude: true, exactPickupLongitude: true } });
   await notify(booking.customerId, 'BOOKING_ACCEPTED', 'Space booking accepted', 'Driver ne aapki cargo space booking accept kar li hai. Exact pickup location ab unlock ho gayi hai.');
