@@ -41,6 +41,20 @@ enum LoadStatus {
   CANCELLED
 }
 
+enum SpaceBookingStatus {
+  REQUESTED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum SpaceListingStatus {
+  OPEN
+  FULL
+  CANCELLED
+}
+
 enum BookingStatus {
   REQUESTED
   ACCEPTED
@@ -117,6 +131,8 @@ model User {
   otpVerifications OtpVerification[]
   pushSubscriptions PushSubscription[]
   payments Payment[]
+  spaceRequests SpaceRequest[]
+  spaceBookingsAsCustomer SpaceBooking[] @relation("SpaceCustomerBookings")
   auditLogs AuditLog[]
 }
 
@@ -137,6 +153,8 @@ model DriverProfile {
 
   vehicles Vehicle[]
   bookingsAsDriver Booking[] @relation("DriverBookings")
+  spaceListings SpaceListing[]
+  spaceBookingsAsDriver SpaceBooking[] @relation("SpaceDriverBookings")
   trips    Trip[]
 }
 
@@ -160,6 +178,8 @@ model Vehicle {
   updatedAt     DateTime      @updatedAt
 
   bookings Booking[]
+  spaceListings SpaceListing[] @relation("VehicleSpaceListings")
+  spaceBookings SpaceBooking[]
   trips    Trip[]
 }
 
@@ -207,6 +227,74 @@ model Booking {
   updatedAt DateTime @updatedAt
 
   trip Trip?
+}
+
+
+model SpaceListing {
+  id                    String            @id @default(uuid())
+  driverId              String
+  driver                DriverProfile     @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicleId             String
+  vehicle               Vehicle           @relation("VehicleSpaceListings", fields: [vehicleId], references: [id], onDelete: Cascade)
+  fromLocation          String
+  toLocation            String
+  travelDate            DateTime
+  totalCapacityKg       Float
+  availableWeightKg     Float
+  cargoType             String?
+  expectedCharges       Float?
+  exactPickupAddress    String?
+  exactPickupLatitude   Float?
+  exactPickupLongitude  Float?
+  status                SpaceListingStatus @default(OPEN)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  bookings              SpaceBooking[]
+
+  @@index([fromLocation, toLocation, travelDate, status])
+}
+
+model SpaceRequest {
+  id                    String            @id @default(uuid())
+  customerId            String
+  customer              User              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  pickupLocation        String
+  destination           String
+  travelDate            DateTime
+  cargoWeightKg         Float
+  cargoType             String?
+  vehicleRequirement    String?
+  expectedBudget        Float?
+  description           String?
+  status                SpaceListingStatus @default(OPEN)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  bookings              SpaceBooking[]
+
+  @@index([pickupLocation, destination, travelDate, status])
+}
+
+model SpaceBooking {
+  id                    String            @id @default(uuid())
+  spaceListingId        String
+  spaceListing          SpaceListing      @relation(fields: [spaceListingId], references: [id], onDelete: Cascade)
+  spaceRequestId        String
+  spaceRequest          SpaceRequest      @relation(fields: [spaceRequestId], references: [id], onDelete: Cascade)
+  customerId            String
+  customer              User              @relation("SpaceCustomerBookings", fields: [customerId], references: [id], onDelete: Cascade)
+  driverId              String
+  driver                DriverProfile     @relation("SpaceDriverBookings", fields: [driverId], references: [id], onDelete: Cascade)
+  vehicleId             String
+  vehicle               Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  bookedWeightKg        Float
+  agreedFare            Float?
+  exactPickupUnlocked   Boolean           @default(false)
+  status                SpaceBookingStatus @default(REQUESTED)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([spaceListingId, status])
+  @@index([spaceRequestId, status])
 }
 
 model Trip {
