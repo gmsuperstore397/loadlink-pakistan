@@ -31,8 +31,15 @@ async function bootstrapAdmin() {
   const existingByEmail = await prisma.user.findUnique({ where: { email } });
   const existingByMobile = await prisma.user.findUnique({ where: { mobile } });
 
+  // If email and mobile already belong to different users, use the email account
+  // as the canonical admin account. The conflicting user's mobile is cleared so
+  // the requested admin mobile can be attached without violating the unique constraint.
   if (existingByEmail && existingByMobile && existingByEmail.id !== existingByMobile.id) {
-    throw new Error('ADMIN_EMAIL and ADMIN_MOBILE belong to different users. Resolve this before bootstrapping.');
+    await prisma.user.update({
+      where: { id: existingByMobile.id },
+      data: { mobile: null },
+    });
+    console.log('ADMIN_BOOTSTRAP: conflicting mobile detached from another user; email account selected as admin');
   }
 
   const existing = existingByEmail || existingByMobile;
