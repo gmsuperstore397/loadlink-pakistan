@@ -364,19 +364,22 @@ $('#moduleRefresh').addEventListener('click', async () => {
   try { await loadModule(title); } finally { btn.disabled = false; btn.textContent = 'Refresh'; }
 });
 
-$('#moduleTable').addEventListener('click', async (event) => {
-  const button = event.target.closest('button[data-action]');
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest?.('button[data-action]');
   if (!button) return;
   event.preventDefault();
+  event.stopPropagation();
   const action = button.dataset.action;
   const id = button.dataset.id;
-  if (action === 'edit-customer') return editCustomer(id);
-  if (action === 'toggle-customer') return toggleCustomerAccount(id, button.dataset.status);
-  if (action === 'toggle-driver') return toggleDriverAccount(id, button.dataset.status);
-  if (action === 'edit-load') return editLoad(id);
-  if (action === 'edit-booking') return editBooking(id);
-  if (action === 'edit-payment') return editPayment(id);
-});
+  try {
+    if (action === 'edit-customer') return editCustomer(id);
+    if (action === 'toggle-customer') return toggleCustomerAccount(id, button.dataset.status);
+    if (action === 'toggle-driver') return toggleDriverAccount(id, button.dataset.status);
+    if (action === 'edit-load') return editLoad(id);
+    if (action === 'edit-booking') return editBooking(id);
+    if (action === 'edit-payment') return editPayment(id);
+  } catch (error) { toast('Action error: ' + error.message); }
+}, true);
 
 window.addEventListener('error', (event) => {
   if (event?.message) toast('Admin error: ' + event.message);
