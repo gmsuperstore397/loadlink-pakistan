@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, updateCustomer, updateLoad, updateBooking, updatePayment,
+  dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus,
 } = require('./admin.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
 
@@ -15,7 +15,9 @@ router.patch('/managers/:id', requireRole('ADMIN'), updateManager);
 router.get('/dashboard', requirePermission('dashboard.view'), dashboard);
 router.get('/customers', requirePermission('customers.view'), listCustomers);
 router.patch('/customers/:id', requirePermission('customers.edit'), updateCustomer);
+router.patch('/customers/:id/status', requirePermission('customers.edit'), setCustomerAccountStatus);
 router.get('/drivers', requirePermission('drivers.view'), listDrivers);
+router.patch('/drivers/:id/status', requirePermission('drivers.verify'), setDriverAccountStatus);
 router.get('/loads', requirePermission('loads.view'), listLoads);
 router.patch('/loads/:id', requirePermission('loads.edit'), updateLoad);
 router.get('/bookings', requirePermission('bookings.view'), listBookings);
