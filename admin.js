@@ -355,7 +355,31 @@ function openManager(manager) {
   });
 }
 
-$('#moduleRefresh').addEventListener('click', () => { const title=$('#moduleTitle').textContent; loadModule(title); });
+$('#moduleRefresh').addEventListener('click', async () => {
+  const title = $('#moduleTitle').textContent;
+  const btn = $('#moduleRefresh');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing...';
+  try { await loadModule(title); } finally { btn.disabled = false; btn.textContent = 'Refresh'; }
+});
+
+$('#moduleTable').addEventListener('click', async (event) => {
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  event.preventDefault();
+  const action = button.dataset.action;
+  const id = button.dataset.id;
+  if (action === 'edit-customer') return editCustomer(id);
+  if (action === 'toggle-customer') return toggleCustomerAccount(id, button.dataset.status);
+  if (action === 'toggle-driver') return toggleDriverAccount(id, button.dataset.status);
+  if (action === 'edit-load') return editLoad(id);
+  if (action === 'edit-booking') return editBooking(id);
+  if (action === 'edit-payment') return editPayment(id);
+});
+
+window.addEventListener('error', (event) => {
+  if (event?.message) toast('Admin error: ' + event.message);
+});
 
 $('#newManagerBtn').addEventListener('click', () => openManager(null));
 $('#closeManager').addEventListener('click', () => { $('#managerModal').hidden = true; });
