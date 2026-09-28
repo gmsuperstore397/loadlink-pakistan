@@ -289,6 +289,72 @@
   </div>
 </section>
 
+<!-- ============== SPACE SHARING MARKETPLACE ============== -->
+<section class="find-load" id="spaces">
+  <div class="section-inner">
+    <h2>🤝 Space Sharing Marketplace</h2>
+    <p class="section-desc">Driver apni gaari ka khali space offer karein, customer apne cargo ke liye space request karein.</p>
+    <div class="results-grid">
+      <div class="card" id="driverSpaceCard" hidden>
+        <h3>🚛 Meri Gaari Mein Space Available Hai</h3>
+        <form id="spaceListingForm" class="modal-form">
+          <div class="field-row">
+            <div class="field"><label>Vehicle</label><select id="spaceVehicle" required><option value="">Select vehicle</option></select></div>
+            <div class="field"><label>Date</label><input id="spaceDate" type="date" required></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>From</label><input id="spaceFrom" required placeholder="Karachi"></div>
+            <div class="field"><label>To</label><input id="spaceTo" required placeholder="Lahore"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Total Capacity (kg)</label><input id="spaceTotal" type="number" min="1" required></div>
+            <div class="field"><label>Available Space (kg)</label><input id="spaceAvailable" type="number" min="1" required></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Cargo Type</label><input id="spaceCargoType" placeholder="General cargo"></div>
+            <div class="field"><label>Expected Charges (PKR)</label><input id="spaceCharges" type="number" min="0"></div>
+          </div>
+          <div class="field"><label>Exact Pickup Location (private)</label><input id="spaceExactPickup" placeholder="Approval ke baad customer ko unlock hoga"></div>
+          <button class="btn btn-primary" type="submit">📦 Space Post Karein</button>
+        </form>
+      </div>
+      <div class="card" id="customerSpaceCard" hidden>
+        <h3>📦 Mujhe Is Route Par Space Chahiye</h3>
+        <form id="spaceRequestForm" class="modal-form">
+          <div class="field-row">
+            <div class="field"><label>Pickup</label><input id="reqPickup" required placeholder="Karachi"></div>
+            <div class="field"><label>Destination</label><input id="reqDestination" required placeholder="Lahore"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Date</label><input id="reqDate" type="date" required></div>
+            <div class="field"><label>Cargo Weight (kg)</label><input id="reqWeight" type="number" min="1" required></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Cargo Type</label><input id="reqCargoType" placeholder="General cargo"></div>
+            <div class="field"><label>Vehicle Requirement</label><input id="reqVehicle" placeholder="Any suitable"></div>
+          </div>
+          <div class="field"><label>Expected Budget (PKR)</label><input id="reqBudget" type="number" min="0"></div>
+          <div class="field"><label>Cargo Details</label><input id="reqDescription" placeholder="Saman ki short detail"></div>
+          <button class="btn btn-primary" type="submit">🔎 Space Request Post Karein</button>
+        </form>
+      </div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>🔎 Available Vehicle Space</h3>
+      <div class="filter-bar">
+        <input id="spaceSearchFrom" placeholder="From">
+        <input id="spaceSearchTo" placeholder="To">
+        <button class="btn btn-primary" id="spaceSearchBtn">Search Space</button>
+      </div>
+      <div class="results-grid" id="spaceListings"><p class="muted-empty">Available space yahan show hoga.</p></div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>📦 Customer Space Requests</h3>
+      <div class="results-grid" id="spaceRequests"><p class="muted-empty">Space requests yahan show hongi.</p></div>
+    </div>
+  </div>
+</section>
+
 <!-- ============== RETURN LOADS ============== -->
 <section class="return-loads" id="returnloads">
   <div class="section-inner">
