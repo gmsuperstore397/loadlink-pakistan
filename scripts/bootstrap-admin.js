@@ -13,7 +13,7 @@ function required(name) {
   return value;
 }
 
-async function main() {
+async function bootstrapAdmin() {
   if (String(process.env.ADMIN_BOOTSTRAP_ENABLED || '').toLowerCase() !== 'true') {
     throw new Error('Admin bootstrap is disabled. Set ADMIN_BOOTSTRAP_ENABLED=true only while running this one-time command.');
   }
@@ -68,11 +68,15 @@ async function main() {
   console.log('Password was not printed. Change ADMIN_PASSWORD after login and disable ADMIN_BOOTSTRAP_ENABLED.');
 }
 
-main()
-  .catch((error) => {
-    console.error('ADMIN_BOOTSTRAP_FAILED:', error.message);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+module.exports = { bootstrapAdmin };
+
+if (require.main === module) {
+  bootstrapAdmin()
+    .catch((error) => {
+      console.error('ADMIN_BOOTSTRAP_FAILED:', error.message);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
