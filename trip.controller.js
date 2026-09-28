@@ -149,4 +149,61 @@ const streamTrip = asyncHandler(async (req, res) => {
   req.on('close', () => { closed = true; clearInterval(timer); res.end(); });
 });
 
-module.exports = { listTrips, getTrip, getLiveTrip, updateLocation, updateTripStatus, streamTrip };
+
+// POST /api/trips/:id/proof - assigned driver submits digital proof of delivery.
+const submitDeliveryProof = asyncHandler(async (req, res) => {
+  const trip = await prisma.trip.findUnique({ where: { id: req.params.id } });
+  if (!trip) throw new ApiError(404, 'Trip not found');
+  if (!req.user.driverProfile || trip.driverId !== req.user.driverProfile.id) {
+    throw new ApiError(403, 'Only the assigned driver can submit delivery proof');
+  }
+  if (trip.status !== 'DELIVERED') {
+    throw new ApiError(400, 'Delivery proof can only be submitted after the trip is delivered');
+  }
+
+  const receiverName = String(req.body.receiverName || '').trim();
+  if (!receiverName) throw new ApiError(400, 'Receiver name is required');
+
+  const photoUrl = req.files?.photo?.[0] ? `/uploads/${req.files.photo[0].filename}` : null;
+  const signatureUrl = req.files?.signature?.[0] ? `/uploads/${req.files.signature[0].filename}` : null;
+
+  const proof = await prisma.deliveryProof.upsert({
+    where: { tripId: trip.id },
+    create: {
+      tripId: trip.id,
+      submittedById: req.user.id,
+      receiverName,
+      receiverPhone: String(req.body.receiverPhone || '').trim() || null,
+      photoUrl,
+      signatureUrl,
+      notes: String(req.body.notes || '').trim() || null,
+      deliveredAt: req.body.deliveredAt ? new Date(req.body.deliveredAt) : new Date(),
+    },
+    update: {
+      submittedById: req.user.id,
+      receiverName,
+      receiverPhone: String(req.body.receiverPhone || '').trim() || null,
+      ...(photoUrl !== null && { photoUrl }),
+      ...(signatureUrl !== null && { signatureUrl }),
+      notes: String(req.body.notes || '').trim() || null,
+      deliveredAt: req.body.deliveredAt ? new Date(req.body.deliveredAt) : undefined,
+    },
+  });
+
+  return success(res, 200, 'Delivery proof saved', { proof });
+});
+
+// GET /api/trips/:id/proof - customer, assigned driver or admin can view proof.
+const getDeliveryProof = asyncHandler(async (req, res) => {
+  const trip = await prisma.trip.findUnique({ where: { id: req.params.id } });
+  if (!trip) throw new ApiError(404, 'Trip not found');
+  await assertTripAccess(req, trip);
+  const proof = await prisma.deliveryProof.findUnique({
+    where: { tripId: trip.id },
+    include: { submittedBy: { select: { id: true, fullName: true } } },
+  });
+  if (!proof) throw new ApiError(404, 'Delivery proof not found');
+  return success(res, 200, 'Delivery proof fetched', { proof });
+});
+
+module.exports = { listTrips, getTrip, getLiveTrip, updateLocation, updateTripStatus, streamTrip, submitDeliveryProof, getDeliveryProof };
