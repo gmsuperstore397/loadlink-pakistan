@@ -11,6 +11,7 @@ const listSpaceListings = asyncHandler(async (req, res) => {
   if (to) where.toLocation = { contains: to, mode: 'insensitive' };
   if (date) { const start = new Date(date); const end = new Date(start); end.setDate(end.getDate() + 1); where.travelDate = { gte: start, lt: end }; }
   const listings = await prisma.spaceListing.findMany({ where, include: { vehicle: true, driver: { include: { user: { select: { id: true, fullName: true, city: true } } } } }, orderBy: { travelDate: 'asc' }, take: 100 });
+  listings.forEach((x) => { x.exactPickupAddress = null; x.exactPickupLatitude = null; x.exactPickupLongitude = null; });
   return success(res, 200, 'Available vehicle space fetched', { listings });
 });
 
