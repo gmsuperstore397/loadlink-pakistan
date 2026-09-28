@@ -92,8 +92,9 @@ const acceptSpaceBooking = asyncHandler(async (req, res) => {
     if (listingAfter.availableWeightKg <= 0) await tx.spaceListing.update({ where: { id: fresh.spaceListingId }, data: { status: 'FULL' } });
     return tx.spaceBooking.update({ where: { id: fresh.id }, data: { status: 'ACCEPTED', agreedFare, exactPickupUnlocked: true } });
   });
+  const unlocked = await prisma.spaceListing.findUnique({ where: { id: booking.spaceListingId }, select: { exactPickupAddress: true, exactPickupLatitude: true, exactPickupLongitude: true } });
   await notify(booking.customerId, 'BOOKING_ACCEPTED', 'Space booking accepted', 'Driver ne aapki cargo space booking accept kar li hai. Exact pickup location ab unlock ho gayi hai.');
-  return success(res, 200, 'Space booking accepted and space reduced', { booking: updated });
+  return success(res, 200, 'Space booking accepted and space reduced', { booking: { ...updated, exactPickup: unlocked } });
 });
 
 const rejectSpaceBooking = asyncHandler(async (req, res) => {
