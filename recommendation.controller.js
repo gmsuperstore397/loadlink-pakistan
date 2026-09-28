@@ -1,6 +1,6 @@
 const asyncHandler = require('./asyncHandler');
 const { success } = require('./apiResponse');
-const { getRecommendation } = require('./recommendation.service');
+const { getRecommendation, getSmartLoadMatches } = require('./recommendation.service');
 
 // POST /api/recommendations/vehicle
 const recommendVehicleHandler = asyncHandler(async (req, res) => {
@@ -9,4 +9,10 @@ const recommendVehicleHandler = asyncHandler(async (req, res) => {
   return success(res, 200, 'Recommendation generated', result);
 });
 
-module.exports = { recommendVehicleHandler };
+const smartLoadMatchesHandler = asyncHandler(async (req, res) => {
+  const result = await getSmartLoadMatches(req.params.loadId);
+  return success(res, 200, 'Smart driver matches generated', result);
+});
+
+module.exports = { recommendVehicleHandler, smartLoadMatchesHandler };
+
