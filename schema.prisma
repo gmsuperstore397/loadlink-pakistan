@@ -122,6 +122,13 @@ enum DisputeStatus {
   REJECTED
 }
 
+enum SosStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  CANCELLED
+}
+
 model User {
   id           String     @id @default(uuid())
   fullName     String
@@ -153,6 +160,8 @@ model User {
   deliveryProofs DeliveryProof[]
   disputesRaised Dispute[] @relation("DisputesRaised")
   disputesResolved Dispute[] @relation("DisputesResolved")
+  sosAlerts SOSAlert[] @relation("SosRaised")
+  sosResolved SOSAlert[] @relation("SosResolved")
 }
 
 model DriverProfile {
@@ -342,6 +351,7 @@ model Trip {
   payments Payment[]
   deliveryProof DeliveryProof?
   disputes Dispute[]
+  sosAlerts SOSAlert[]
 }
 
 model DeliveryProof {
@@ -483,4 +493,28 @@ model AuditLog {
 
   @@index([userId, createdAt])
   @@index([action, createdAt])
+}
+
+
+model SOSAlert {
+  id           String    @id @default(uuid())
+  tripId       String
+  trip         Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  raisedById   String
+  raisedBy     User      @relation("SosRaised", fields: [raisedById], references: [id], onDelete: Cascade)
+  type         String    @default("EMERGENCY")
+  message      String?
+  latitude     Float?
+  longitude    Float?
+  status       SosStatus @default(OPEN)
+  resolvedById String?
+  resolvedBy   User?     @relation("SosResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+  acknowledgedAt DateTime?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([tripId, status])
+  @@index([raisedById, status])
+  @@index([status, createdAt])
 }
