@@ -43,6 +43,23 @@
         <div class="table-wrap"><table id="moduleTable"><thead></thead><tbody></tbody></table></div>
       </div>
     </section>
+    <section id="analyticsSection" class="section" hidden>
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>📊 Admin Analytics</h2><p class="muted">Operational overview for the last 30 days.</p></div>
+          <button id="analyticsRefresh" class="primary" type="button">Refresh</button>
+        </div>
+        <div id="analyticsKpis" class="analytics-kpis"></div>
+        <div class="analytics-grid">
+          <div class="analytics-card"><h3>Last 7 Days</h3><div id="analytics7"></div></div>
+          <div class="analytics-card"><h3>Load Status</h3><div id="analyticsLoads"></div></div>
+          <div class="analytics-card"><h3>Booking Status</h3><div id="analyticsBookings"></div></div>
+          <div class="analytics-card"><h3>Trip Status</h3><div id="analyticsTrips"></div></div>
+          <div class="analytics-card"><h3>Payment Status</h3><div id="analyticsPayments"></div></div>
+          <div class="analytics-card"><h3>Driver Verification</h3><div id="analyticsDrivers"></div></div>
+        </div>
+      </div>
+    </section>
     <section id="managersSection" class="section" hidden>
       <div class="panel">
         <div class="panel-head"><div><h2>Managers</h2><p class="muted">Admin managers create aur permissions control kar sakta hai.</p></div><button id="newManagerBtn" class="primary">+ Create Manager</button></div>
@@ -82,5 +99,6 @@
   </div>
 </div>
 <script src="/admin.js?v=20260929-7"></script>
+<script src="/admin-analytics.js?v=20260929-1"></script>
 </body>
 </html>
