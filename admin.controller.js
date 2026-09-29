@@ -336,7 +336,7 @@ const unlockLocation = asyncHandler(async (req,res) => { const booking=await pri
 
 const listDisputes = asyncHandler(async (req, res) => {
   const disputes = await prisma.dispute.findMany({
-    include: { raisedBy: { select: { id: true, fullName: true, mobile: true, role: true } }, trip: { select: { id: true, pickup: true, destination: true, status: true } }, resolvedBy: { select: { id: true, fullName: true } } },
+    include: { raisedBy: { select: { id: true, fullName: true, mobile: true, role: true } }, trip: { select: { id: true, pickup: true, destination: true, status: true, driver: { include: { user: { select: { id: true, fullName: true, mobile: true } } } } } }, resolvedBy: { select: { id: true, fullName: true } } },
     orderBy: { createdAt: 'desc' }, take: 300,
   });
   return success(res, 200, 'Disputes fetched', { disputes });
