@@ -150,6 +150,8 @@ const getDeliveryProof = (tripId) => apiRequest(`/trips/${tripId}/proof`);
 const submitDeliveryProof = (tripId, formData) => apiRequest(`/trips/${tripId}/proof`, { method: 'POST', body: formData, isForm: true });
 const createDispute = (body) => apiRequest('/disputes', { method: 'POST', body });
 const getMyDisputes = () => apiRequest('/disputes/mine');
+const createSOS = (tripId, body) => apiRequest('/sos/trips/' + tripId, { method: 'POST', body });
+const getMySOS = () => apiRequest('/sos/mine');
 
 const getTrips = () => apiRequest('/trips');
 const updateTripLocation = (tripId, latitude, longitude) => apiRequest(`/trips/${tripId}/location`, { method: 'PATCH', body: { latitude, longitude } });
@@ -1347,6 +1349,7 @@ async function loadLiveTrips() {
             ${t.status === 'DELIVERED' ? '<button class="btn btn-outline delivery-proof-btn" data-trip="' + t.id + '">📦 Add Proof of Delivery</button>' : ''}
           ` : ''}
           ${t.status === 'DELIVERED' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
+          ${t.status !== 'DELIVERED' ? '<button class="btn btn-outline sos-btn" data-trip="' + t.id + '">🚨 SOS</button>' : ''}
           <button class="btn btn-outline raise-dispute-btn" data-trip="${t.id}">⚖️ Raise Dispute</button>
         </div>      </div>
     `).join('');
@@ -1398,6 +1401,38 @@ document.addEventListener('submit', async (e) => {
   finally { button.disabled = false; }
 });
 
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.sos-btn');
+  if (!btn) return;
+  $('#sosForm').reset();
+  $('#sosTripId').value = btn.dataset.trip;
+  openModal('sosModal');
+});
+
+document.addEventListener('submit', async (e) => {
+  if (e.target.id !== 'sosForm') return;
+  e.preventDefault();
+  if (!window.confirm('🚨 Emergency SOS send karna hai?')) return;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  const tripId = $('#sosTripId').value;
+  const body = { type: $('#sosType').value, message: $('#sosMessage').value.trim() };
+  if (navigator.geolocation) {
+    try {
+      const position = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }));
+      body.latitude = position.coords.latitude;
+      body.longitude = position.coords.longitude;
+    } catch (_) {}
+  }
+  try {
+    await createSOS(tripId, body);
+    closeModal('sosModal');
+    toast('🚨 SOS alert bhej diya gaya hai.');
+    await loadLiveTrips();
+  } catch (err) { toast(err.message); }
+  finally { submitBtn.disabled = false; }
+});
 
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('.raise-dispute-btn');
