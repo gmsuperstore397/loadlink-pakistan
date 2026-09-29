@@ -40,7 +40,7 @@ const createSOS = asyncHandler(async (req, res) => {
   const alert = await prisma.sOSAlert.create({ data: {
     tripId: trip.id, raisedById: req.user.id, type, message,
     latitude, longitude,
-  }, include: { raisedBy: { select: { id: true, fullName: true, mobile: true } } });
+  }, include: { raisedBy: { select: { id: true, fullName: true, mobile: true } } } });
 
   const otherUserId = access.isDriver ? trip.load.customerId : trip.driver.userId;
   if (otherUserId) {
