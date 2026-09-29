@@ -4,7 +4,7 @@ const { success } = require('./apiResponse');
 const ApiError = require('./ApiError');
 const notify = require('./notification.service');
 
-const VALID_CATEGORIES = ['PAYMENT', 'DELIVERY', 'DAMAGE', 'SERVICE', 'OTHER'];
+const VALID_CATEGORIES = ['PAYMENT', 'DELIVERY', 'DAMAGE', 'SERVICE', 'DRIVER_REPORT', 'OTHER'];
 const VALID_STATUSES = ['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'REJECTED'];
 
 async function getAccessibleTrip(req, tripId) {
