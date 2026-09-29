@@ -66,7 +66,16 @@
     load();
   }
 
+  function canViewAnalytics() {
+    try {
+      const raw = token();
+      const payload = JSON.parse(atob(raw.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      return payload.role === 'ADMIN' || (Array.isArray(payload.permissions) && payload.permissions.includes('reports.view'));
+    } catch (_) { return false; }
+  }
+
   function installNav() {
+    if (!canViewAnalytics()) return;
     const nav = $('#sideNav');
     if (!nav || nav.querySelector('[data-analytics-nav]')) return;
     const buttons = [...nav.querySelectorAll('button')];
