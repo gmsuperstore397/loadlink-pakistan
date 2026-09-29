@@ -222,6 +222,8 @@ const MANAGER_PERMISSIONS = [
   'reports.view',
   'disputes.view',
   'disputes.resolve',
+  'sos.view',
+  'sos.resolve',
 ];
 
 const listManagers = asyncHandler(async (req, res) => {
