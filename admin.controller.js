@@ -357,4 +357,47 @@ const updateDispute = asyncHandler(async (req, res) => {
 });
 
 
-module.exports = { managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+
+const listSOSAlerts = asyncHandler(async (req, res) => {
+  const status = req.query.status ? String(req.query.status).toUpperCase() : null;
+  const alerts = await prisma.sOSAlert.findMany({
+    where: status ? { status } : {},
+    include: {
+      raisedBy: { select: { id: true, fullName: true, mobile: true, role: true } },
+      trip: { select: { id: true, pickup: true, destination: true, status: true, currentLatitude: true, currentLongitude: true, driver: { include: { user: { select: { id: true, fullName: true, mobile: true } } } } } },
+      resolvedBy: { select: { id: true, fullName: true } },
+    },
+    orderBy: { createdAt: 'desc' }, take: 300,
+  });
+  return success(res, 200, 'SOS alerts fetched', { alerts });
+});
+
+const updateSOSAlert = asyncHandler(async (req, res) => {
+  const alert = await prisma.sOSAlert.findUnique({ where: { id: req.params.id } });
+  if (!alert) throw new ApiError(404, 'SOS alert not found');
+  const status = String(req.body.status || '').toUpperCase();
+  if (!['OPEN', 'ACKNOWLEDGED', 'RESOLVED', 'CANCELLED'].includes(status)) throw new ApiError(422, 'Invalid SOS status');
+
+  const data = { status };
+  if (status === 'ACKNOWLEDGED' && !alert.acknowledgedAt) data.acknowledgedAt = new Date();
+  if (['RESOLVED', 'CANCELLED'].includes(status)) {
+    data.resolvedById = req.user.id;
+    data.resolvedAt = new Date();
+  }
+  if (status === 'OPEN') {
+    data.acknowledgedAt = null;
+    data.resolvedById = null;
+    data.resolvedAt = null;
+  }
+
+  const updated = await prisma.sOSAlert.update({
+    where: { id: alert.id }, data,
+    include: { raisedBy: { select: { id: true, fullName: true } }, trip: { select: { id: true } } },
+  });
+  await audit(req, 'SOS_' + status, 'SOSAlert', alert.id, { tripId: alert.tripId });
+  if (status === 'ACKNOWLEDGED') await notify(updated.raisedBy.id, 'SYSTEM', 'SOS acknowledged', 'LoadLink team ne aapka SOS acknowledge kar liya hai.');
+  if (status === 'RESOLVED') await notify(updated.raisedBy.id, 'SYSTEM', 'SOS resolved', 'Aapka SOS alert resolve mark kar diya gaya hai.');
+  return success(res, 200, 'SOS alert updated', { alert: updated });
+});
+
+module.exports = { listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
