@@ -156,7 +156,9 @@ const rejectBooking = (id) => apiRequest(`/bookings/${id}/reject`, { method: 'PA
 const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
 const getSmartLoadMatches = (loadId) => apiRequest(`/recommendations/load/${loadId}/matches`);
-const getDriverTrustScore = (userId) => apiRequest(`/ratings/trust/${userId}`);
+const getDriverTrustScore = (userId) => apiRequest(\`/ratings/trust/\${userId}\`);
+const getDriverRatings = (userId) => apiRequest(\`/ratings/\${userId}\`);
+const createRating = (body) => apiRequest('/ratings', { method: 'POST', body });
 const getDeliveryProof = (tripId) => apiRequest(`/trips/${tripId}/proof`);
 const submitDeliveryProof = (tripId, formData) => apiRequest(`/trips/${tripId}/proof`, { method: 'POST', body: formData, isForm: true });
 const createDispute = (body) => apiRequest('/disputes', { method: 'POST', body });
@@ -771,6 +773,7 @@ async function loadProfile() {
 
   if (state.user.role === 'DRIVER') {
     await loadDriverVehicles();
+    await loadDriverFeedback();
     renderProfileCompletion(window.__profileVehicles || []);
     $('#profileLoads').innerHTML = '<p class="muted-empty">Driver profile ke loads yahan show nahi hote.</p>';
     return;
@@ -782,6 +785,23 @@ async function loadProfile() {
   } catch (err) {
     $('#profileLoads').innerHTML = '<p class="muted-empty">Profile posts load nahi ho sake.</p>';
   }
+}
+
+async function loadDriverFeedback() {
+  const card = $('#driverFeedbackCard');
+  if (!card || !state.user || state.user.role !== 'DRIVER') return;
+  card.hidden = false;
+  try {
+    const result = await getDriverRatings(state.user.id);
+    $('#driverCompletedLoads').textContent = Number(result.completedTrips || 0).toLocaleString();
+    $('#driverAverageRating').textContent = result.average != null ? '⭐ ' + result.average + '/5' : '—';
+    $('#driverRatingCount').textContent = Number(result.count || 0).toLocaleString();
+    const list = $('#driverFeedbackList');
+    const ratings = result.ratings || [];
+    list.innerHTML = ratings.length
+      ? ratings.slice(0, 10).map(r => '<div class="result-card"><b>⭐ ' + Number(r.rating) + '/5</b><p>' + escapeHtml(r.comment || 'Customer ne rating di hai, feedback nahi likha.') + '</p><small>By ' + escapeHtml(r.fromUser?.fullName || 'Customer') + ' · ' + new Date(r.createdAt).toLocaleDateString() + '</small></div>').join('')
+      : '<p class="muted-empty">Abhi customer reviews nahi hain.</p>';
+  } catch (_) {}
 }
 
 async function loadDriverVehicles() {
@@ -1446,7 +1466,8 @@ async function loadLiveTrips() {
             ${t.status === 'NEAR_DESTINATION' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="DELIVERED">Delivered</button>' : ''}
             ${t.status === 'DELIVERED' ? '<button class="btn btn-outline delivery-proof-btn" data-trip="' + t.id + '">📦 Add Proof of Delivery</button>' : ''}
           ` : ''}
-          ${t.status === 'DELIVERED' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
+          \${t.status === 'DELIVERED' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
+          \${t.status === 'DELIVERED' && state.user.role === 'CUSTOMER' && t.driver?.user?.id ? '<button class="btn btn-outline rate-driver-btn" data-trip="' + t.id + '" data-driver-user="' + t.driver.user.id + '">⭐ Rate Driver</button>' : ''}
           ${t.status !== 'DELIVERED' ? '<button class="btn btn-outline sos-btn" data-trip="' + t.id + '">🚨 SOS</button>' : ''}
           <button class="btn btn-outline raise-dispute-btn" data-trip="${t.id}">⚖️ Raise Dispute</button>
           ${state.user.role === 'DRIVER' && (t.status === 'IN_TRANSIT' || t.status === 'NEAR_DESTINATION') ? '<div class="trip-return-suggestions" data-trip-return="' + t.id + '"><p class="muted-empty">🔄 Return loads check ho rahe hain...</p></div><div class="trip-route-intelligence" data-trip-route="' + t.id + '"><p class="muted-empty">🧭 Best return route calculate ho raha hai...</p></div>' : ''}
@@ -1493,6 +1514,14 @@ async function loadLiveTrips() {
 }
 
 document.addEventListener('click', async (e) => {
+  const rate = e.target.closest('.rate-driver-btn');
+  if (rate) {
+    $('#ratingForm').reset();
+    $('#ratingTripId').value = rate.dataset.trip;
+    $('#ratingToUserId').value = rate.dataset.driverUser;
+    openModal('ratingModal');
+    return;
+  }
   const view = e.target.closest('.view-proof-btn');
   if (view) {
     try {
@@ -1574,6 +1603,25 @@ document.addEventListener('click', async (e) => {
   $('#disputeForm').reset();
   $('#disputeTripId').value = btn.dataset.trip;
   openModal('disputeModal');
+});
+
+document.addEventListener('submit', async (e) => {
+  if (e.target.id !== 'ratingForm') return;
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    await createRating({
+      tripId: $('#ratingTripId').value,
+      toUserId: $('#ratingToUserId').value,
+      rating: Number($('#ratingValue').value),
+      comment: $('#ratingComment').value.trim() || undefined,
+    });
+    closeModal('ratingModal');
+    toast('⭐ Driver ki rating aur feedback submit ho gaya. Shukriya!');
+    await loadLiveTrips();
+  } catch (err) { toast(err.message); }
+  finally { btn.disabled = false; }
 });
 
 document.addEventListener('submit', async (e) => {
