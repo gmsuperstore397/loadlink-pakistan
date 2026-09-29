@@ -41,10 +41,19 @@ const getRatingsForUser = asyncHandler(async (req, res) => {
     include: { fromUser: { select: { fullName: true } } },
     orderBy: { createdAt: 'desc' },
   });
+  const driver = await prisma.driverProfile.findUnique({ where: { userId: req.params.userId }, select: { id: true } });
+  const completedTrips = driver
+    ? await prisma.trip.count({ where: { driverId: driver.id, status: 'DELIVERED' } })
+    : 0;
   const avg = ratings.length
     ? Math.round((ratings.reduce((s, r) => s + r.rating, 0) / ratings.length) * 10) / 10
     : null;
-  return success(res, 200, 'Ratings fetched', { ratings, average: avg, count: ratings.length });
+  return success(res, 200, 'Ratings fetched', {
+    ratings,
+    average: avg,
+    count: ratings.length,
+    completedTrips,
+  });
 });
 
 
