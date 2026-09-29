@@ -4,6 +4,7 @@ const {
   dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus,
 } = require('./admin.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
+const { analytics } = require('./analytics.controller');
 
 router.use(authenticateUser, requireRole('ADMIN', 'MANAGER'));
 
@@ -24,6 +25,7 @@ router.get('/bookings', requirePermission('bookings.view'), listBookings);
 router.patch('/bookings/:id', requirePermission('deals.approve'), updateBooking);
 router.get('/trips', requirePermission('trips.view'), listTrips);
 router.get('/reports', requirePermission('reports.view'), reports);
+router.get('/analytics', requirePermission('reports.view'), analytics);
 router.get('/disputes', requirePermission('disputes.view'), listDisputes);
 router.patch('/disputes/:id', requirePermission('disputes.resolve'), updateDispute);
 router.get('/payments', requirePermission('payments.verify'), listPayments);
