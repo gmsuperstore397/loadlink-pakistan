@@ -7,7 +7,7 @@ const asyncHandler = require('./asyncHandler');
 const ApiError = require('./ApiError');
 const { hasPermission } = require('./auth');
 
-const UPLOADS_DIR = path.resolve(__dirname, 'uploads');
+const UPLOADS_DIR = path.resolve(process.env.UPLOADS_DIR || path.join(__dirname, 'uploads'));
 
 function requestedFilename(value) {
   const filename = path.basename(String(value || ''));
@@ -74,7 +74,11 @@ const getPrivateDocument = asyncHandler(async (req, res) => {
   }
 
   const filePath = path.join(UPLOADS_DIR, filename);
-  if (!fs.existsSync(filePath)) throw new ApiError(404, 'Document file not found');
+  const resolvedPath = path.resolve(filePath);
+  if (!resolvedPath.startsWith(UPLOADS_DIR + path.sep)) {
+    throw new ApiError(400, 'Invalid document path');
+  }
+  if (!fs.existsSync(resolvedPath)) throw new ApiError(404, 'Document file not found');
 
   return res.sendFile(filename, { root: UPLOADS_DIR });
 });
