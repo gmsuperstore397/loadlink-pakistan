@@ -79,7 +79,7 @@ const createVehicle = asyncHandler(async (req, res) => {
       brand: brand || null,
       model: model || null,
       year: year ? Number(year) : null,
-      documentUrl: req.file ? `/uploads/${req.file.filename}` : null,
+      documentUrl: req.file ? `/api/documents/${req.file.filename}` : null,
       documentExpiryDate: req.body.documentExpiryDate ? new Date(req.body.documentExpiryDate) : null,
       status: 'OFFLINE',
       isVerified: false,
