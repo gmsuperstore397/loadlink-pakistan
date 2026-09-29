@@ -444,3 +444,5 @@ body.profile-view #profile{display:block !important;min-height:calc(100vh - 70px
 .notification-item time{font-size:11px;color:#8a969d}
 .notification-icon{font-size:10px;padding-top:4px}
 @media(max-width:700px){.notification-panel{top:68px;right:10px}.notification-bell{padding:8px 10px}}
+
+.trip-return-suggestions{margin-top:12px;padding:12px;border:1px solid #dce6eb;border-radius:12px;background:#f7fafb}.trip-return-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}.trip-return-head small,.trip-return-item small{display:block;color:#667781;margin-top:3px}.trip-return-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #e5ecef}.trip-return-item>div{min-width:0}.trip-return-item b{display:block;overflow-wrap:anywhere}
