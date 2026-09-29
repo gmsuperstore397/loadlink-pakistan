@@ -388,6 +388,20 @@
   </div>
 </section>
 
+<div class="modal" id="disputeModal" aria-hidden="true">
+  <div class="modal-card">
+    <button type="button" class="modal-close" data-close="disputeModal">×</button>
+    <h3>⚖️ Raise a Dispute</h3>
+    <p class="section-desc">Trip ke issue ki details submit karein. LoadLink team review karegi.</p>
+    <form id="disputeForm" class="modal-form">
+      <input type="hidden" id="disputeTripId">
+      <div class="field"><label>Category</label><select id="disputeCategory" required><option value="PAYMENT">Payment</option><option value="DELIVERY">Delivery</option><option value="DAMAGE">Cargo Damage</option><option value="SERVICE">Service</option><option value="OTHER">Other</option></select></div>
+      <div class="field"><label>Description</label><textarea id="disputeDescription" rows="5" minlength="10" required placeholder="Issue ki detail likhein..."></textarea></div>
+      <button type="submit" class="btn btn-primary">⚖️ Submit Dispute</button>
+    </form>
+  </div>
+</div>
+
 <div class="modal" id="deliveryProofModal" aria-hidden="true">
   <div class="modal-card">
     <button type="button" class="modal-close" data-close="deliveryProofModal">×</button>
@@ -634,6 +648,6 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="app.js?v=20260929-3"></script>
+<script src="app.js?v=20260929-4"></script>
 </body>
 </html>
