@@ -60,6 +60,7 @@ const MODULES = {
   payments:{permission:'payments.verify',title:'Payments',path:'/admin/payments',columns:[['id','ID'],['amount','Amount'],['method','Method'],['status','Status'],['user.fullName','User'],['createdAt','Date']]},
   trips:{permission:'trips.view',title:'Trips',path:'/admin/trips',columns:[['id','ID'],['status','Status'],['pickup','Pickup'],['destination','Destination'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
   disputes:{permission:'disputes.view',title:'Disputes',path:'/admin/disputes',columns:[['id','ID'],['status','Status'],['category','Category'],['raisedBy.fullName','Raised By'],['trip.id','Trip'],['createdAt','Created']]},
+  sos:{permission:'sos.view',title:'SOS Alerts',path:'/admin/sos',columns:[['id','ID'],['status','Status'],['type','Type'],['raisedBy.fullName','Raised By'],['trip.id','Trip'],['createdAt','Created']]},
   reports:{permission:'reports.view',title:'Reports',path:'/admin/reports',columns:[]}
 };
 
@@ -92,6 +93,7 @@ function moduleActions(key,row){
   if(key==='bookings') return '<button class="primary" type="button" data-action="edit-booking" data-id="'+id+'">Update</button>';
   if(key==='payments') return '<button class="primary" type="button" data-action="edit-payment" data-id="'+id+'">Verify</button>';
   if(key==='disputes') return '<button class="primary" type="button" data-action="edit-dispute" data-id="'+id+'">Review</button>';
+  if(key==='sos') return '<button class="primary danger-action" type="button" data-action="edit-sos" data-id="'+id+'">Manage</button>';
   return '';
 }
 async function patchModule(path,body,title){try{await api(path,{method:'PATCH',body:JSON.stringify(body)});toast('Updated successfully');await loadModule(title);}catch(e){toast(e.message);}}
@@ -130,6 +132,13 @@ const EDIT_CONFIG = {
     fields: [
       {key:'status', label:'Status', type:'select', options:['OPEN','UNDER_REVIEW','RESOLVED','REJECTED']},
       {key:'resolution', label:'Resolution Note', type:'text'}
+    ]
+  },
+  sos: {
+    title: 'Manage SOS Alert',
+    path: id => '/admin/sos/' + id,
+    fields: [
+      {key:'status', label:'SOS Status', type:'select', options:['OPEN','ACKNOWLEDGED','RESOLVED','CANCELLED']}
     ]
   },
   payments: {
@@ -214,6 +223,7 @@ async function editLoad(id){const row=(window.moduleRows?.loads||[]).find(x=>x.i
 async function editBooking(id){const row=(window.moduleRows?.bookings||[]).find(x=>x.id===id);if(row)openEditModal('bookings',row);}
 async function editPayment(id){const row=(window.moduleRows?.payments||[]).find(x=>x.id===id);if(row)openEditModal('payments',row);}
 async function editDispute(id){const row=(window.moduleRows?.disputes||[]).find(x=>x.id===id);if(row)openEditModal('disputes',row);}
+async function editSOS(id){const row=(window.moduleRows?.sos||[]).find(x=>x.id===id);if(row)openEditModal('sos',row);}
 
 function renderReports(data){
   $('#moduleTable thead').innerHTML='<tr><th>Report</th><th>Value</th></tr>';
@@ -232,6 +242,7 @@ function renderNav() {
     ['payments.verify','💳 Payments','module','Payments'],
     ['trips.view','📍 Trips','module','Trips'],
     ['disputes.view','⚖️ Disputes','module','Disputes'],
+    ['sos.view','🚨 SOS Alerts','module','SOS Alerts'],
     ['reports.view','📈 Reports','module','Reports']
   ];
   items.forEach(([permission,label,section,title])=>{
@@ -390,6 +401,8 @@ document.addEventListener('click', async (event) => {
     if (action === 'edit-load') return editLoad(id);
     if (action === 'edit-booking') return editBooking(id);
     if (action === 'edit-payment') return editPayment(id);
+    if (action === 'edit-dispute') return editDispute(id);
+    if (action === 'edit-sos') return editSOS(id);
   } catch (error) { toast('Action error: ' + error.message); }
 }, true);
 
