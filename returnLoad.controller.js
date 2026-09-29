@@ -3,6 +3,7 @@ const asyncHandler = require('./asyncHandler');
 const { success } = require('./apiResponse');
 const ApiError = require('./ApiError');
 const { distanceKm } = require('./geo');
+const { estimateFare } = require('./fare.service');
 
 // GET /api/return-loads  - loads posted near a transporter's current/return route,
 // so they can avoid driving back empty.
@@ -289,10 +290,23 @@ const smartReturnRouteForTrip = asyncHandler(async (req, res) => {
     if (!unique.has(key)) unique.set(key, route);
   }
 
-  const routes = Array.from(unique.values()).slice(0, 5).map((route) => ({
+  const routes = Array.from(unique.values()).slice(0, 5).map((route) => {
+    const returnRevenue = route.loads.reduce((sum, load) => {
+      const fare = estimateFare({
+        pickupLat: load.pickupLatitude,
+        pickupLng: load.pickupLongitude,
+        destinationLat: load.destinationLatitude,
+        destinationLng: load.destinationLongitude,
+        vehicleType: vehicleType || load.preferredVehicle,
+        weightKg: load.weightKg,
+      });
+      return sum + Number(fare.estimatedFare || 0);
+    }, 0);
+    return {
     chainScore: route.chainScore,
     totalDetourKm: Math.round(route.totalDetourKm * 10) / 10,
     totalCargoKg: route.loads.reduce((sum, load) => sum + Math.max(0, Number(load.weightKg) || 0), 0),
+    estimatedReturnRevenuePkr: Math.round(returnRevenue),
     loads: route.loads.map((load, index) => ({
       id: load.id,
       pickupAddress: load.pickupAddress,
@@ -303,7 +317,8 @@ const smartReturnRouteForTrip = asyncHandler(async (req, res) => {
       legPickupKm: Math.round(route.legs[index].pickupKm * 10) / 10,
       legDetourKm: Math.round(route.legs[index].detourKm * 10) / 10,
     })),
-  }));
+    };
+  });
 
   return success(res, 200, 'Return route suggestions fetched', {
     tripId: trip.id,
