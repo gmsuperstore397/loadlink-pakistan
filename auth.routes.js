@@ -4,13 +4,14 @@ const { register, login, logout, me, forgotPassword, resetPassword, verifyOtp, r
 const { registerCustomerRules, loginRules } = require('./auth.validator');
 const validate = require('./validate');
 const { authenticateUser } = require('./auth');
+const { registerLimiter, loginLimiter, verifyOtpLimiter, resendOtpLimiter, forgotPasswordLimiter, resetPasswordLimiter } = require('./auth.rateLimit');
 
-router.post('/register', registerCustomerRules, validate, register);
-router.post('/login', loginRules, validate, login);
-router.post('/verify-otp', verifyOtp);
-router.post('/resend-otp', resendOtp);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+router.post('/register', registerLimiter, registerCustomerRules, validate, register);
+router.post('/login', loginLimiter, loginRules, validate, login);
+router.post('/verify-otp', verifyOtpLimiter, verifyOtp);
+router.post('/resend-otp', resendOtpLimiter, resendOtp);
+router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
+router.post('/reset-password', resetPasswordLimiter, resetPassword);
 router.post('/logout', authenticateUser, logout);
 router.get('/me', authenticateUser, me);
 
