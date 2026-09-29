@@ -21,6 +21,7 @@ router.use('/disputes', require('./dispute.routes'));
 router.use('/sos', require('./sos.routes'));
 router.use('/payments', require('./payment.routes'));
 router.use('/push', require('./push.routes'));
+router.use('/documents', require('./document.routes'));
 router.use('/location', require('./location.routes'));
 router.use('/admin', require('./admin.routes'));
 
