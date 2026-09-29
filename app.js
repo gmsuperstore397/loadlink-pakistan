@@ -92,6 +92,15 @@ function clearSession() {
   localStorage.removeItem('ll_user');
 }
 
+async function logoutUser() {
+  try {
+    await apiRequest('/auth/logout', { method: 'POST' });
+  } finally {
+    clearSession();
+    updateAuthUI();
+  }
+}
+
 async function loginUser(mobileOrEmail, password) {
   const identifier = String(mobileOrEmail || '').trim();
   const isEmail = identifier.includes('@');
@@ -602,9 +611,15 @@ document.addEventListener('click', async (e) => {
 });
 
 function initDashboard() {
-  $('#profileLogoutBtn').addEventListener('click', () => {
-    clearSession();
-    location.reload();
+  $('#profileLogoutBtn').addEventListener('click', async () => {
+    try {
+      await logoutUser();
+      toast('Logout successful.');
+      location.reload();
+    } catch (_) {
+      clearSession();
+      location.reload();
+    }
   });
   $('#profileBackBtn').addEventListener('click', () => exitProfileView());
   $('#markAllReadBtn').addEventListener('click', async () => {
