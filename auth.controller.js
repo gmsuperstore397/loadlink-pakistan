@@ -8,6 +8,18 @@ const { signToken } = require('./jwt');
 const { sanitizeUser } = require('./sanitizeUser');
 const ApiError = require('./ApiError');
 
+function setAuthCookie(res, token) {
+  const secure = process.env.NODE_ENV === 'production';
+  const sameSite = secure ? 'None' : 'Lax';
+  res.setHeader('Set-Cookie', `ll_auth=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=604800${secure ? '; Secure' : ''}`);
+}
+
+function clearAuthCookie(res) {
+  const secure = process.env.NODE_ENV === 'production';
+  const sameSite = secure ? 'None' : 'Lax';
+  res.setHeader('Set-Cookie', `ll_auth=; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=0${secure ? '; Secure' : ''}`);
+}
+
 // POST /api/auth/register  (customer registration)
 const register = asyncHandler(async (req, res) => {
   const { fullName, mobile, email, password, city } = req.body;
@@ -83,7 +95,8 @@ const login = asyncHandler(async (req, res) => {
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
   const token = signToken({ id: user.id, role: user.role });
-  return success(res, 200, 'Login successful', { token, user: sanitizeUser(user) });
+  setAuthCookie(res, token);
+  return success(res, 200, 'Login successful', { user: sanitizeUser(user) });
 });
 
 // POST /api/auth/forgot-password
@@ -149,7 +162,8 @@ const verifyOtp = asyncHandler(async (req, res) => {
     return tx.user.update({ where: { id: user.id }, data: { emailVerified: true } });
   });
   const token = signToken({ id: verifiedUser.id, role: verifiedUser.role });
-  return success(res, 200, 'Email verified successfully', { token, user: sanitizeUser(verifiedUser) });
+  setAuthCookie(res, token);
+  return success(res, 200, 'Email verified successfully', { user: sanitizeUser(verifiedUser) });
 });
 
 // POST /api/auth/resend-otp
@@ -174,6 +188,7 @@ const resendOtp = asyncHandler(async (req, res) => {
 
 // POST /api/auth/logout  (JWTs are stateless; client discards the token)
 const logout = asyncHandler(async (req, res) => {
+  clearAuthCookie(res);
   return success(res, 200, 'Logged out successfully');
 });
 
