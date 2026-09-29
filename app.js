@@ -1785,7 +1785,8 @@ document.addEventListener('keydown', async (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await syncSessionFromStorage();
+  // Initialize all UI controls immediately. Session refresh must never block
+  // hamburger, map, hero buttons, or other frontend interactions.
   $('#year').textContent = new Date().getFullYear();
   initNav();
   initHeroSlider();
@@ -1803,6 +1804,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (resetToken) { $('#resetToken').value = resetToken; openModal('resetPasswordModal'); }
   initPwa();
   initConnectivityWatch();
+
+  // Refresh the auth state after the UI is interactive.
+  syncSessionFromStorage().then(() => updateAuthUI()).catch(() => {});
 
   // Live Trips section loads lazily when scrolled into view
   const io = new IntersectionObserver((entries) => {
