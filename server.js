@@ -43,9 +43,8 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// Static: uploaded driver/vehicle documents (never expose passwordHash or secrets here)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+// Uploaded identity, vehicle and delivery documents are private.
+// They are served only through authenticated /api/documents/:filename.
 app.use('/api', routes);
 
 // Separate team admin portal (ADMIN / MANAGER login).
