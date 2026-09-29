@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus,
+  dashboard, listUsers, managerAuditTimeline, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus,
 } = require('./admin.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
 const { analytics } = require('./analytics.controller');
@@ -33,6 +33,7 @@ router.patch('/payments/:id', requirePermission('payments.verify'), updatePaymen
 router.patch('/space-bookings/:id/unlock-location', requirePermission('location.unlock'), unlockLocation);
 router.get('/payments/summary', requirePermission('payments.verify'), paymentSummary);
 router.get('/audit-logs', requirePermission('reports.view'), listAuditLogs);
+router.get('/manager-audit', requirePermission('reports.view'), managerAuditTimeline);
 router.get('/documents/expiring', requirePermission('drivers.documents'), expiringDocuments);
 router.get('/users', requirePermission('customers.view'), listUsers);
 router.get('/transporters/pending', requirePermission('drivers.view'), pendingTransporters);
