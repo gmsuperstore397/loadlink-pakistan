@@ -928,6 +928,19 @@ function renderCategories() {
    POST LOAD FORM + VALIDATION + RECOMMENDATION
    ============================================================ */
 function initPostLoadForm() {
+  $('#confirmPostBtn')?.addEventListener('click', async () => {
+    if (!pendingConfirmation) return;
+    const action = pendingConfirmation;
+    pendingConfirmation = null;
+    closeModal('confirmPostModal');
+    await action();
+  });
+  $('#editPostBtn')?.addEventListener('click', () => {
+    pendingConfirmation = null;
+    closeModal('confirmPostModal');
+    $('#postload')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
   $('#heroPostLoadBtn').addEventListener('click', () => { if (!state.user) { openModal('signupModal'); setSignupTab('customer'); } else { $('#postload').scrollIntoView({ behavior: 'smooth' }); } });
 
   $('#loadDescription').addEventListener('input', (e) => {
@@ -981,9 +994,11 @@ function initPostLoadForm() {
         pickupLongitude: state.pickupCoords?.lng,
       });
       renderRecommendation(rec, { pickup, destination, weightKg, loadId: createdLoad.load.id });
-    } catch (err) {
-      toast(err.message);
-    }
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+    openModal('confirmPostModal');
   });
 }
 
