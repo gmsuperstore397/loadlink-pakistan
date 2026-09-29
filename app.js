@@ -1218,6 +1218,41 @@ function openMapModal(target) {
 
 function closeMapModal() { $('#mapModal').classList.remove('open'); }
 
+async function searchAddressOnMap(query) {
+  const address = String(query || '').trim();
+  const status = $('#mapSearchStatus');
+  if (!address) {
+    if (status) status.textContent = 'Address enter karein.';
+    return;
+  }
+  if (status) status.textContent = '🔎 Location search ho rahi hai…';
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=pk&q=' + encodeURIComponent(address);
+    const resp = await fetch(url, {
+      headers: { Accept: 'application/json' }
+    });
+    if (!resp.ok) throw new Error('Location search failed');
+    const results = await resp.json();
+    if (!results.length) {
+      if (status) status.textContent = '❌ Ye address map par nahi mila. Thora aur complete address likhein.';
+      return;
+    }
+    const result = results[0];
+    const lat = Number(result.lat);
+    const lng = Number(result.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Invalid map coordinates');
+
+    if (state.mapMarker) state.map.removeLayer(state.mapMarker);
+    state.mapMarker = L.marker([lat, lng]).addTo(state.map);
+    state.map.setView([lat, lng], 16);
+    state._pendingCoords = { lat, lng };
+    $('#selectedLocation').value = result.display_name || address;
+    if (status) status.textContent = '📍 Location mil gayi. Marker check karke Confirm Location karein.';
+  } catch (err) {
+    if (status) status.textContent = '❌ Location search temporarily unavailable. Map par manually select karein.';
+  }
+}
+
 async function onMapClick(e) {
   const { lat, lng } = e.latlng;
   if (state.mapMarker) state.map.removeLayer(state.mapMarker);
@@ -1235,9 +1270,21 @@ async function onMapClick(e) {
   }
 }
 
+document.addEventListener('click', async (e) => {
+  const searchBtn = e.target.closest('.address-search-btn');
+  if (!searchBtn) return;
+  const target = searchBtn.dataset.mapTarget;
+  const input = target === 'pickup' ? $('#pickup') : $('#destination');
+  state.mapTarget = target;
+  openMapModal(target);
+  const query = input?.value?.trim() || '';
+  $('#mapAddressSearch').value = query;
+  if (query) await searchAddressOnMap(query);
+});
+
 function confirmMapLocation() {
   const value = $('#selectedLocation').value;
-  if (!value || !state._pendingCoords) { toast('Pehle map par ek location select karein.'); return; }
+  if (!value || !state._pendingCoords) { toast('Pehle address search karein ya map par location select karein.'); return; }
 
   if (state.mapTarget === 'pickup') {
     $('#pickup').value = value;
@@ -1248,6 +1295,8 @@ function confirmMapLocation() {
   }
   closeMapModal();
 }
+
+
 
 /* ============================================================
    FIND TRUCK / FIND LOAD / RETURN LOADS
@@ -1706,6 +1755,18 @@ function initConnectivityWatch() {
 /* ============================================================
    INIT
    ============================================================ */
+document.addEventListener('click', async (e) => {
+  if (!e.target.closest('#mapAddressSearchBtn')) return;
+  await searchAddressOnMap($('#mapAddressSearch').value);
+});
+
+document.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter' && e.target.id === 'mapAddressSearch') {
+    e.preventDefault();
+    await searchAddressOnMap(e.target.value);
+  }
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
   await syncSessionFromStorage();
   $('#year').textContent = new Date().getFullYear();
