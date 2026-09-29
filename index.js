@@ -17,6 +17,7 @@ router.use('/fare', require('./fare.routes'));
 router.use('/return-loads', require('./returnLoad.routes'));
 router.use('/ratings', require('./rating.routes'));
 router.use('/notifications', require('./notification.routes'));
+router.use('/disputes', require('./dispute.routes'));
 router.use('/payments', require('./payment.routes'));
 router.use('/push', require('./push.routes'));
 router.use('/location', require('./location.routes'));
