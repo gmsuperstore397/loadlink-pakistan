@@ -674,5 +674,34 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="app.js?v=20260929-5"></script>
+ 
+<div class="modal" id="sosModal" aria-hidden="true">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>🚨 Emergency SOS</h3>
+      <button type="button" class="modal-close" data-close="sosModal">×</button>
+    </div>
+    <p class="section-desc small">Sirf real emergency mein use karein. Aapki current location available ho to alert ke saath share hogi.</p>
+    <form id="sosForm">
+      <input type="hidden" id="sosTripId">
+      <div class="field">
+        <label for="sosType">Emergency Type</label>
+        <select id="sosType">
+          <option value="EMERGENCY">General Emergency</option>
+          <option value="ACCIDENT">Accident</option>
+          <option value="MEDICAL">Medical</option>
+          <option value="BREAKDOWN">Vehicle Breakdown</option>
+          <option value="SECURITY">Security Issue</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="sosMessage">Message (optional)</label>
+        <textarea id="sosMessage" rows="3" maxlength="500" placeholder="Kya emergency hai?"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">🚨 Send SOS Alert</button>
+    </form>
+  </div>
+</div>
+
 </body>
 </html>
