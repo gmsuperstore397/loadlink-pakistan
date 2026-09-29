@@ -23,13 +23,23 @@ const VEHICLE_MULTIPLIER = {
 
 function estimateFare({ pickupLat, pickupLng, destinationLat, destinationLng, vehicleType, weightKg }) {
   const distance = distanceKm(pickupLat, pickupLng, destinationLat, destinationLng);
-  if (distance === null) {
-    return { distanceKm: null, estimatedFare: null };
-  }
+  if (distance === null) return { distanceKm: null, estimatedFare: null, minFare: null, maxFare: null, vehicleType: vehicleType || null };
+
   const multiplier = VEHICLE_MULTIPLIER[vehicleType] || 1.0;
   const weightFactor = weightKg ? Math.max(1, Number(weightKg) / 2000) : 1;
-  const fare = baseFare + distance * perKmRate * multiplier * Math.min(weightFactor, 3);
-  return { distanceKm: distance, estimatedFare: Math.round(fare) };
+  const estimatedFare = Math.round(baseFare + distance * perKmRate * multiplier * Math.min(weightFactor, 3));
+
+  // Give customers a practical negotiation range instead of presenting one number as fixed.
+  const minFare = Math.round(estimatedFare * 0.90);
+  const maxFare = Math.round(estimatedFare * 1.10);
+  return {
+    distanceKm: Math.round(distance * 10) / 10,
+    estimatedFare,
+    minFare,
+    maxFare,
+    vehicleType: vehicleType || null,
+    disclaimer: 'Estimated fare only. Final fare may vary by route, demand, vehicle availability and agreement with the driver.',
+  };
 }
 
 module.exports = { estimateFare };
