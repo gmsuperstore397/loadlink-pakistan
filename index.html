@@ -190,7 +190,7 @@
             <label for="pickup">📍 Kahan se saman uthana hai?</label>
             <div class="field-with-btn">
               <input type="text" id="pickup" placeholder="Search location or select on map" autocomplete="off">
-              <button type="button" class="map-btn" data-map-target="pickup" aria-label="Select pickup on map">🗺️</button>
+              <button type="button" class="address-search-btn" data-map-target="pickup" aria-label="Find pickup address on map">🔍</button><button type="button" class="map-btn" data-map-target="pickup" aria-label="Select pickup on map">🗺️</button>
             </div>
           </div>
 
@@ -198,7 +198,7 @@
             <label for="destination">🏁 Kahan tak saman le jana hai?</label>
             <div class="field-with-btn">
               <input type="text" id="destination" placeholder="Search location or select on map" autocomplete="off">
-              <button type="button" class="map-btn" data-map-target="destination" aria-label="Select destination on map">🗺️</button>
+              <button type="button" class="address-search-btn" data-map-target="destination" aria-label="Find destination address on map">🔍</button><button type="button" class="map-btn" data-map-target="destination" aria-label="Select destination on map">🗺️</button>
             </div>
           </div>
 
@@ -697,7 +697,7 @@
       </div>
       <button type="button" id="mapModalClose">×</button>
     </div>
-    <div id="locationMap"></div>
+    <div class="map-search-row"><input id="mapAddressSearch" type="text" placeholder="Address likhein, jaise DHA Phase 5 Lahore" autocomplete="off"><button type="button" class="btn btn-primary" id="mapAddressSearchBtn">🔍 Search</button></div><div id="mapSearchStatus" class="muted-empty"></div><div id="locationMap"></div>
     <div class="selected-location">
       <span>📍</span>
       <input id="selectedLocation" type="text" placeholder="Selected location" readonly>
@@ -707,7 +707,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="app.js?v=20260930-16"></script>
+<script src="app.js?v=20260930-19"></script>
  
 <div class="modal" id="sosModal" aria-hidden="true">
   <div class="modal-box">
