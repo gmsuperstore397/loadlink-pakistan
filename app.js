@@ -183,7 +183,7 @@ function renderNotifications(notifications) {
 }
 
 async function loadNotifications(showPanel = false) {
-  if (!state.user || !state.token) return;
+  if (!state.user) return;
   try {
     const result = await getNotifications();
     const notifications = result.notifications || [];
@@ -326,20 +326,28 @@ function openDriverSignup() {
   requestAnimationFrame(() => setSignupTab('driver'));
 }
 
-function syncSessionFromStorage() {
-  const token = localStorage.getItem('ll_token');
+async function syncSessionFromStorage() {
   const rawUser = localStorage.getItem('ll_user');
-  let user = null;
-  try { user = rawUser ? JSON.parse(rawUser) : null; } catch (_) { user = null; }
-  state.token = token || null;
-  state.user = user;
+  try {
+    const cachedUser = rawUser ? JSON.parse(rawUser) : null;
+    if (cachedUser) state.user = cachedUser;
+  } catch (_) {}
+  try {
+    const data = await apiRequest('/auth/me');
+    state.user = data.user || null;
+    if (state.user) localStorage.setItem('ll_user', JSON.stringify(state.user));
+    else localStorage.removeItem('ll_user');
+  } catch (_) {
+    state.user = null;
+    localStorage.removeItem('ll_user');
+  }
   return state.user;
 }
 
 function initAuthModals() {
   // If the user is already logged in, Login should never open the login form again.
-  $('#loginBtn').addEventListener('click', () => { syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
-  $('#loginBtnMobile').addEventListener('click', () => { syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
+  $('#loginBtn').addEventListener('click', async () => { await syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
+  $('#loginBtnMobile').addEventListener('click', async () => { await syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
   $('#signupBtn').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
   $('#signupBtnMobile').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
   $('#heroDriverBtn').addEventListener('click', (event) => {
@@ -1587,7 +1595,8 @@ function initConnectivityWatch() {
 /* ============================================================
    INIT
    ============================================================ */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await syncSessionFromStorage();
   $('#year').textContent = new Date().getFullYear();
   initNav();
   initHeroSlider();
