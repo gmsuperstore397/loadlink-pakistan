@@ -59,6 +59,7 @@ const MODULES = {
   bookings:{permission:'bookings.view',title:'Bookings',path:'/admin/bookings',columns:[['id','ID'],['status','Status'],['agreedFare','Fare'],['customer.fullName','Customer'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
   payments:{permission:'payments.verify',title:'Payments',path:'/admin/payments',columns:[['id','ID'],['amount','Amount'],['method','Method'],['status','Status'],['user.fullName','User'],['createdAt','Date']]},
   trips:{permission:'trips.view',title:'Trips',path:'/admin/trips',columns:[['id','ID'],['status','Status'],['pickup','Pickup'],['destination','Destination'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
+  disputes:{permission:'disputes.view',title:'Disputes',path:'/admin/disputes',columns:[['id','ID'],['status','Status'],['category','Category'],['raisedBy.fullName','Raised By'],['trip.id','Trip'],['createdAt','Created']]},
   reports:{permission:'reports.view',title:'Reports',path:'/admin/reports',columns:[]}
 };
 
@@ -90,6 +91,7 @@ function moduleActions(key,row){
   if(key==='loads') return '<button class="primary" type="button" data-action="edit-load" data-id="'+id+'">Edit</button>';
   if(key==='bookings') return '<button class="primary" type="button" data-action="edit-booking" data-id="'+id+'">Update</button>';
   if(key==='payments') return '<button class="primary" type="button" data-action="edit-payment" data-id="'+id+'">Verify</button>';
+  if(key==='disputes') return '<button class="primary" type="button" data-action="edit-dispute" data-id="'+id+'">Review</button>';
   return '';
 }
 async function patchModule(path,body,title){try{await api(path,{method:'PATCH',body:JSON.stringify(body)});toast('Updated successfully');await loadModule(title);}catch(e){toast(e.message);}}
@@ -120,6 +122,14 @@ const EDIT_CONFIG = {
     fields: [
       {key:'status', label:'Booking Status', type:'select', options:['REQUESTED','ACCEPTED','REJECTED','CANCELLED','COMPLETED']},
       {key:'agreedFare', label:'Agreed Fare (PKR)', type:'number', step:'0.01'}
+    ]
+  },
+  disputes: {
+    title: 'Review Dispute',
+    path: id => '/admin/disputes/' + id,
+    fields: [
+      {key:'status', label:'Status', type:'select', options:['OPEN','UNDER_REVIEW','RESOLVED','REJECTED']},
+      {key:'resolution', label:'Resolution Note', type:'text'}
     ]
   },
   payments: {
@@ -203,6 +213,7 @@ async function toggleDriverAccount(id,current){const next=current==='SUSPENDED'?
 async function editLoad(id){const row=(window.moduleRows?.loads||[]).find(x=>x.id===id);if(row)openEditModal('loads',row);}
 async function editBooking(id){const row=(window.moduleRows?.bookings||[]).find(x=>x.id===id);if(row)openEditModal('bookings',row);}
 async function editPayment(id){const row=(window.moduleRows?.payments||[]).find(x=>x.id===id);if(row)openEditModal('payments',row);}
+async function editDispute(id){const row=(window.moduleRows?.disputes||[]).find(x=>x.id===id);if(row)openEditModal('disputes',row);}
 
 function renderReports(data){
   $('#moduleTable thead').innerHTML='<tr><th>Report</th><th>Value</th></tr>';
@@ -220,6 +231,7 @@ function renderNav() {
     ['commission.verify','💰 Commission','module','Bookings'],
     ['payments.verify','💳 Payments','module','Payments'],
     ['trips.view','📍 Trips','module','Trips'],
+    ['disputes.view','⚖️ Disputes','module','Disputes'],
     ['reports.view','📈 Reports','module','Reports']
   ];
   items.forEach(([permission,label,section,title])=>{
