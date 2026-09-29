@@ -153,8 +153,26 @@ const updatePayment = asyncHandler(async (req,res) => {
 });
 
 const listAuditLogs = asyncHandler(async (req, res) => {
-  const logs = await prisma.auditLog.findMany({ include: { user: { select: { id: true, fullName: true, mobile: true } } }, orderBy: { createdAt: 'desc' }, take: 200 });
+  const logs = await prisma.auditLog.findMany({ include: { user: { select: { id: true, fullName: true, mobile: true, role: true } } }, orderBy: { createdAt: 'desc' }, take: 200 });
   return success(res, 200, 'Audit logs fetched', { logs });
+});
+
+const managerAuditTimeline = asyncHandler(async (req, res) => {
+  const where = {
+    user: { role: 'MANAGER' },
+  };
+  if (req.query.managerId) where.userId = req.query.managerId;
+  if (req.query.action) where.action = String(req.query.action).trim();
+  const days = Math.min(90, Math.max(1, Number(req.query.days) || 30));
+  where.createdAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) };
+
+  const logs = await prisma.auditLog.findMany({
+    where,
+    include: { user: { select: { id: true, fullName: true, mobile: true, role: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 500,
+  });
+  return success(res, 200, 'Manager audit timeline fetched', { logs, days });
 });
 
 const paymentSummary = asyncHandler(async (req, res) => {
@@ -339,4 +357,4 @@ const updateDispute = asyncHandler(async (req, res) => {
 });
 
 
-module.exports = { setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
