@@ -300,11 +300,12 @@ const listDrivers = asyncHandler(async (req,res) => {
   const drivers=await prisma.driverProfile.findMany({include:{user:{select:{id:true,fullName:true,email:true,mobile:true,city:true,status:true,createdAt:true}},vehicles:true},orderBy:{createdAt:'desc'},take:300});
   const userIds=drivers.map(d=>d.userId);
   const driverIds=drivers.map(d=>d.id);
-  const [ratings,bookingGroups,tripGroups,proofGroups]=await Promise.all([
+  const [ratings,bookingGroups,tripGroups,proofGroups,feedback]=await Promise.all([
     prisma.rating.groupBy({by:['toUserId'],where:{toUserId:{in:userIds}},_avg:{rating:true},_count:{_all:true}}),
     prisma.booking.groupBy({by:['driverId','status'],where:{driverId:{in:driverIds}},_count:{_all:true}}),
     prisma.trip.groupBy({by:['driverId','status'],where:{driverId:{in:driverIds}},_count:{_all:true}}),
     prisma.deliveryProof.groupBy({by:['submittedById'],where:{submittedById:{in:userIds}},_count:{_all:true}}),
+    prisma.rating.findMany({where:{toUserId:{in:userIds}},include:{fromUser:{select:{fullName:true}}},orderBy:{createdAt:'desc'},take:500}),
   ]);
   const enriched=drivers.map((driver)=>{
     const rating=ratings.find(r=>r.toUserId===driver.userId);
@@ -322,7 +323,7 @@ const listDrivers = asyncHandler(async (req,res) => {
     const verification=driver.verification==='VERIFIED'?10:0;
     const proof=delivered?Math.min(1,proofs/delivered)*5:0;
     const trustScore=Math.round(Math.max(0,Math.min(100,ratingComponent+reliability+completion+verification+proof)));
-    return {...driver,trustScore,trustMeta:{averageRating:avg?Math.round(avg*10)/10:null,ratingCount:rating?._count._all||0,completedTrips:delivered,deliveryProofs:proofs}};
+    return {...driver,trustScore,trustMeta:{averageRating:avg?Math.round(avg*10)/10:null,ratingCount:rating?._count._all||0,completedTrips:delivered,deliveryProofs:proofs},recentFeedback:feedback.filter(r=>r.toUserId===driver.userId).slice(0,10).map(r=>({rating:r.rating,comment:r.comment,from:r.fromUser?.fullName||'Customer',createdAt:r.createdAt}))};
   });
   return success(res,200,'Drivers fetched',{drivers:enriched});
 });
