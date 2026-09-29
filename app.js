@@ -25,7 +25,7 @@ const VEHICLE_CAPACITY = {
 };
 
 const state = {
-  token: localStorage.getItem('ll_token') || null,
+  token: null,
   user: JSON.parse(localStorage.getItem('ll_user') || 'null'),
   map: null,
   mapMarker: null,
@@ -59,6 +59,7 @@ async function apiRequest(path, { method = 'GET', body, isForm = false } = {}) {
     resp = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers,
+      credentials: 'include',
       body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
     });
   } catch (e) {
@@ -78,9 +79,8 @@ async function apiRequest(path, { method = 'GET', body, isForm = false } = {}) {
 
 /* ---------------- auth API ---------------- */
 function saveSession(token, user) {
-  state.token = token;
+  state.token = token || null;
   state.user = user;
-  localStorage.setItem('ll_token', token);
   localStorage.setItem('ll_user', JSON.stringify(user));
 }
 function clearSession() {
@@ -89,7 +89,6 @@ function clearSession() {
   clearInterval(notificationPollTimer);
   const panel = $('#notificationPanel');
   if (panel) panel.hidden = true;
-  localStorage.removeItem('ll_token');
   localStorage.removeItem('ll_user');
 }
 
