@@ -1406,7 +1406,7 @@ async function loadLiveTrips() {
               routeBox.innerHTML = '<div class="trip-route-head"><strong>🧭 Advanced Return Route</strong><small>Final: ' + escapeHtml(routeResult.finalDestination || '') + '</small></div>' +
                 routes.map((route, idx) => '<div class="trip-route-card"><div class="trip-route-title"><b>Option ' + (idx + 1) + '</b><span>Score ' + route.chainScore + '%</span></div>' +
                   '<div class="trip-route-chain">Current Trip → ' + route.loads.map(load => escapeHtml(load.pickupAddress) + ' → ' + escapeHtml(load.destinationAddress)).join(' → ') + ' → Final Destination</div>' +
-                  '<small>Detour ~' + route.totalDetourKm + ' km · Cargo ' + route.totalCargoKg + ' kg · ' + route.loads.length + ' load' + (route.loads.length > 1 ? 's' : '') + '</small>' +
+                  '<small>Detour ~' + route.totalDetourKm + ' km · Cargo ' + route.totalCargoKg + ' kg · Est. return revenue Rs. ' + Number(route.estimatedReturnRevenuePkr || 0).toLocaleString() + ' · ' + route.loads.length + ' load' + (route.loads.length > 1 ? 's' : '') + '</small>' +
                   route.loads.map(load => '<div class="trip-route-leg"><b>' + escapeHtml(load.pickupAddress) + ' → ' + escapeHtml(load.destinationAddress) + '</b><small>Pickup ' + load.legPickupKm + ' km · Detour ' + load.legDetourKm + ' km · ' + escapeHtml(load.weightKg) + ' kg</small></div>').join('') +
                 '</div>').join('');
             }
