@@ -23,6 +23,7 @@ const createDispute = asyncHandler(async (req, res) => {
   const category = String(req.body.category || '').trim().toUpperCase();
   const description = String(req.body.description || '').trim();
   if (!VALID_CATEGORIES.includes(category)) throw new ApiError(422, 'Invalid dispute category');
+  if (category === 'DRIVER_REPORT' && req.user.role !== 'CUSTOMER') throw new ApiError(403, 'Only customers can report a driver');
   if (description.length < 10) throw new ApiError(422, 'Dispute description must be at least 10 characters');
   const existing = await prisma.dispute.findFirst({
     where: { tripId: trip.id, raisedById: req.user.id, status: { in: ['OPEN', 'UNDER_REVIEW'] } },
