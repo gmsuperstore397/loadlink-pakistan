@@ -1496,9 +1496,6 @@ async function loadLiveTrips() {
     const { trips } = await getTrips();
     if (!trips.length) { el.innerHTML = '<p class="muted-empty">No active trips.</p>'; return; }
     startDriverTracking(trips);
-    const oldLocationStatus = document.querySelector('[data-location-status]');
-    if (oldLocationStatus) oldLocationStatus.remove();
-    if (state.user.role === 'DRIVER') el.insertAdjacentHTML('afterbegin', '<p class="muted-empty" data-location-status>📍 Live location starting…</p>');
     el.innerHTML = trips.map((t) => `
       <div class="result-card">
         <div class="rc-top">
@@ -1508,6 +1505,7 @@ async function loadLiveTrips() {
         <p>${t.pickup} → ${t.destination}</p>
         <p>Vehicle: ${t.vehicle?.vehicleType || '—'}</p>
         <p>Last updated: ${new Date(t.updatedAt).toLocaleString()}</p>
+        ${state.user.role === 'DRIVER' && ['ASSIGNED','PICKED_UP','IN_TRANSIT','NEAR_DESTINATION'].includes(t.status) ? '<p class="muted-empty" data-location-status>📍 Live location active…</p>' : ''}
         <div class="field-row">
           ${state.user.role === 'DRIVER' ? `
             ${t.status === 'ASSIGNED' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="PICKED_UP">Picked Up</button>' : ''}
