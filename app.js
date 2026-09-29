@@ -1026,7 +1026,11 @@ function renderRecommendation(rec, { pickup, destination, weightKg, loadId }) {
       destinationLat: state.destinationCoords.lat, destinationLng: state.destinationCoords.lng,
       vehicleType: rec.recommendedVehicleTypes?.[0] || rec.preferredVehicle, weightKg,
     }).then((f) => {
-      $('#fareEstimateLine').textContent = f.estimatedFare ? `Rs. ${f.estimatedFare.toLocaleString()} (estimate)` : 'Not available';
+      const el = $('#fareEstimateLine');
+      if (!el) return;
+      el.innerHTML = f.estimatedFare
+        ? `Rs. ${f.estimatedFare.toLocaleString()} <small>(suggested estimate)</small><br><span class="fare-range">Typical range: Rs. ${f.minFare.toLocaleString()} – ${f.maxFare.toLocaleString()}</span>`
+        : 'Not available';
     }).catch(() => {});
   }
   const vehiclesHtml = (rec.nearbyVehicles || []).slice(0, 5).map((v) => `
