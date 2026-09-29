@@ -1431,17 +1431,64 @@ document.addEventListener('click', (e) => {
    LIVE TRIPS
    ============================================================ */
 let driverGeoWatch = null;
-function startDriverTracking(trips) {
-  if (driverGeoWatch !== null || !state.user || state.user.role !== 'DRIVER' || !navigator.geolocation) return;
-  const active = trips.find(t => t.status !== 'DELIVERED');
-  if (!active) return;
-  driverGeoWatch = navigator.geolocation.watchPosition(async (pos) => {
-    try {
-      await updateTripLocation(active.id, pos.coords.latitude, pos.coords.longitude);
-    } catch (_) {}
-  }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+let driverGeoTripId = null;
+let driverGeoErrorShown = false;
+
+function stopDriverTracking() {
+  if (driverGeoWatch !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(driverGeoWatch);
+  }
+  driverGeoWatch = null;
+  driverGeoTripId = null;
 }
 
+function startDriverTracking(trips) {
+  if (!state.user || state.user.role !== 'DRIVER' || !navigator.geolocation) return;
+  const activeStatuses = ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'NEAR_DESTINATION'];
+  const active = trips.find(t => activeStatuses.includes(t.status));
+  if (!active) {
+    stopDriverTracking();
+    return;
+  }
+  if (driverGeoWatch !== null && driverGeoTripId === active.id) return;
+
+  stopDriverTracking();
+  driverGeoTripId = active.id;
+  driverGeoErrorShown = false;
+
+  const sendPosition = async (pos) => {
+    const { latitude, longitude, accuracy } = pos.coords || {};
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+    try {
+      await updateTripLocation(active.id, latitude, longitude);
+      const accuracyText = Number.isFinite(accuracy) ? Math.round(accuracy) + 'm' : 'GPS';
+      const status = document.querySelector('[data-location-status]');
+      if (status) status.textContent = '📍 Live location active · ±' + accuracyText;
+    } catch (err) {
+      if (!driverGeoErrorShown) {
+        driverGeoErrorShown = true;
+        toast(err.message || 'Live location update nahi ho saki.');
+      }
+    }
+  };
+
+  const handleError = (err) => {
+    if (driverGeoErrorShown) return;
+    driverGeoErrorShown = true;
+    const messages = {
+      1: 'Location permission denied. Browser settings mein Location allow karein.',
+      2: 'Current location mil nahi saki. GPS/location ON karke dobara try karein.',
+      3: 'Location request timeout. GPS signal check karein.',
+    };
+    toast(messages[err?.code] || 'Live location available nahi hai.');
+  };
+
+  driverGeoWatch = navigator.geolocation.watchPosition(
+    sendPosition,
+    handleError,
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+  );
+}
 async function loadLiveTrips() {
   const el = $('#ltResults');
   if (!state.user) { el.innerHTML = '<p class="muted-empty">Login to see your live trips.</p>'; return; }
@@ -1449,6 +1496,9 @@ async function loadLiveTrips() {
     const { trips } = await getTrips();
     if (!trips.length) { el.innerHTML = '<p class="muted-empty">No active trips.</p>'; return; }
     startDriverTracking(trips);
+    const oldLocationStatus = document.querySelector('[data-location-status]');
+    if (oldLocationStatus) oldLocationStatus.remove();
+    if (state.user.role === 'DRIVER') el.insertAdjacentHTML('afterbegin', '<p class="muted-empty" data-location-status>📍 Live location starting…</p>');
     el.innerHTML = trips.map((t) => `
       <div class="result-card">
         <div class="rc-top">
@@ -1466,8 +1516,8 @@ async function loadLiveTrips() {
             ${t.status === 'NEAR_DESTINATION' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="DELIVERED">Delivered</button>' : ''}
             ${t.status === 'DELIVERED' ? '<button class="btn btn-outline delivery-proof-btn" data-trip="' + t.id + '">📦 Add Proof of Delivery</button>' : ''}
           ` : ''}
-          \${t.status === 'DELIVERED' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
-          \${t.status === 'DELIVERED' && state.user.role === 'CUSTOMER' && t.driver?.user?.id ? '<button class="btn btn-outline rate-driver-btn" data-trip="' + t.id + '" data-driver-user="' + t.driver.user.id + '">⭐ Rate Driver</button>' : ''}
+          ${t.status === 'DELIVERED' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
+          ${t.status === 'DELIVERED' && state.user.role === 'CUSTOMER' && t.driver?.user?.id ? '<button class="btn btn-outline rate-driver-btn" data-trip="' + t.id + '" data-driver-user="' + t.driver.user.id + '">⭐ Rate Driver</button>' : ''}
           ${t.status !== 'DELIVERED' ? '<button class="btn btn-outline sos-btn" data-trip="' + t.id + '">🚨 SOS</button>' : ''}
           <button class="btn btn-outline raise-dispute-btn" data-trip="${t.id}">⚖️ Raise Dispute</button>
           ${state.user.role === 'DRIVER' && (t.status === 'IN_TRANSIT' || t.status === 'NEAR_DESTINATION') ? '<div class="trip-return-suggestions" data-trip-return="' + t.id + '"><p class="muted-empty">🔄 Return loads check ho rahe hain...</p></div><div class="trip-route-intelligence" data-trip-route="' + t.id + '"><p class="muted-empty">🧭 Best return route calculate ho raha hai...</p></div>' : ''}
