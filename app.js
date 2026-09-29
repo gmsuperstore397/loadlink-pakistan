@@ -1204,16 +1204,33 @@ function openMapModal(target) {
   state.mapTarget = target;
   $('#mapModalTitle').textContent = target === 'pickup' ? 'Select Pickup Location' : 'Select Destination Location';
   $('#selectedLocation').value = '';
+  $('#mapSearchStatus').textContent = '';
   $('#mapModal').classList.add('open');
 
-  if (!state.map) {
-    state.map = L.map('locationMap').setView([24.8607, 67.0011], 6); // Karachi default
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-    }).addTo(state.map);
-    state.map.on('click', onMapClick);
+  if (typeof L === 'undefined') {
+    $('#mapSearchStatus').textContent = '❌ Map library load nahi hui. Internet connection check karke page refresh karein.';
+    toast('Map load nahi ho saka. Page refresh karein.');
+    return;
   }
-  setTimeout(() => state.map.invalidateSize(), 60);
+
+  try {
+    if (!state.map) {
+      state.map = L.map('locationMap', {
+        zoomControl: true,
+        attributionControl: true,
+      }).setView([30.3753, 69.3451], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors',
+      }).addTo(state.map);
+      state.map.on('click', onMapClick);
+    }
+    setTimeout(() => state.map.invalidateSize(true), 150);
+  } catch (err) {
+    console.error('Map initialization failed', err);
+    $('#mapSearchStatus').textContent = '❌ Map initialize nahi ho saka. Page refresh karke dobara try karein.';
+    toast('Map initialize nahi ho saka.');
+  }
 }
 
 function closeMapModal() { $('#mapModal').classList.remove('open'); }
