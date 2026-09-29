@@ -43,8 +43,8 @@ const registerTransporter = asyncHandler(async (req, res) => {
     }));
   }
 
-  const cnicDocUrl = req.files?.cnicDoc?.[0] ? `/uploads/${req.files.cnicDoc[0].filename}` : null;
-  const licenseDocUrl = req.files?.licenseDoc?.[0] ? `/uploads/${req.files.licenseDoc[0].filename}` : null;
+  const cnicDocUrl = req.files?.cnicDoc?.[0] ? `/api/documents/${req.files.cnicDoc[0].filename}` : null;
+  const licenseDocUrl = req.files?.licenseDoc?.[0] ? `/api/documents/${req.files.licenseDoc[0].filename}` : null;
 
   let user;
 
