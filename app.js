@@ -130,6 +130,7 @@ const createVehicle = (body) => apiRequest('/vehicles', { method: 'POST', body, 
 const findLoads = (query) => apiRequest(`/loads?${new URLSearchParams(query)}`);
 const getReturnLoads = (query) => apiRequest(`/return-loads?${new URLSearchParams(query)}`);
 const getSmartReturnLoads = (query) => apiRequest(`/return-loads/smart?${new URLSearchParams(query)}`);
+const getTripReturnSuggestions = (tripId) => apiRequest(`/return-loads/smart/trip/${tripId}`);
 const createBooking = (body) => apiRequest('/bookings', { method: 'POST', body });
 const getMyBookings = () => apiRequest('/bookings/my');
 const acceptBooking = (id, agreedFare) => apiRequest(`/bookings/${id}/accept`, { method: 'PATCH', body: agreedFare ? { agreedFare: Number(agreedFare) } : {} });
@@ -1377,8 +1378,28 @@ async function loadLiveTrips() {
           ${t.status === 'DELIVERED' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
           ${t.status !== 'DELIVERED' ? '<button class="btn btn-outline sos-btn" data-trip="' + t.id + '">🚨 SOS</button>' : ''}
           <button class="btn btn-outline raise-dispute-btn" data-trip="${t.id}">⚖️ Raise Dispute</button>
+          ${state.user.role === 'DRIVER' && (t.status === 'IN_TRANSIT' || t.status === 'NEAR_DESTINATION') ? '<div class="trip-return-suggestions" data-trip-return="' + t.id + '"><p class="muted-empty">🔄 Return loads check ho rahe hain...</p></div>' : ''}
         </div>      </div>
     `).join('');
+
+    if (state.user.role === 'DRIVER') {
+      trips.filter(t => t.status === 'IN_TRANSIT' || t.status === 'NEAR_DESTINATION').forEach(async (trip) => {
+        try {
+          const result = await getTripReturnSuggestions(trip.id);
+          const box = document.querySelector('[data-trip-return="' + trip.id + '"]');
+          if (!box) return;
+          const loads = result.loads || [];
+          if (!loads.length) {
+            box.innerHTML = '<p class="muted-empty">🔄 Is delivery point ke qareeb abhi suitable return load nahi mila.</p>';
+            return;
+          }
+          box.innerHTML = '<div class="trip-return-head"><strong>🔄 Smart Return Loads</strong><small>Delivery point ke qareeb</small></div>' + loads.map(load => '<div class="trip-return-item"><div><b>' + escapeHtml(load.pickupAddress) + ' → ' + escapeHtml(load.destinationAddress) + '</b><small>Match ' + load.returnMatchScore + '% · ' + Math.round(load.distanceFromDeliveryKm) + ' km away · ' + escapeHtml(load.weightKg) + ' kg</small><small>' + escapeHtml((load.returnMatchReasons || []).slice(0,2).join(' · ')) + '</small></div><button type="button" class="btn btn-outline contact-load-btn" data-load-id="' + load.id + '">Contact</button></div>').join('');
+        } catch (_) {
+          const box = document.querySelector('[data-trip-return="' + trip.id + '"]');
+          if (box) box.innerHTML = '<p class="muted-empty">Return-load suggestions unavailable.</p>';
+        }
+      });
+    }
   } catch (err) {
     el.innerHTML = '<p class="muted-empty">Could not load live trips.</p>';
   }
