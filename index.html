@@ -388,6 +388,18 @@
   </div>
 </section>
 
+<div class="modal" id="confirmPostModal" aria-hidden="true">
+  <div class="modal-card">
+    <button type="button" class="modal-close" data-close="confirmPostModal">×</button>
+    <h3>⚠️ Confirmation Required</h3>
+    <p class="section-desc">Post confirm hone ke baad is post ko dobara edit nahi kiya ja sakega. Kya aap confirm karna chahte hain?</p>
+    <div class="field-row">
+      <button type="button" class="btn btn-primary" id="confirmPostBtn">✅ Confirm</button>
+      <button type="button" class="btn btn-outline" id="editPostBtn">✏️ Edit</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="disputeModal" aria-hidden="true">
   <div class="modal-card">
     <button type="button" class="modal-close" data-close="disputeModal">×</button>
@@ -648,6 +660,6 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="app.js?v=20260929-4"></script>
+<script src="app.js?v=20260929-5"></script>
 </body>
 </html>
