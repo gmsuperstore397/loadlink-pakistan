@@ -43,6 +43,18 @@
         <div class="table-wrap"><table id="moduleTable"><thead></thead><tbody></tbody></table></div>
       </div>
     </section>
+    <section id="auditSection" class="section" hidden>
+      <div class="panel">
+        <div class="panel-head"><div><h2>🧾 Manager Audit Timeline</h2><p class="muted">Manager ki operational activities ka chronological record.</p></div></div>
+        <div class="audit-tools">
+          <select id="auditManager"><option value="">All Managers</option></select>
+          <select id="auditDays"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>
+          <input id="auditAction" placeholder="Filter action e.g. LOAD_UPDATED">
+          <button id="auditRefresh" class="primary" type="button">Refresh</button>
+        </div>
+        <div class="table-wrap"><table id="auditTable"><thead><tr><th>Date/Time</th><th>Manager</th><th>Action</th><th>Entity</th><th>Target ID</th><th>Details</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
     <section id="analyticsSection" class="section" hidden>
       <div class="panel">
         <div class="panel-head">
@@ -100,5 +112,6 @@
 </div>
 <script src="/admin.js?v=20260929-7"></script>
 <script src="/admin-analytics.js?v=20260929-1"></script>
+<script src="/admin-audit.js?v=20260929-1"></script>
 </body>
 </html>
