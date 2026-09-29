@@ -115,6 +115,13 @@ enum PaymentMethod {
   CARD
 }
 
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
 model User {
   id           String     @id @default(uuid())
   fullName     String
@@ -144,6 +151,8 @@ model User {
   spaceBookingsAsCustomer SpaceBooking[] @relation("SpaceCustomerBookings")
   auditLogs AuditLog[]
   deliveryProofs DeliveryProof[]
+  disputesRaised Dispute[] @relation("DisputesRaised")
+  disputesResolved Dispute[] @relation("DisputesResolved")
 }
 
 model DriverProfile {
@@ -332,6 +341,7 @@ model Trip {
   ratings Rating[]
   payments Payment[]
   deliveryProof DeliveryProof?
+  disputes Dispute[]
 }
 
 model DeliveryProof {
@@ -378,6 +388,27 @@ model Notification {
   createdAt DateTime         @default(now())
 }
 
+
+model Dispute {
+  id           String        @id @default(uuid())
+  tripId       String
+  trip         Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  raisedById   String
+  raisedBy     User          @relation("DisputesRaised", fields: [raisedById], references: [id], onDelete: Cascade)
+  category     String
+  description  String
+  status       DisputeStatus @default(OPEN)
+  resolution   String?
+  resolvedById String?
+  resolvedBy   User?         @relation("DisputesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  resolvedAt   DateTime?
+
+  @@index([tripId, status])
+  @@index([raisedById, status])
+  @@index([status, createdAt])
+}
 
 model Payment {
   id          String        @id @default(uuid())
