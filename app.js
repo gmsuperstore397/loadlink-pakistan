@@ -131,6 +131,7 @@ const findLoads = (query) => apiRequest(`/loads?${new URLSearchParams(query)}`);
 const getReturnLoads = (query) => apiRequest(`/return-loads?${new URLSearchParams(query)}`);
 const getSmartReturnLoads = (query) => apiRequest(`/return-loads/smart?${new URLSearchParams(query)}`);
 const getTripReturnSuggestions = (tripId) => apiRequest(`/return-loads/smart/trip/${tripId}`);
+const getSmartReturnRoute = (tripId) => apiRequest(`/return-loads/smart/route/${tripId}`);
 const createBooking = (body) => apiRequest('/bookings', { method: 'POST', body });
 const getMyBookings = () => apiRequest('/bookings/my');
 const acceptBooking = (id, agreedFare) => apiRequest(`/bookings/${id}/accept`, { method: 'PATCH', body: agreedFare ? { agreedFare: Number(agreedFare) } : {} });
@@ -1378,7 +1379,7 @@ async function loadLiveTrips() {
           ${t.status === 'DELIVERED' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
           ${t.status !== 'DELIVERED' ? '<button class="btn btn-outline sos-btn" data-trip="' + t.id + '">🚨 SOS</button>' : ''}
           <button class="btn btn-outline raise-dispute-btn" data-trip="${t.id}">⚖️ Raise Dispute</button>
-          ${state.user.role === 'DRIVER' && (t.status === 'IN_TRANSIT' || t.status === 'NEAR_DESTINATION') ? '<div class="trip-return-suggestions" data-trip-return="' + t.id + '"><p class="muted-empty">🔄 Return loads check ho rahe hain...</p></div>' : ''}
+          ${state.user.role === 'DRIVER' && (t.status === 'IN_TRANSIT' || t.status === 'NEAR_DESTINATION') ? '<div class="trip-return-suggestions" data-trip-return="' + t.id + '"><p class="muted-empty">🔄 Return loads check ho rahe hain...</p></div><div class="trip-route-intelligence" data-trip-route="' + t.id + '"><p class="muted-empty">🧭 Best return route calculate ho raha hai...</p></div>' : ''}
         </div>      </div>
     `).join('');
 
@@ -1387,13 +1388,29 @@ async function loadLiveTrips() {
         try {
           const result = await getTripReturnSuggestions(trip.id);
           const box = document.querySelector('[data-trip-return="' + trip.id + '"]');
-          if (!box) return;
-          const loads = result.loads || [];
-          if (!loads.length) {
-            box.innerHTML = '<p class="muted-empty">🔄 Is delivery point ke qareeb abhi suitable return load nahi mila.</p>';
-            return;
+          if (box) {
+            const loads = result.loads || [];
+            if (!loads.length) {
+              box.innerHTML = '<p class="muted-empty">🔄 Is delivery point ke qareeb abhi suitable return load nahi mila.</p>';
+            } else {
+              box.innerHTML = '<div class="trip-return-head"><strong>🔄 Smart Return Loads</strong><small>Delivery point ke qareeb</small></div>' + loads.map(load => '<div class="trip-return-item"><div><b>' + escapeHtml(load.pickupAddress) + ' → ' + escapeHtml(load.destinationAddress) + '</b><small>Match ' + load.returnMatchScore + '% · ' + Math.round(load.distanceFromDeliveryKm) + ' km away · ' + escapeHtml(load.weightKg) + ' kg</small><small>' + escapeHtml((load.returnMatchReasons || []).slice(0,2).join(' · ')) + '</small></div><button type="button" class="btn btn-outline contact-load-btn" data-load-id="' + load.id + '">Contact</button></div>').join('');
+            }
           }
-          box.innerHTML = '<div class="trip-return-head"><strong>🔄 Smart Return Loads</strong><small>Delivery point ke qareeb</small></div>' + loads.map(load => '<div class="trip-return-item"><div><b>' + escapeHtml(load.pickupAddress) + ' → ' + escapeHtml(load.destinationAddress) + '</b><small>Match ' + load.returnMatchScore + '% · ' + Math.round(load.distanceFromDeliveryKm) + ' km away · ' + escapeHtml(load.weightKg) + ' kg</small><small>' + escapeHtml((load.returnMatchReasons || []).slice(0,2).join(' · ')) + '</small></div><button type="button" class="btn btn-outline contact-load-btn" data-load-id="' + load.id + '">Contact</button></div>').join('');
+          const routeBox = document.querySelector('[data-trip-route="' + trip.id + '"]');
+          if (routeBox) {
+            const routeResult = await getSmartReturnRoute(trip.id);
+            const routes = routeResult.routes || [];
+            if (!routes.length) {
+              routeBox.innerHTML = '<p class="muted-empty">🧭 Abhi koi practical multi-load return route nahi mila.</p>';
+            } else {
+              routeBox.innerHTML = '<div class="trip-route-head"><strong>🧭 Advanced Return Route</strong><small>Final: ' + escapeHtml(routeResult.finalDestination || '') + '</small></div>' +
+                routes.map((route, idx) => '<div class="trip-route-card"><div class="trip-route-title"><b>Option ' + (idx + 1) + '</b><span>Score ' + route.chainScore + '%</span></div>' +
+                  '<div class="trip-route-chain">Current Trip → ' + route.loads.map(load => escapeHtml(load.pickupAddress) + ' → ' + escapeHtml(load.destinationAddress)).join(' → ') + ' → Final Destination</div>' +
+                  '<small>Detour ~' + route.totalDetourKm + ' km · Cargo ' + route.totalCargoKg + ' kg · ' + route.loads.length + ' load' + (route.loads.length > 1 ? 's' : '') + '</small>' +
+                  route.loads.map(load => '<div class="trip-route-leg"><b>' + escapeHtml(load.pickupAddress) + ' → ' + escapeHtml(load.destinationAddress) + '</b><small>Pickup ' + load.legPickupKm + ' km · Detour ' + load.legDetourKm + ' km · ' + escapeHtml(load.weightKg) + ' kg</small></div>').join('') +
+                '</div>').join('');
+            }
+          }
         } catch (_) {
           const box = document.querySelector('[data-trip-return="' + trip.id + '"]');
           if (box) box.innerHTML = '<p class="muted-empty">Return-load suggestions unavailable.</p>';
