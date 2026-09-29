@@ -148,6 +148,8 @@ const getSmartLoadMatches = (loadId) => apiRequest(`/recommendations/load/${load
 const getDriverTrustScore = (userId) => apiRequest(`/ratings/trust/${userId}`);
 const getDeliveryProof = (tripId) => apiRequest(`/trips/${tripId}/proof`);
 const submitDeliveryProof = (tripId, formData) => apiRequest(`/trips/${tripId}/proof`, { method: 'POST', body: formData, isForm: true });
+const createDispute = (body) => apiRequest('/disputes', { method: 'POST', body });
+const getMyDisputes = () => apiRequest('/disputes/mine');
 
 const getTrips = () => apiRequest('/trips');
 const updateTripLocation = (tripId, latitude, longitude) => apiRequest(`/trips/${tripId}/location`, { method: 'PATCH', body: { latitude, longitude } });
@@ -378,6 +380,7 @@ function initAuthModals() {
       toast(`Welcome back, ${user.fullName}!`);
       closeModal('loginModal');
       updateAuthUI();
+  initNotificationCenter();
     } catch (err) { toast(err.message); }
   });
 
@@ -1360,6 +1363,29 @@ document.addEventListener('submit', async (e) => {
     await loadLiveTrips();
   } catch (err) { toast(err.message); }
   finally { button.disabled = false; }
+});
+
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.raise-dispute-btn');
+  if (!btn) return;
+  $('#disputeForm').reset();
+  $('#disputeTripId').value = btn.dataset.trip;
+  openModal('disputeModal');
+});
+
+document.addEventListener('submit', async (e) => {
+  if (e.target.id !== 'disputeForm') return;
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    await createDispute({ tripId: $('#disputeTripId').value, category: $('#disputeCategory').value, description: $('#disputeDescription').value.trim() });
+    closeModal('disputeModal');
+    toast('Dispute submit ho gaya. Team review karegi.');
+    await loadLiveTrips();
+  } catch (err) { toast(err.message); }
+  finally { btn.disabled = false; }
 });
 
 function showUpdateBanner(registration) {
