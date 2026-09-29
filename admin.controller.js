@@ -202,6 +202,8 @@ const MANAGER_PERMISSIONS = [
   'location.unlock',
   'trips.view',
   'reports.view',
+  'disputes.view',
+  'disputes.resolve',
 ];
 
 const listManagers = asyncHandler(async (req, res) => {
@@ -311,5 +313,30 @@ const listTrips = asyncHandler(async (req,res) => { const trips=await prisma.tri
 const reports = asyncHandler(async (req,res) => { const [usersByRole,loadStatus,bookingStatus,paymentStatus,revenue]=await Promise.all([prisma.user.groupBy({by:['role'],_count:{_all:true}}),prisma.load.groupBy({by:['status'],_count:{_all:true}}),prisma.booking.groupBy({by:['status'],_count:{_all:true}}),prisma.payment.groupBy({by:['status'],_count:{_all:true}}),prisma.payment.aggregate({where:{status:'PAID'},_sum:{amount:true}})]); return success(res,200,'Reports fetched',{usersByRole,loadStatus,bookingStatus,paymentStatus,revenue:revenue._sum.amount||0}); });
 const unlockLocation = asyncHandler(async (req,res) => { const booking=await prisma.spaceBooking.findUnique({where:{id:req.params.id}}); if(!booking) throw new ApiError(404,'Space booking not found'); const updated=await prisma.spaceBooking.update({where:{id:booking.id},data:{exactPickupUnlocked:true}}); await audit(req,'LOCATION_UNLOCKED','SpaceBooking',booking.id,{}); return success(res,200,'Exact pickup location unlocked',{booking:updated}); });
 
+const listDisputes = asyncHandler(async (req, res) => {
+  const disputes = await prisma.dispute.findMany({
+    include: { raisedBy: { select: { id: true, fullName: true, mobile: true, role: true } }, trip: { select: { id: true, pickup: true, destination: true, status: true } }, resolvedBy: { select: { id: true, fullName: true } } },
+    orderBy: { createdAt: 'desc' }, take: 300,
+  });
+  return success(res, 200, 'Disputes fetched', { disputes });
+});
 
-module.exports = { setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+const updateDispute = asyncHandler(async (req, res) => {
+  const dispute = await prisma.dispute.findUnique({ where: { id: req.params.id } });
+  if (!dispute) throw new ApiError(404, 'Dispute not found');
+  const status = String(req.body.status || '').toUpperCase();
+  if (!['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'REJECTED'].includes(status)) throw new ApiError(422, 'Invalid dispute status');
+  const resolution = req.body.resolution == null ? dispute.resolution : String(req.body.resolution).trim();
+  if (['RESOLVED', 'REJECTED'].includes(status) && (!resolution || resolution.length < 5)) throw new ApiError(422, 'Resolution note is required');
+  const updated = await prisma.dispute.update({
+    where: { id: dispute.id },
+    data: { status, resolution: resolution || null, resolvedById: ['RESOLVED', 'REJECTED'].includes(status) ? req.user.id : null, resolvedAt: ['RESOLVED', 'REJECTED'].includes(status) ? new Date() : null },
+    include: { raisedBy: { select: { id: true, fullName: true } } },
+  });
+  await audit(req, 'DISPUTE_' + status, 'Dispute', dispute.id, { resolution: resolution || null });
+  await notify(updated.raisedBy.id, 'SYSTEM', 'Dispute updated', 'Your dispute is now ' + status.replace('_', ' ').toLowerCase() + '.');
+  return success(res, 200, 'Dispute updated', { dispute: updated });
+});
+
+
+module.exports = { setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
