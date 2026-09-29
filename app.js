@@ -643,6 +643,50 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
+
+function getProfileCompletion(user, vehicles = []) {
+  if (!user) return { percent: 0, missing: [] };
+  const checks = [];
+  const add = (label, value, weight) => checks.push({ label, complete: !!String(value ?? '').trim(), weight });
+  add('Full name', user.fullName, 15);
+  add('Mobile number', user.mobile, 15);
+  add('Email address', user.email, 15);
+  add('City', user.city, 10);
+
+  if (user.role === 'DRIVER') {
+    const d = user.driverProfile || {};
+    add('CNIC details', d.cnic, 10);
+    add('Driving license', d.drivingLicense, 10);
+    add('CNIC expiry date', d.cnicExpiryDate, 5);
+    add('License expiry date', d.licenseExpiryDate, 5);
+    checks.push({ label: 'At least one vehicle', complete: vehicles.length > 0, weight: 10 });
+    // Profile photo is useful but optional, so it does not block 100%.
+  } else {
+    // Customer profile is complete from the core account details above.
+    // Profile picture remains optional.
+  }
+
+  const total = checks.reduce((s, x) => s + x.weight, 0);
+  const earned = checks.reduce((s, x) => s + (x.complete ? x.weight : 0), 0);
+  return { percent: Math.round((earned / total) * 100), missing: checks.filter(x => !x.complete).map(x => x.label) };
+}
+
+function renderProfileCompletion(vehicles = []) {
+  const result = getProfileCompletion(state.user, vehicles);
+  const percent = result.percent;
+  const percentEl = $('#profileCompletionPercent');
+  const fillEl = $('#profileCompletionFill');
+  const hintEl = $('#profileCompletionHint');
+  const missingEl = $('#profileCompletionMissing');
+  if (!percentEl || !fillEl) return;
+  percentEl.textContent = percent + '%';
+  fillEl.style.width = percent + '%';
+  if (hintEl) hintEl.textContent = percent >= 100 ? 'Profile 100% complete hai.' : 'Profile complete karne ke liye remaining details add karein.';
+  if (missingEl) missingEl.innerHTML = result.missing.length
+    ? '<b>Remaining:</b> ' + result.missing.map(escapeHtml).join(' • ')
+    : '<span class="profile-complete-message">✓ Profile complete</span>';
+}
+
 function showProfile() {
   if (!state.user) return openModal('loginModal');
   const section = $('#profile');
@@ -698,12 +742,14 @@ async function loadProfile() {
   $('#profileEmail').textContent = state.user.email || '—';
   $('#profileCity').textContent = state.user.city || 'City not added';
   applyProfilePhoto();
+  renderProfileCompletion();
 
   const vehicleCard = $('#driverVehiclesCard');
   if (vehicleCard) vehicleCard.hidden = state.user.role !== 'DRIVER';
 
   if (state.user.role === 'DRIVER') {
     await loadDriverVehicles();
+    renderProfileCompletion(window.__profileVehicles || []);
     $('#profileLoads').innerHTML = '<p class="muted-empty">Driver profile ke loads yahan show nahi hote.</p>';
     return;
   }
@@ -722,6 +768,8 @@ async function loadDriverVehicles() {
   try {
     const result = await getMyVehicles();
     const vehicles = result.vehicles || [];
+    window.__profileVehicles = vehicles;
+    renderProfileCompletion(vehicles);
     list.innerHTML = vehicles.map(v => `
       <div class="result-card">
         <b>🚚 ${v.vehicleType}</b>
