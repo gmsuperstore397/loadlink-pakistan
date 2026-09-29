@@ -162,6 +162,7 @@ const markAllRead = () => apiRequest('/notifications/read-all', { method: 'PATCH
 const markNotificationRead = (id) => apiRequest('/notifications/' + id + '/read', { method: 'PATCH' });
 
 let notificationPollTimer = null;
+let pendingConfirmation = null;
 
 function renderNotifications(notifications) {
   const list = $('#notificationList');
@@ -735,18 +736,18 @@ function initDriverVehicles() {
     fd.append('year', $('#vYear').value);
     fd.append('documentExpiryDate', $('#vDocumentExpiry').value);
     if (file) fd.append('vehicleDoc', file);
-    const button = form.querySelector('button[type="submit"]');
-    button.disabled = true;
-    try {
-      await createVehicle(fd);
+    const submitVehicle = async () => {
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      try { await createVehicle(fd);
       form.reset();
       await loadDriverVehicles();
-      toast('Gaari add ho gayi. Verification admin karega.');
-    } catch (err) {
-      toast(err.message || 'Gaari add nahi ho saki.');
-    } finally {
-      button.disabled = false;
-    }
+        toast('Gaari add ho gayi. Verification admin karega.');
+      } catch (err) { toast(err.message || 'Gaari add nahi ho saki.'); }
+      finally { button.disabled = false; }
+    };
+    pendingConfirmation = submitVehicle;
+    openModal('confirmPostModal');
   });
 }
 
@@ -956,8 +957,9 @@ function initPostLoadForm() {
       return;
     }
 
-    try {
-      const createdLoad = await createLoad({
+    pendingConfirmation = async () => {
+      try {
+        const createdLoad = await createLoad({
         pickupAddress: pickup,
         pickupLatitude: state.pickupCoords?.lat,
         pickupLongitude: state.pickupCoords?.lng,
