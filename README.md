@@ -13,13 +13,13 @@ truck & load marketplace.
 ## Setup
 
 ```bash
-cd backend
 npm install
-cp .env.example .env      # then edit DATABASE_URL, JWT_SECRET, etc.
+cp .env.example .env
+# edit DATABASE_URL, JWT_SECRET, and other required settings
 npx prisma generate
-npx prisma migrate dev --name init
-npm run seed               # loads clearly-marked demo data
-npm run dev
+npm run prisma:push
+npm run seed               # optional demo data for development only
+npm start
 ```
 
 The API starts on `http://localhost:5000` (or `PORT` from `.env`).
@@ -37,19 +37,30 @@ These are demo accounts only — clearly not real users.
 
 ## Project layout
 
+The repository uses a flat Node.js/Express structure:
+
 ```
-src/
-  config/       env + Prisma client
-  controllers/  request handlers per resource
-  middleware/   auth, validation, upload, error handling
-  routes/       Express routers, mounted in routes/index.js
-  services/     recommendation + fare-estimation + notification logic
-  utils/        JWT, API response shape, geo distance, etc.
-  server.js     app entry point
-prisma/
-  schema.prisma
-  seed.js
+server.js
+index.js
+auth.controller.js
+auth.routes.js
+auth.rateLimit.js
+auth.js
+payment.controller.js
+payment.routes.js
+trip.controller.js
+vehicle.controller.js
+transporter.controller.js
+document.controller.js
+document.routes.js
+upload.js
+notification.service.js
+audit.js
+schema.prisma
+scripts/
 ```
+
+Prisma schema is in `schema.prisma`; runtime configuration is in `env.js`.
 
 ## API response shape
 
@@ -66,7 +77,12 @@ Error:
 - Passwords are hashed with bcrypt; the JWT secret and DB credentials live only in `.env` (never committed).
 - Booking accept/reject and trip status transitions run inside Prisma transactions to prevent two drivers accepting the same load.
 - Fare estimates are configurable (`BASE_FARE`, `PER_KM_RATE` in `.env`) and are never presented as a guaranteed final price.
-- Uploaded documents are stored under `uploads/` with randomly generated filenames — original filenames are never trusted.
+- Uploaded identity, vehicle, and delivery documents are private and are served only through authenticated `/api/documents/:filename`.
+- Document storage is configurable with `UPLOADS_DIR`. Local development falls back to `./uploads`; production on Render should use a persistent disk mount.
+- JWT sessions are stored in an HttpOnly `ll_auth` cookie; the frontend does not store the JWT in localStorage.
+- Authentication endpoints have dedicated IP + identifier rate limits in addition to the global API limiter.
+- Payment webhooks require the configured HMAC signature (legacy secret header remains accepted for compatibility) and duplicate webhook deliveries are handled idempotently.
+- Payment amounts for trip payments are validated against the booking's agreed fare.
 
 
 ## Production features added
@@ -81,6 +97,18 @@ The application now includes:
 - admin dashboard APIs for payments, audit logs, document expiry, and transporter verification
 - driver/vehicle document expiry tracking
 - Render runtime public URL wiring and production environment placeholders
+
+### Render production checklist
+
+1. Set `NODE_ENV=production`.
+2. Set a long random `JWT_SECRET` and `PAYMENT_WEBHOOK_SECRET`.
+3. Set `DATABASE_URL` to the production PostgreSQL database.
+4. Set `FRONTEND_URL` to the exact production frontend origin (avoid `*`).
+5. Add a Render persistent disk and set `UPLOADS_DIR` to its mount path, for example `/var/data/loadlink-uploads`.
+6. Configure `PUBLIC_APP_URL` to the public HTTPS app URL.
+7. Configure email/SMS and payment-provider credentials only when needed.
+8. Keep `ADMIN_BOOTSTRAP_ENABLED=false` after initial admin setup unless a controlled bootstrap is required.
+9. Do not run `npm run seed` against production.
 
 ### Production secrets/integrations
 
