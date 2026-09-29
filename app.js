@@ -1306,16 +1306,17 @@ async function loadLiveTrips() {
         <p>${t.pickup} → ${t.destination}</p>
         <p>Vehicle: ${t.vehicle?.vehicleType || '—'}</p>
         <p>Last updated: ${new Date(t.updatedAt).toLocaleString()}</p>
-        ${state.user.role === 'DRIVER' ? `
-          <div class="field-row">
+        <div class="field-row">
+          ${state.user.role === 'DRIVER' ? `
             ${t.status === 'ASSIGNED' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="PICKED_UP">Picked Up</button>' : ''}
             ${t.status === 'PICKED_UP' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="IN_TRANSIT">In Transit</button>' : ''}
             ${t.status === 'IN_TRANSIT' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="NEAR_DESTINATION">Near Destination</button>' : ''}
             ${t.status === 'NEAR_DESTINATION' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="DELIVERED">Delivered</button>' : ''}
             ${t.status === 'DELIVERED' ? '<button class="btn btn-outline delivery-proof-btn" data-trip="' + t.id + '">📦 Add Proof of Delivery</button>' : ''}
-            ${t.status === 'DELIVERED' && state.user.role !== 'DRIVER' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
-          </div>` : ''}
-      </div>
+          ` : ''}
+          ${t.status === 'DELIVERED' ? '<button class="btn btn-outline view-proof-btn" data-trip="' + t.id + '">👁️ View Delivery Proof</button>' : ''}
+          <button class="btn btn-outline raise-dispute-btn" data-trip="${t.id}">⚖️ Raise Dispute</button>
+        </div>      </div>
     `).join('');
   } catch (err) {
     el.innerHTML = '<p class="muted-empty">Could not load live trips.</p>';
