@@ -409,6 +409,21 @@
   </div>
 </div>
 
+<div class="modal" id="ratingModal" aria-hidden="true">
+  <div class="modal-card">
+    <button type="button" class="modal-close" data-close="ratingModal">×</button>
+    <h3>⭐ Driver ko Rate Karein</h3>
+    <p class="section-desc">Delivery complete hone ke baad driver ke experience ko rate karein.</p>
+    <form id="ratingForm" class="modal-form">
+      <input type="hidden" id="ratingTripId">
+      <input type="hidden" id="ratingToUserId">
+      <div class="field"><label>Rating</label><select id="ratingValue" required><option value="5">★★★★★ 5 - Excellent</option><option value="4">★★★★ 4 - Good</option><option value="3">★★★ 3 - Average</option><option value="2">★★ 2 - Needs Improvement</option><option value="1">★ 1 - Poor</option></select></div>
+      <div class="field"><label>Feedback (optional)</label><textarea id="ratingComment" rows="4" maxlength="1000" placeholder="Driver ke experience ke bare mein feedback dein..."></textarea></div>
+      <button type="submit" class="btn btn-primary">⭐ Submit Rating & Feedback</button>
+    </form>
+  </div>
+</div>
+
 <div class="modal" id="disputeModal" aria-hidden="true">
   <div class="modal-card">
     <button type="button" class="modal-close" data-close="disputeModal">×</button>
@@ -487,6 +502,16 @@
       <div class="results-grid" id="driverVehicles" style="margin-top:14px">
         <p class="muted-empty">Vehicles load ho rahi hain...</p>
       </div>
+    </div>
+
+    <div class="card driver-feedback-card" id="driverFeedbackCard" style="margin-top:18px" hidden>
+      <h3>⭐ Driver Performance</h3>
+      <div class="driver-feedback-stats">
+        <div><strong id="driverCompletedLoads">0</strong><span>Loads Delivered</span></div>
+        <div><strong id="driverAverageRating">—</strong><span>Customer Rating</span></div>
+        <div><strong id="driverRatingCount">0</strong><span>Reviews</span></div>
+      </div>
+      <div id="driverFeedbackList" class="results-grid" style="margin-top:14px"></div>
     </div>
 
     <div class="card" style="margin-top:18px">
@@ -682,7 +707,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="app.js?v=20260930-15-14"></script>
+<script src="app.js?v=20260930-16"></script>
  
 <div class="modal" id="sosModal" aria-hidden="true">
   <div class="modal-box">
