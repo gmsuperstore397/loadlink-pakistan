@@ -129,6 +129,7 @@ const getMyVehicles = () => apiRequest('/vehicles/mine');
 const createVehicle = (body) => apiRequest('/vehicles', { method: 'POST', body, isForm: true });
 const findLoads = (query) => apiRequest(`/loads?${new URLSearchParams(query)}`);
 const getReturnLoads = (query) => apiRequest(`/return-loads?${new URLSearchParams(query)}`);
+const getSmartReturnLoads = (query) => apiRequest(`/return-loads/smart?${new URLSearchParams(query)}`);
 const createBooking = (body) => apiRequest('/bookings', { method: 'POST', body });
 const getMyBookings = () => apiRequest('/bookings/my');
 const acceptBooking = (id, agreedFare) => apiRequest(`/bookings/${id}/accept`, { method: 'PATCH', body: agreedFare ? { agreedFare: Number(agreedFare) } : {} });
@@ -1184,14 +1185,39 @@ function initSearchSections() {
   });
 
   $('#rlSearchBtn').addEventListener('click', async () => {
+    const box = $('#rlResults');
     try {
-      const results = await getReturnLoads({
-        ...($('#rlReturnDestination').value && { returnDestination: $('#rlReturnDestination').value }),
-        ...($('#rlVehicleType').value && { vehicleType: $('#rlVehicleType').value }),
-        ...($('#rlRadius').value && { radiusKm: $('#rlRadius').value }),
-      });
-      renderLoadResults(results.loads || [], '#rlResults');
-    } catch (err) { toast(err.message); }
+      box.innerHTML = '<p class="muted-empty">🤖 Return-route matches calculate ho rahe hain...</p>';
+      const query = {
+        returnDestination: $('#rlReturnDestination').value,
+        vehicleType: $('#rlVehicleType').value,
+        radiusKm: $('#rlRadius').value,
+      };
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 7000, maximumAge: 60000 }));
+          query.currentLat = pos.coords.latitude;
+          query.currentLng = pos.coords.longitude;
+        } catch (_) {}
+      }
+      const results = await getSmartReturnLoads(query);
+      const loads = results.loads || [];
+      if (!loads.length) {
+        box.innerHTML = '<p class="muted-empty">Abhi koi strong return-route match nahi mila.</p>';
+        return;
+      }
+      box.innerHTML = loads.map((l) => `
+        <div class="result-card">
+          <div class="rc-top"><h4>${escapeHtml(l.pickupAddress)} → ${escapeHtml(l.destinationAddress)}</h4><span class="badge-pill">🤖 ${l.smartMatchScore}% Match</span></div>
+          <p>${escapeHtml(l.description || 'General cargo')}</p>
+          <p>Weight: ${l.weightKg} kg · Vehicle: ${escapeHtml(l.preferredVehicle || 'Any suitable')}</p>
+          ${l.distanceFromCurrentKm != null ? '<p>📍 Pickup: ' + Number(l.distanceFromCurrentKm).toFixed(1) + ' km away</p>' : ''}
+          <p class="muted-empty">${(l.smartMatchReasons || []).slice(0,3).map(escapeHtml).join(' · ')}</p>
+          <small>Posted ${new Date(l.createdAt).toLocaleString()}</small>
+          <button type="button" class="btn btn-primary contact-load-btn" data-load-id="${escapeHtml(l.id)}" style="margin-top:12px;width:100%">📲 LoadLink Team se Contact Karein</button>
+        </div>
+      `).join('');
+    } catch (err) { box.innerHTML = '<p class="muted-empty">' + escapeHtml(err.message) + '</p>'; }
   });
 }
 
