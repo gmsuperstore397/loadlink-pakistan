@@ -2,14 +2,19 @@ const { verifyToken } = require('./jwt');
 const { fail } = require('./apiResponse');
 const prisma = require('./prisma');
 
-// Verifies the Bearer JWT and attaches the current user (with driverProfile) to req.user.
+function getAuthToken(req) {
+  const header = req.headers.authorization || '';
+  if (header.startsWith('Bearer ')) return header.slice(7);
+  const cookieHeader = req.headers.cookie || '';
+  const match = cookieHeader.split(';').map((part) => part.trim()).find((part) => part.startsWith('ll_auth='));
+  return match ? decodeURIComponent(match.slice('ll_auth='.length)) : null;
+}
+
+// Verifies the HttpOnly auth cookie (or legacy Bearer token) and attaches the current user.
 async function authenticateUser(req, res, next) {
   try {
-    const header = req.headers.authorization || '';
-    if (!header.startsWith('Bearer ')) {
-      return fail(res, 401, 'Authentication required');
-    }
-    const token = header.slice(7);
+    const token = getAuthToken(req);
+    if (!token) return fail(res, 401, 'Authentication required');
     const payload = verifyToken(token);
 
     const user = await prisma.user.findUnique({
@@ -27,7 +32,6 @@ async function authenticateUser(req, res, next) {
   }
 }
 
-// Restricts a route to one or more roles. Use after authenticateUser.
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user) return fail(res, 401, 'Authentication required');
@@ -38,9 +42,6 @@ function requireRole(...roles) {
   };
 }
 
-
-// Granular permission middleware for MANAGER accounts.
-// ADMIN bypasses permission checks; MANAGER permissions are stored as JSON in User.permissions.
 function hasPermission(user, permission) {
   if (!user) return false;
   if (user.role === 'ADMIN') return true;
