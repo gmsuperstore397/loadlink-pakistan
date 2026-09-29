@@ -524,7 +524,7 @@ async function loadAdminDashboard() {
 async function loadDashboard() {
   if (!state.user) return;
   try {
-    const [n, p, u] = await Promise.all([getNotifications(), getPayments(), getUnreadCount()]);
+    const [n, p, u, d] = await Promise.all([getNotifications(), getPayments(), getUnreadCount(), getMyDisputes()]);
     if (state.user.role === 'DRIVER') {
       const b = await getMyBookings();
       const pending = (b.bookings || []).filter(x => x.status === 'REQUESTED');
@@ -538,6 +538,17 @@ async function loadDashboard() {
     $('#paymentList').innerHTML = (p.payments || []).map(x => `
       <div class="result-card"><b>PKR ${Number(x.amount).toLocaleString()}</b><p>${x.method} · ${x.status}</p><small>${new Date(x.createdAt).toLocaleString()}</small></div>
     `).join('') || '<p class="muted-empty">No payments.</p>';
+    const disputeList = $('#myDisputesList');
+    if (disputeList) {
+      const disputes = d.disputes || [];
+      disputeList.innerHTML = disputes.map(x => `
+        <div class="result-card">
+          <b>${x.category} · ${String(x.status || '').replaceAll('_',' ')}</b>
+          <p>${x.description}</p>
+          <small>Trip: ${x.trip?.id ? x.trip.id.slice(0, 8) : '—'} · ${new Date(x.createdAt).toLocaleString()}</small>
+          ${x.resolution ? '<p><b>Resolution:</b> ' + x.resolution + '</p>' : ''}
+        </div>`).join('') || '<p class="muted-empty">Abhi koi dispute nahi.</p>';
+    }
   } catch (err) {}
 }
 
