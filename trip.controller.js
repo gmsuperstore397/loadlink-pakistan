@@ -164,8 +164,8 @@ const submitDeliveryProof = asyncHandler(async (req, res) => {
   const receiverName = String(req.body.receiverName || '').trim();
   if (!receiverName) throw new ApiError(400, 'Receiver name is required');
 
-  const photoUrl = req.files?.photo?.[0] ? `/uploads/${req.files.photo[0].filename}` : null;
-  const signatureUrl = req.files?.signature?.[0] ? `/uploads/${req.files.signature[0].filename}` : null;
+  const photoUrl = req.files?.photo?.[0] ? `/api/documents/${req.files.photo[0].filename}` : null;
+  const signatureUrl = req.files?.signature?.[0] ? `/api/documents/${req.files.signature[0].filename}` : null;
 
   const proof = await prisma.deliveryProof.upsert({
     where: { tripId: trip.id },
