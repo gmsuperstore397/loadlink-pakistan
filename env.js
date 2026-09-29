@@ -17,4 +17,5 @@ module.exports = {
   publicAppUrl: process.env.PUBLIC_APP_URL || '',
   easyPaisaCheckoutUrl: process.env.EASYPAISA_CHECKOUT_URL || '',
   jazzCashCheckoutUrl: process.env.JAZZCASH_CHECKOUT_URL || '',
+  uploadsDir: process.env.UPLOADS_DIR || '',
 };
