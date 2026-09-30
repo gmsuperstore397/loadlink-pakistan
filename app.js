@@ -1246,7 +1246,7 @@ function renderEmbeddedMap(lat, lng) {
       };
       img.alt = '';
       img.draggable = false;
-      img.referrerPolicy = 'strict-origin-when-cross-origin';
+      img.referrerPolicy = 'no-referrer';
       img.style.cssText = 'position:absolute;width:256px;height:256px;left:' + (offsetX + (tx - startX) * size) + 'px;top:' + (offsetY + (ty - startY) * size) + 'px';
       layer.appendChild(img);
     }
