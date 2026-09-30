@@ -1210,10 +1210,64 @@ function initMapModal() {
 function renderEmbeddedMap(lat, lng) {
   const map = $('#locationMap');
   if (!map) return;
-  const delta = 0.06;
-  const bbox = [lng - delta, lat - delta, lng + delta, lat + delta].join(',');
-  const marker = '&marker=' + encodeURIComponent(lat + ',' + lng);
-  map.innerHTML = '<iframe title="Location map" src="https://www.openstreetmap.org/export/embed.html?bbox=' + encodeURIComponent(bbox) + '&layer=mapnik' + marker + '" style="width:100%;height:100%;border:0" loading="lazy"></iframe>';
+
+  const zoom = 13;
+  const size = 256;
+  const width = map.clientWidth || 600;
+  const height = map.clientHeight || 340;
+  const n = Math.pow(2, zoom);
+  const x = (Number(lng) + 180) / 360 * n;
+  const latRad = Number(lat) * Math.PI / 180;
+  const y = (1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2 * n;
+  const centerX = Math.floor(x);
+  const centerY = Math.floor(y);
+  const cols = Math.ceil(width / size) + 2;
+  const rows = Math.ceil(height / size) + 2;
+  const startX = centerX - Math.floor(cols / 2);
+  const startY = centerY - Math.floor(rows / 2);
+  const offsetX = width / 2 - (x - startX) * size;
+  const offsetY = height / 2 - (y - startY) * size;
+
+  map.innerHTML = '<div class="simple-osm-map" style="position:relative;width:100%;height:100%;overflow:hidden;background:#ddd"></div>';
+  const layer = map.querySelector('.simple-osm-map');
+
+  for (let ty = startY; ty < startY + rows; ty++) {
+    for (let tx = startX; tx < startX + cols; tx++) {
+      const wrappedX = ((tx % n) + n) % n;
+      if (ty < 0 || ty >= n) continue;
+      const img = document.createElement('img');
+      img.src = 'https://tile.openstreetmap.org/' + zoom + '/' + wrappedX + '/' + ty + '.png';
+      img.alt = '';
+      img.draggable = false;
+      img.style.cssText = 'position:absolute;width:256px;height:256px;left:' + (offsetX + (tx - startX) * size) + 'px;top:' + (offsetY + (ty - startY) * size) + 'px';
+      layer.appendChild(img);
+    }
+  }
+
+  const marker = document.createElement('div');
+  marker.textContent = '📍';
+  marker.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);font-size:34px;z-index:5;text-shadow:0 1px 3px #fff';
+  layer.appendChild(marker);
+
+  layer.addEventListener('click', async (e) => {
+    const rect = layer.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const mapX = x + (clickX - width / 2) / size;
+    const mapY = y + (clickY - height / 2) / size;
+    const longitude = mapX / n * 360 - 180;
+    const merc = Math.PI * (1 - 2 * mapY / n);
+    const latitude = 180 / Math.PI * Math.atan(Math.sinh(merc));
+    state._pendingCoords = { lat: latitude, lng: longitude };
+    $('#selectedLocation').value = latitude.toFixed(5) + ', ' + longitude.toFixed(5);
+    if ($('#mapSearchStatus')) $('#mapSearchStatus').textContent = '📍 Location select ho gayi. Neeche Confirm Location press karein.';
+    try {
+      const resp = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + latitude + '&lon=' + longitude + '&zoom=14');
+      const data = await resp.json();
+      if (data && data.display_name) $('#selectedLocation').value = data.display_name;
+    } catch (_) {}
+    renderEmbeddedMap(latitude, longitude);
+  });
 }
 
 function openMapModal(target) {
