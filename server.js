@@ -19,11 +19,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://unpkg.com"],
+      scriptSrc: ["'self'", "https://unpkg.com", "https://maps.googleapis.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'", "https://nominatim.openstreetmap.org", "https://*.tile.openstreetmap.org", "https://server.arcgisonline.com", "https://*.arcgisonline.com"],
+      connectSrc: ["'self'", "https://nominatim.openstreetmap.org", "https://*.tile.openstreetmap.org", "https://server.arcgisonline.com", "https://*.arcgisonline.com", "https://maps.googleapis.com", "https://maps.gstatic.com"],
       workerSrc: ["'self'", "blob:"],
       manifestSrc: ["'self'"],
     },
@@ -42,7 +42,16 @@ const limiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests, please try again later', errors: [] },
 });
-app.use('/api', limiter);
+app.use('/api', limiter);\n\napp.get('/api/map/config', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || '',
+    },
+  });
+});
+
+
 
 // Uploaded identity, vehicle and delivery documents are private.
 // They are served only through authenticated /api/documents/:filename.
