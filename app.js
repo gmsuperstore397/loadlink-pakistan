@@ -1231,17 +1231,26 @@ function renderEmbeddedMap(lat, lng) {
   map.innerHTML = '<div class="simple-osm-map" style="position:relative;width:100%;height:100%;overflow:hidden;background:#ddd"></div>';
   const layer = map.querySelector('.simple-osm-map');
 
+  let failedTiles = 0;
+  let totalTiles = 0;
   for (let ty = startY; ty < startY + rows; ty++) {
     for (let tx = startX; tx < startX + cols; tx++) {
       const wrappedX = ((tx % n) + n) % n;
       if (ty < 0 || ty >= n) continue;
       const img = document.createElement('img');
+      totalTiles++;
       img.src = '/api/map/tiles/' + zoom + '/' + wrappedX + '/' + ty;
       img.dataset.fallback = '';
       img.onerror = () => {
-        if (img.dataset.fallback && img.src !== img.dataset.fallback) {
-          img.src = img.dataset.fallback;
-          img.dataset.fallback = '';
+        failedTiles++;
+        if (failedTiles >= Math.max(2, Math.floor(totalTiles * 0.6))) {
+          const old = layer.querySelector('.map-tile-error');
+          if (!old) {
+            const msg = document.createElement('div');
+            msg.className = 'map-tile-error';
+            msg.textContent = 'Map tiles load nahi ho rahe. Internet connection check karke dobara try karein.';
+            layer.appendChild(msg);
+          }
         }
       };
       img.alt = '';
@@ -1285,7 +1294,7 @@ function openMapModal(target) {
   $('#selectedLocation').value = '';
   $('#mapSearchStatus').textContent = 'Address search karke location select karein.';
   $('#mapModal').classList.add('open');
-  renderEmbeddedMap(30.3753, 69.3451);
+  requestAnimationFrame(() => renderEmbeddedMap(30.3753, 69.3451));
 }
 
 function closeMapModal() { $('#mapModal').classList.remove('open'); }
