@@ -1236,7 +1236,7 @@ function renderEmbeddedMap(lat, lng) {
       const wrappedX = ((tx % n) + n) % n;
       if (ty < 0 || ty >= n) continue;
       const img = document.createElement('img');
-      img.src = 'https://tile.openstreetmap.org/' + zoom + '/' + wrappedX + '/' + ty + '.png';
+      img.src = 'https://a.basemaps.cartocdn.com/light_all/' + zoom + '/' + wrappedX + '/' + ty + '.png';
       img.alt = '';
       img.draggable = false;
       img.style.cssText = 'position:absolute;width:256px;height:256px;left:' + (offsetX + (tx - startX) * size) + 'px;top:' + (offsetY + (ty - startY) * size) + 'px';
