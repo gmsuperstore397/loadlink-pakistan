@@ -1207,50 +1207,23 @@ function initMapModal() {
   });
 }
 
+function renderEmbeddedMap(lat, lng) {
+  const map = $('#locationMap');
+  if (!map) return;
+  const delta = 0.06;
+  const bbox = [lng - delta, lat - delta, lng + delta, lat + delta].join(',');
+  const marker = '&marker=' + encodeURIComponent(lat + ',' + lng);
+  map.innerHTML = '<iframe title="Location map" src="https://www.openstreetmap.org/export/embed.html?bbox=' + encodeURIComponent(bbox) + '&layer=mapnik' + marker + '" style="width:100%;height:100%;border:0" loading="lazy"></iframe>';
+}
+
 function openMapModal(target) {
   state.mapTarget = target;
+  state._pendingCoords = null;
   $('#mapModalTitle').textContent = target === 'pickup' ? 'Select Pickup Location' : 'Select Destination Location';
   $('#selectedLocation').value = '';
-  $('#mapSearchStatus').textContent = '';
+  $('#mapSearchStatus').textContent = 'Address search karke location select karein.';
   $('#mapModal').classList.add('open');
-
-  if (typeof L === 'undefined') {
-    $('#mapSearchStatus').textContent = '❌ Map library load nahi hui. Internet connection check karke page refresh karein.';
-    toast('Map load nahi ho saka. Page refresh karein.');
-    return;
-  }
-
-  // Modal visible hone ke baad map initialize karein taa-ke Leaflet ko
-  // container ki actual width/height mil sake (mobile par bhi).
-  setTimeout(() => {
-    try {
-      if (!state.map) {
-        state.map = L.map('locationMap', {
-          zoomControl: true,
-          attributionControl: true,
-        }).setView([30.3753, 69.3451], 5);
-
-        const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '© OpenStreetMap contributors',
-        }).addTo(state.map);
-
-        tiles.on('tileerror', () => {
-          const status = $('#mapSearchStatus');
-          if (status) status.textContent = '⚠️ Map tiles load nahi ho rahe. Internet connection check karein.';
-        });
-
-        state.map.on('click', onMapClick);
-      }
-
-      state.map.invalidateSize(true);
-      setTimeout(() => state.map && state.map.invalidateSize(true), 300);
-    } catch (err) {
-      console.error('Map initialization failed', err);
-      $('#mapSearchStatus').textContent = '❌ Map initialize nahi ho saka. Page refresh karke dobara try karein.';
-      toast('Map initialize nahi ho saka.');
-    }
-  }, 50);
+  renderEmbeddedMap(30.3753, 69.3451);
 }
 
 function closeMapModal() { $('#mapModal').classList.remove('open'); }
@@ -1265,9 +1238,7 @@ async function searchAddressOnMap(query) {
   if (status) status.textContent = '🔎 Location search ho rahi hai…';
   try {
     const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=pk&q=' + encodeURIComponent(address);
-    const resp = await fetch(url, {
-      headers: { Accept: 'application/json' }
-    });
+    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!resp.ok) throw new Error('Location search failed');
     const results = await resp.json();
     if (!results.length) {
@@ -1278,33 +1249,18 @@ async function searchAddressOnMap(query) {
     const lat = Number(result.lat);
     const lng = Number(result.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Invalid map coordinates');
-
-    if (state.mapMarker) state.map.removeLayer(state.mapMarker);
-    state.mapMarker = L.marker([lat, lng]).addTo(state.map);
-    state.map.setView([lat, lng], 16);
     state._pendingCoords = { lat, lng };
     $('#selectedLocation').value = result.display_name || address;
-    if (status) status.textContent = '📍 Location mil gayi. Marker check karke Confirm Location karein.';
+    renderEmbeddedMap(lat, lng);
+    if (status) status.textContent = '📍 Location mil gayi. Neeche Confirm Location press karein.';
   } catch (err) {
-    if (status) status.textContent = '❌ Location search temporarily unavailable. Map par manually select karein.';
+    if (status) status.textContent = '❌ Location search temporarily unavailable. Address dobara try karein.';
   }
 }
 
 async function onMapClick(e) {
-  const { lat, lng } = e.latlng;
-  if (state.mapMarker) state.map.removeLayer(state.mapMarker);
-  state.mapMarker = L.marker([lat, lng]).addTo(state.map);
-
-  $('#selectedLocation').value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-  state._pendingCoords = { lat, lng };
-
-  try {
-    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14`);
-    const data = await resp.json();
-    if (data && data.display_name) $('#selectedLocation').value = data.display_name;
-  } catch (err) {
-    // Reverse geocoding unavailable — coordinates already shown.
-  }
+  // Kept for backwards compatibility; embedded OpenStreetMap handles map display.
+  return;
 }
 
 document.addEventListener('click', async (e) => {
