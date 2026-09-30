@@ -1287,7 +1287,6 @@ async function renderLeafletMap(lat, lng) {
     maxZoom: 19,
     minZoom: 2,
     attribution: '&copy; OpenStreetMap contributors',
-    crossOrigin: true,
   }).addTo(map);
   const marker = L.marker(center, { draggable: true, autoPan: true, title: 'Selected location' }).addTo(map);
 
@@ -1385,7 +1384,7 @@ document.addEventListener('click', async (e) => {
 function confirmMapLocation() {
   const value = $('#selectedLocation').value;
   if (!value || !state._pendingCoords) {
-    toast('Pehle address search karein ya Google Maps par location select karein.');
+    toast('Pehle address search karein ya map par location select karein.');
     return;
   }
   if (state.mapTarget === 'pickup') {
