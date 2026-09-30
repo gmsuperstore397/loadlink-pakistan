@@ -1207,97 +1207,119 @@ function initMapModal() {
   });
 }
 
-function renderEmbeddedMap(lat, lng) {
-  const map = $('#locationMap');
-  if (!map) return;
+let googleMapsPromise = null;
 
-  const zoom = 13;
-  const size = 256;
-  const width = map.clientWidth || 600;
-  const height = map.clientHeight || 340;
-  const n = Math.pow(2, zoom);
-  const x = (Number(lng) + 180) / 360 * n;
-  const latRad = Number(lat) * Math.PI / 180;
-  const y = (1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2 * n;
-  const centerX = Math.floor(x);
-  const centerY = Math.floor(y);
-  const cols = Math.ceil(width / size) + 2;
-  const rows = Math.ceil(height / size) + 2;
-  const startX = centerX - Math.floor(cols / 2);
-  const startY = centerY - Math.floor(rows / 2);
-  const offsetX = width / 2 - (x - startX) * size;
-  const offsetY = height / 2 - (y - startY) * size;
+async function loadGoogleMaps() {
+  if (window.google?.maps) return window.google.maps;
+  if (googleMapsPromise) return googleMapsPromise;
 
-  map.innerHTML = '<div class="simple-osm-map" style="position:relative;width:100%;height:100%;overflow:hidden;background:#ddd"></div>';
-  const layer = map.querySelector('.simple-osm-map');
+  googleMapsPromise = (async () => {
+    const config = await apiRequest('/map/config');
+    const key = config.googleMapsApiKey;
+    if (!key) throw new Error('Google Maps API key Render mein configured nahi hai.');
 
-  let failedTiles = 0;
-  let totalTiles = 0;
-  for (let ty = startY; ty < startY + rows; ty++) {
-    for (let tx = startX; tx < startX + cols; tx++) {
-      const wrappedX = ((tx % n) + n) % n;
-      if (ty < 0 || ty >= n) continue;
-      const img = document.createElement('img');
-      totalTiles++;
-      img.src = '/api/map/tiles/' + zoom + '/' + wrappedX + '/' + ty;
-      img.dataset.fallback = '';
-      img.onerror = () => {
-        failedTiles++;
-        if (failedTiles >= Math.max(2, Math.floor(totalTiles * 0.6))) {
-          const old = layer.querySelector('.map-tile-error');
-          if (!old) {
-            const msg = document.createElement('div');
-            msg.className = 'map-tile-error';
-            msg.textContent = 'Map tiles load nahi ho rahe. Internet connection check karke dobara try karein.';
-            layer.appendChild(msg);
-          }
-        }
-      };
-      img.alt = '';
-      img.draggable = false;
-      
-      img.style.cssText = 'position:absolute;width:256px;height:256px;left:' + (offsetX + (tx - startX) * size) + 'px;top:' + (offsetY + (ty - startY) * size) + 'px';
-      layer.appendChild(img);
-    }
-  }
+    await new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-loadlink-google-maps]');
+      if (existing) {
+        existing.addEventListener('load', resolve, { once: true });
+        existing.addEventListener('error', () => reject(new Error('Google Maps script load nahi hua.')), { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&v=weekly';
+      script.async = true;
+      script.defer = true;
+      script.dataset.loadlinkGoogleMaps = 'true';
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Google Maps script load nahi hua. API key/restrictions check karein.'));
+      document.head.appendChild(script);
+    });
 
-  const marker = document.createElement('div');
-  marker.textContent = '📍';
-  marker.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);font-size:34px;z-index:5;text-shadow:0 1px 3px #fff';
-  layer.appendChild(marker);
-
-  layer.addEventListener('click', async (e) => {
-    const rect = layer.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-    const mapX = x + (clickX - width / 2) / size;
-    const mapY = y + (clickY - height / 2) / size;
-    const longitude = mapX / n * 360 - 180;
-    const merc = Math.PI * (1 - 2 * mapY / n);
-    const latitude = 180 / Math.PI * Math.atan(Math.sinh(merc));
-    state._pendingCoords = { lat: latitude, lng: longitude };
-    $('#selectedLocation').value = latitude.toFixed(5) + ', ' + longitude.toFixed(5);
-    if ($('#mapSearchStatus')) $('#mapSearchStatus').textContent = '📍 Location select ho gayi. Neeche Confirm Location press karein.';
-    try {
-      const resp = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + latitude + '&lon=' + longitude + '&zoom=14');
-      const data = await resp.json();
-      if (data && data.display_name) $('#selectedLocation').value = data.display_name;
-    } catch (_) {}
-    renderEmbeddedMap(latitude, longitude);
+    if (!window.google?.maps) throw new Error('Google Maps JavaScript API available nahi hui.');
+    return window.google.maps;
+  })().catch((err) => {
+    googleMapsPromise = null;
+    throw err;
   });
+
+  return googleMapsPromise;
 }
 
-function openMapModal(target) {
+async function renderGoogleMap(lat, lng) {
+  const mapEl = $('#locationMap');
+  if (!mapEl) return;
+
+  const maps = await loadGoogleMaps();
+  mapEl.innerHTML = '';
+
+  const center = { lat: Number(lat), lng: Number(lng) };
+  const map = new maps.Map(mapEl, {
+    center,
+    zoom: 13,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: true,
+    gestureHandling: 'greedy',
+  });
+
+  const marker = new maps.Marker({
+    position: center,
+    map,
+    draggable: true,
+    title: 'Selected location',
+  });
+
+  const geocoder = new maps.Geocoder();
+
+  const selectLocation = async (position) => {
+    const selected = { lat: position.lat(), lng: position.lng() };
+    state._pendingCoords = selected;
+    $('#selectedLocation').value = selected.lat.toFixed(5) + ', ' + selected.lng.toFixed(5);
+    if ($('#mapSearchStatus')) $('#mapSearchStatus').textContent = '📍 Location select ho gayi. Neeche Confirm Location press karein.';
+    try {
+      const response = await geocoder.geocode({ location: selected });
+      const address = response.results?.[0]?.formatted_address;
+      if (address) $('#selectedLocation').value = address;
+    } catch (_) {}
+  };
+
+  map.addListener('click', (event) => {
+    if (!event.latLng) return;
+    marker.setPosition(event.latLng);
+    selectLocation(event.latLng);
+  });
+
+  marker.addListener('dragend', (event) => {
+    if (event.latLng) selectLocation(event.latLng);
+  });
+
+  state.googleMap = map;
+  state.googleMarker = marker;
+}
+
+async function openMapModal(target) {
   state.mapTarget = target;
   state._pendingCoords = null;
   $('#mapModalTitle').textContent = target === 'pickup' ? 'Select Pickup Location' : 'Select Destination Location';
   $('#selectedLocation').value = '';
-  $('#mapSearchStatus').textContent = 'Address search karke location select karein.';
+  $('#mapSearchStatus').textContent = 'Google Maps load ho raha hai…';
   $('#mapModal').classList.add('open');
-  requestAnimationFrame(() => renderEmbeddedMap(30.3753, 69.3451));
+
+  try {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const defaultCenter = { lat: 30.3753, lng: 69.3451 };
+    await renderGoogleMap(defaultCenter.lat, defaultCenter.lng);
+    $('#mapSearchStatus').textContent = 'Address search karein ya map par pin move karein.';
+  } catch (err) {
+    $('#mapSearchStatus').textContent = '❌ ' + (err.message || 'Google Maps load nahi ho saka.');
+  }
 }
 
-function closeMapModal() { $('#mapModal').classList.remove('open'); }
+function closeMapModal() {
+  $('#mapModal').classList.remove('open');
+  state.googleMap = null;
+  state.googleMarker = null;
+}
 
 async function searchAddressOnMap(query) {
   const address = String(query || '').trim();
@@ -1306,31 +1328,31 @@ async function searchAddressOnMap(query) {
     if (status) status.textContent = 'Address enter karein.';
     return;
   }
-  if (status) status.textContent = '🔎 Location search ho rahi hai…';
+
   try {
-    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=pk&q=' + encodeURIComponent(address);
-    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!resp.ok) throw new Error('Location search failed');
-    const results = await resp.json();
-    if (!results.length) {
-      if (status) status.textContent = '❌ Ye address map par nahi mila. Thora aur complete address likhein.';
+    const maps = await loadGoogleMaps();
+    if (status) status.textContent = '🔎 Google Maps location search kar raha hai…';
+    const geocoder = new maps.Geocoder();
+    const response = await geocoder.geocode({
+      address,
+      componentRestrictions: { country: 'PK' },
+    });
+    const result = response.results?.[0];
+    if (!result?.geometry?.location) {
+      if (status) status.textContent = '❌ Ye address Google Maps par nahi mila.';
       return;
     }
-    const result = results[0];
-    const lat = Number(result.lat);
-    const lng = Number(result.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Invalid map coordinates');
-    state._pendingCoords = { lat, lng };
-    $('#selectedLocation').value = result.display_name || address;
-    renderEmbeddedMap(lat, lng);
+    const location = result.geometry.location;
+    state._pendingCoords = { lat: location.lat(), lng: location.lng() };
+    $('#selectedLocation').value = result.formatted_address || address;
+    await renderGoogleMap(location.lat(), location.lng());
     if (status) status.textContent = '📍 Location mil gayi. Neeche Confirm Location press karein.';
   } catch (err) {
-    if (status) status.textContent = '❌ Location search temporarily unavailable. Address dobara try karein.';
+    if (status) status.textContent = '❌ Google Maps search failed. API key/restrictions check karein.';
   }
 }
 
 async function onMapClick(e) {
-  // Kept for backwards compatibility; embedded OpenStreetMap handles map display.
   return;
 }
 
@@ -1340,7 +1362,7 @@ document.addEventListener('click', async (e) => {
   const target = searchBtn.dataset.mapTarget;
   const input = target === 'pickup' ? $('#pickup') : $('#destination');
   state.mapTarget = target;
-  openMapModal(target);
+  await openMapModal(target);
   const query = input?.value?.trim() || '';
   $('#mapAddressSearch').value = query;
   if (query) await searchAddressOnMap(query);
@@ -1348,8 +1370,10 @@ document.addEventListener('click', async (e) => {
 
 function confirmMapLocation() {
   const value = $('#selectedLocation').value;
-  if (!value || !state._pendingCoords) { toast('Pehle address search karein ya map par location select karein.'); return; }
-
+  if (!value || !state._pendingCoords) {
+    toast('Pehle address search karein ya Google Maps par location select karein.');
+    return;
+  }
   if (state.mapTarget === 'pickup') {
     $('#pickup').value = value;
     state.pickupCoords = state._pendingCoords;
