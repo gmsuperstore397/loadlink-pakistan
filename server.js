@@ -53,7 +53,7 @@ app.use('/api', limiter);
 // keeps the public tile request behind the app's existing /api rate limiter.
 app.get('/api/map/tiles/:z/:x/:y.png', async (req, res, next) => {
   const { z, x, y } = req.params;
-  if (!/^\\d+$/.test(z) || !/^\\d+$/.test(x) || !/^\\d+$/.test(y)) {
+  if (!/^\d+$/.test(z) || !/^\d+$/.test(x) || !/^\d+$/.test(y)) {
     return res.status(400).end();
   }
   try {
