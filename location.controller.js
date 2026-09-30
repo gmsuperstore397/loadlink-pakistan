@@ -32,36 +32,52 @@ const geocode = asyncHandler(async (req, res) => {
   if (address.length > 250) throw new ApiError(400, 'address is too long');
 
   try {
-    const url = new URL('https://nominatim.openstreetmap.org/search');
-    url.searchParams.set('format', 'jsonv2');
-    url.searchParams.set('q', address);
-    url.searchParams.set('countrycodes', 'pk');
-    url.searchParams.set('limit', '1');
-    url.searchParams.set('addressdetails', '1');
+    const search = async (query, restrictPakistan = true) => {
+      const url = new URL('https://nominatim.openstreetmap.org/search');
+      url.searchParams.set('format', 'jsonv2');
+      url.searchParams.set('q', query);
+      if (restrictPakistan) url.searchParams.set('countrycodes', 'pk');
+      url.searchParams.set('limit', '1');
+      url.searchParams.set('addressdetails', '1');
+      url.searchParams.set('accept-language', 'en');
+      const resp = await fetch(url, {
+        headers: {
+          'User-Agent': 'LoadLinkPakistan/1.0 (+https://loadlink-pakistan.onrender.com)',
+          'Accept': 'application/json',
+        },
+      });
+      if (!resp.ok) throw new Error('Nominatim HTTP ' + resp.status);
+      return resp.json();
+    };
 
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': 'LoadLinkPakistan/1.0 (+https://loadlink-pakistan.onrender.com)',
-        'Accept': 'application/json',
-      },
-    });
-    if (!resp.ok) throw new Error('Nominatim HTTP ' + resp.status);
-    const data = await resp.json();
-    const first = Array.isArray(data) ? data[0] : null;
+    // First try Pakistan-only. If OSM has not indexed the exact wording,
+    // retry once with "Pakistan" in the free-form query.
+    let data = await search(address, true);
+    let first = Array.isArray(data) ? data[0] : null;
+    if (!first) {
+      data = await search(address.toLowerCase().includes('pakistan') ? address : address + ', Pakistan', false);
+      first = Array.isArray(data) ? data[0] : null;
+    }
 
     if (!first) return success(res, 200, 'No location found', { location: null });
 
+    const lat = Number(first.lat);
+    const lng = Number(first.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return success(res, 200, 'No valid location found', { location: null });
+    }
+
     return success(res, 200, 'Location resolved', {
       location: {
-        lat: Number(first.lat),
-        lng: Number(first.lon),
+        lat,
+        lng,
         displayName: first.display_name || address,
         raw: first,
       },
     });
   } catch (e) {
+    console.error('Geocoding error:', e.message);
     return success(res, 200, 'Geocoding unavailable', { location: null });
   }
 });
-
 module.exports = { reverseGeocode, geocode };
