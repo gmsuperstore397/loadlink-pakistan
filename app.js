@@ -156,8 +156,8 @@ const rejectBooking = (id) => apiRequest(`/bookings/${id}/reject`, { method: 'PA
 const estimateFare = (payload) => apiRequest('/fare/estimate', { method: 'POST', body: payload });
 const getLiveTrip = (tripId) => apiRequest(`/trips/${tripId}/live`);
 const getSmartLoadMatches = (loadId) => apiRequest(`/recommendations/load/${loadId}/matches`);
-const getDriverTrustScore = (userId) => apiRequest(\`/ratings/trust/\${userId}\`);
-const getDriverRatings = (userId) => apiRequest(\`/ratings/\${userId}\`);
+const getDriverTrustScore = (userId) => apiRequest(`/ratings/trust/${userId}`);
+const getDriverRatings = (userId) => apiRequest(`/ratings/${userId}`);
 const createRating = (body) => apiRequest('/ratings', { method: 'POST', body });
 const getDeliveryProof = (tripId) => apiRequest(`/trips/${tripId}/proof`);
 const submitDeliveryProof = (tripId, formData) => apiRequest(`/trips/${tripId}/proof`, { method: 'POST', body: formData, isForm: true });
