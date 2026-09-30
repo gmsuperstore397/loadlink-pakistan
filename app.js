@@ -1236,8 +1236,8 @@ function renderEmbeddedMap(lat, lng) {
       const wrappedX = ((tx % n) + n) % n;
       if (ty < 0 || ty >= n) continue;
       const img = document.createElement('img');
-      img.src = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/' + zoom + '/' + ty + '/' + wrappedX;
-      img.dataset.fallback = 'https://tile.openstreetmap.org/' + zoom + '/' + wrappedX + '/' + ty + '.png';
+      img.src = '/api/map/tiles/' + zoom + '/' + wrappedX + '/' + ty;
+      img.dataset.fallback = '';
       img.onerror = () => {
         if (img.dataset.fallback && img.src !== img.dataset.fallback) {
           img.src = img.dataset.fallback;
@@ -1246,7 +1246,7 @@ function renderEmbeddedMap(lat, lng) {
       };
       img.alt = '';
       img.draggable = false;
-      img.referrerPolicy = 'no-referrer';
+      
       img.style.cssText = 'position:absolute;width:256px;height:256px;left:' + (offsetX + (tx - startX) * size) + 'px;top:' + (offsetY + (ty - startY) * size) + 'px';
       layer.appendChild(img);
     }
