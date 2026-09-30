@@ -46,6 +46,34 @@ app.use('/api', limiter);
 
 // Uploaded identity, vehicle and delivery documents are private.
 // They are served only through authenticated /api/documents/:filename.
+app.get('/api/map/tiles/:z/:x/:y', async (req, res, next) => {
+  try {
+    const z = Number(req.params.z);
+    const x = Number(req.params.x);
+    const y = Number(req.params.y);
+    if (!Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y) || z < 0 || z > 19 || x < 0 || y < 0) {
+      return res.status(400).send('Invalid tile coordinates');
+    }
+
+    const tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/' + z + '/' + y + '/' + x;
+    const upstream = await fetch(tileUrl, {
+      headers: { 'User-Agent': 'LoadLink-Pakistan/1.0 map tile proxy' },
+    });
+
+    if (!upstream.ok) {
+      return res.status(502).send('Map tile unavailable');
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'image/png';
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+    return res.send(buffer);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.use('/api', routes);
 
 // Separate team admin portal (ADMIN / MANAGER login).
