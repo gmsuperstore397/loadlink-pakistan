@@ -1198,6 +1198,13 @@ function initMapModal() {
   $('#mapModalClose').addEventListener('click', closeMapModal);
   $('#mapModal').addEventListener('click', (e) => { if (e.target.id === 'mapModal') closeMapModal(); });
   $('#confirmLocation').addEventListener('click', confirmMapLocation);
+  $('#mapAddressSearchBtn').addEventListener('click', () => searchAddressOnMap($('#mapAddressSearch').value));
+  $('#mapAddressSearch').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      searchAddressOnMap($('#mapAddressSearch').value);
+    }
+  });
 }
 
 function openMapModal(target) {
@@ -1213,24 +1220,37 @@ function openMapModal(target) {
     return;
   }
 
-  try {
-    if (!state.map) {
-      state.map = L.map('locationMap', {
-        zoomControl: true,
-        attributionControl: true,
-      }).setView([30.3753, 69.3451], 5);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors',
-      }).addTo(state.map);
-      state.map.on('click', onMapClick);
+  // Modal visible hone ke baad map initialize karein taa-ke Leaflet ko
+  // container ki actual width/height mil sake (mobile par bhi).
+  setTimeout(() => {
+    try {
+      if (!state.map) {
+        state.map = L.map('locationMap', {
+          zoomControl: true,
+          attributionControl: true,
+        }).setView([30.3753, 69.3451], 5);
+
+        const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors',
+        }).addTo(state.map);
+
+        tiles.on('tileerror', () => {
+          const status = $('#mapSearchStatus');
+          if (status) status.textContent = '⚠️ Map tiles load nahi ho rahe. Internet connection check karein.';
+        });
+
+        state.map.on('click', onMapClick);
+      }
+
+      state.map.invalidateSize(true);
+      setTimeout(() => state.map && state.map.invalidateSize(true), 300);
+    } catch (err) {
+      console.error('Map initialization failed', err);
+      $('#mapSearchStatus').textContent = '❌ Map initialize nahi ho saka. Page refresh karke dobara try karein.';
+      toast('Map initialize nahi ho saka.');
     }
-    setTimeout(() => state.map.invalidateSize(true), 150);
-  } catch (err) {
-    console.error('Map initialization failed', err);
-    $('#mapSearchStatus').textContent = '❌ Map initialize nahi ho saka. Page refresh karke dobara try karein.';
-    toast('Map initialize nahi ho saka.');
-  }
+  }, 50);
 }
 
 function closeMapModal() { $('#mapModal').classList.remove('open'); }
