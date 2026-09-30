@@ -1784,8 +1784,7 @@ document.addEventListener('keydown', async (e) => {
   }
 });
 
-document.addEventListener('DOMContentLoaded', async () => {
-  await syncSessionFromStorage();
+document.addEventListener('DOMContentLoaded', () => {
   $('#year').textContent = new Date().getFullYear();
   initNav();
   initHeroSlider();
