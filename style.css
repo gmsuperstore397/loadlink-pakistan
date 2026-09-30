@@ -175,7 +175,10 @@ button{font-family:inherit;cursor:pointer}
 .map-modal-header{display:flex;justify-content:space-between;align-items:flex-start}
 .map-modal-header small{display:block;color:var(--muted);font-size:12.5px}
 #mapModalClose{background:none;border:none;font-size:24px;color:var(--muted)}
-#locationMap{height:340px;border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+#locationMap{height:340px;border-radius:12px;overflow:hidden;border:1px solid var(--border);position:relative;background:#dfe5e8}
+.simple-osm-map{position:relative;width:100%;height:100%;overflow:hidden;background:#dfe5e8}
+.simple-osm-map img{position:absolute;width:256px;height:256px;display:block;max-width:none;border:0}
+.map-tile-error{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;background:rgba(255,255,255,.92);z-index:20;color:#263746;font-weight:700}
 .selected-location{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;padding:10px}
 .selected-location input{flex:1;border:none;font-family:inherit;font-size:14px}
 .confirm-location{background:var(--green);color:#fff;border:none;border-radius:10px;padding:13px;font-weight:700}
