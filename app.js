@@ -1385,16 +1385,67 @@ function renderVehicleResults(vehicles) {
   el.innerHTML = vehicles.map((v) => `
     <div class="result-card">
       <div class="rc-top">
-        <h4>${v.vehicleType}</h4>
+        <h4>${escapeHtml(v.vehicleType)}</h4>
         ${v.isVerified ? '<span class="badge-pill">✅ Verified</span>' : ''}
       </div>
-      <p>Capacity: ${v.capacityKg} kg</p>
-      ${v.distanceKm != null ? `<p>${v.distanceKm} km away</p>` : ''}
-      <p>Status: ${v.status}</p>
-      <p>Driver: ${v.driver?.user?.fullName || '—'}</p>
+      <p>Capacity: ${escapeHtml(v.capacityKg)} kg</p>
+      ${v.distanceKm != null ? `<p>${Number(v.distanceKm).toFixed(1)} km away</p>` : ''}
+      <p>Status: ${escapeHtml(v.status)}</p>
+      <p>Driver: ${escapeHtml(v.driver?.user?.fullName || '—')}</p>
+      ${state.user?.role === 'CUSTOMER' ? `
+        <button type="button" class="btn btn-primary contact-driver-team-btn"
+          data-driver-name="${escapeHtml(v.driver?.user?.fullName || '—')}"
+          data-driver-city="${escapeHtml(v.driver?.user?.city || '—')}"
+          data-vehicle-type="${escapeHtml(v.vehicleType || '—')}"
+          data-vehicle-number="${escapeHtml(v.vehicleNumber || '—')}"
+          data-capacity="${escapeHtml(v.capacityKg || '—')}"
+          style="margin-top:12px;width:100%">
+          📲 Contact LoadLink Team
+        </button>
+        <div class="muted-empty" style="margin-top:6px;text-align:center">WhatsApp: +92 309 2007904</div>
+      ` : ''}
     </div>
   `).join('');
 }
+
+async function contactDriverViaTeam(btn) {
+  if (!state.user || state.user.role !== 'CUSTOMER') {
+    toast('Ye contact option customer account ke liye hai.');
+    return;
+  }
+
+  const customerName = state.user.fullName || '—';
+  const customerMobile = state.user.mobile || '—';
+  const message = [
+    'Assalam-o-Alaikum LoadLink Team,',
+    '',
+    '🚛 *Driver Contact Request*',
+    '',
+    '👤 *Customer Details*',
+    `Name: ${customerName}`,
+    `Mobile: ${customerMobile}`,
+    `City: ${state.user.city || '—'}`,
+    '',
+    '🚚 *Driver / Vehicle Details*',
+    `Driver Name: ${btn.dataset.driverName || '—'}`,
+    `Driver City: ${btn.dataset.driverCity || '—'}`,
+    `Vehicle Type: ${btn.dataset.vehicleType || '—'}`,
+    `Vehicle Number: ${btn.dataset.vehicleNumber || '—'}`,
+    `Capacity: ${btn.dataset.capacity || '—'} kg`,
+    '',
+    'Please customer ki taraf se is driver se contact arrange kar dein.',
+  ].join('\\n');
+
+  const whatsappNumber = '923092007904';
+  const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank', 'noopener');
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.contact-driver-team-btn');
+  if (!btn) return;
+  contactDriverViaTeam(btn);
+});
 
 async function loadMarketplace() {
   if (!state.user) return;
