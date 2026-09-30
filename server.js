@@ -42,7 +42,9 @@ const limiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests, please try again later', errors: [] },
 });
-app.use('/api', limiter);\n\napp.get('/api/map/config', (req, res) => {
+app.use('/api', limiter);
+
+app.get('/api/map/config', (req, res) => {
   res.json({
     success: true,
     data: {
