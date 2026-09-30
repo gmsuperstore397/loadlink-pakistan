@@ -168,6 +168,11 @@ button{font-family:inherit;cursor:pointer}
 .signup-tab{flex:1;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--light);font-weight:700}
 .signup-tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 
+/* Leaflet map renderer */
+#locationMap .leaflet-container{width:100%;height:100%;font-family:inherit;z-index:1}
+#locationMap .leaflet-control-zoom a{font-size:20px}
+#locationMap .leaflet-control-attribution{font-size:10px}
+
 /* ---------- Map modal ---------- */
 .map-modal{display:none;position:fixed;inset:0;background:rgba(6,43,69,.6);z-index:1100;align-items:center;justify-content:center;padding:16px}
 .map-modal.open{display:flex}
