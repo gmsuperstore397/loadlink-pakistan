@@ -1803,6 +1803,12 @@ document.addEventListener('DOMContentLoaded', () => {
   initPwa();
   initConnectivityWatch();
 
+  // Sync the existing session after all UI controls are initialized.
+  syncSessionFromStorage().then((user) => {
+    updateAuthUI();
+    if (user) loadMarketplace();
+  });
+
   // Live Trips section loads lazily when scrolled into view
   const io = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
