@@ -6,7 +6,7 @@
 //  - API write requests (POST/PATCH/PUT/DELETE): network-only, never cached.
 //  - Navigation requests while offline: fall back to offline.html.
 
-const VERSION = 'v7';
+const VERSION = 'v8';
 const SHELL_CACHE = `loadlink-shell-${VERSION}`;
 const RUNTIME_CACHE = `loadlink-runtime-${VERSION}`;
 const API_CACHE = `loadlink-api-${VERSION}`;
@@ -78,7 +78,7 @@ function isApiRequest(url) {
   return url.pathname.startsWith('/api/');
 }
 function isLeafletCdn(url) {
-  return url.hostname === 'unpkg.com' || url.hostname.endsWith('tile.openstreetmap.org');
+  return (url.hostname === 'unpkg.com' || url.hostname === 'cdn.jsdelivr.net' || url.hostname.endsWith('tile.openstreetmap.org'));
 }
 
 self.addEventListener('fetch', (event) => {
