@@ -48,6 +48,31 @@ app.use('/api', limiter);
 
 // Uploaded identity, vehicle and delivery documents are private.
 // They are served only through authenticated /api/documents/:filename.
+
+// Same-origin OpenStreetMap tile proxy. This avoids browser/CDN tile blocking and
+// keeps the public tile request behind the app's existing /api rate limiter.
+app.get('/api/map/tiles/:z/:x/:y.png', async (req, res, next) => {
+  const { z, x, y } = req.params;
+  if (!/^\\d+$/.test(z) || !/^\\d+$/.test(x) || !/^\\d+$/.test(y)) {
+    return res.status(400).end();
+  }
+  try {
+    const upstream = await fetch(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`, {
+      headers: {
+        'User-Agent': 'LoadLinkPakistan/1.0 (+https://loadlink-pakistan.onrender.com)',
+        'Accept': 'image/png,image/*;q=0.8',
+      },
+    });
+    if (!upstream.ok) return res.status(upstream.status).end();
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+    res.set('Content-Type', upstream.headers.get('content-type') || 'image/png');
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.send(buffer);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.use('/api', routes);
 
 // Separate team admin portal (ADMIN / MANAGER login).
