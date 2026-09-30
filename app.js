@@ -1283,7 +1283,7 @@ async function renderLeafletMap(lat, lng) {
     boxZoom: true,
     keyboard: true,
   });
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  L.tileLayer('/api/map/tiles/{z}/{x}/{y}.png', {
     maxZoom: 19,
     minZoom: 2,
     attribution: '&copy; OpenStreetMap contributors',
