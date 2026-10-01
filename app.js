@@ -1907,18 +1907,6 @@ function initConnectivityWatch() {
 /* ============================================================
    INIT
    ============================================================ */
-document.addEventListener('click', async (e) => {
-  if (!e.target.closest('#mapAddressSearchBtn')) return;
-  await searchAddressOnMap($('#mapAddressSearch').value);
-});
-
-document.addEventListener('keydown', async (e) => {
-  if (e.key === 'Enter' && e.target.id === 'mapAddressSearch') {
-    e.preventDefault();
-    await searchAddressOnMap(e.target.value);
-  }
-});
-
 document.addEventListener('DOMContentLoaded', () => {
   $('#year').textContent = new Date().getFullYear();
   initNav();
