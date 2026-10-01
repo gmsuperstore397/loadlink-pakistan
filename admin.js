@@ -255,11 +255,23 @@ function roleDashboardTitle() {
 function workspaceActionCell(row) {
   const role = me?.role;
   if (!row?.id) return '';
+  if (role === 'FLEET_OWNER') {
+    return '<button class="primary" type="button" data-workspace-action="fleet-edit" data-id="' + esc(row.id) + '">Edit</button> ' +
+      (row.status === 'SUSPENDED'
+        ? '<button class="primary" type="button" data-workspace-action="fleet-status" data-id="' + esc(row.id) + '" data-status="OFFLINE">Activate</button>'
+        : '<button class="primary danger-action" type="button" data-workspace-action="fleet-status" data-id="' + esc(row.id) + '" data-status="SUSPENDED">Disable</button>');
+  }
   if (role === 'DISPATCHER' && row.type === 'BOOKING' && ['REQUESTED','ACCEPTED'].includes(row.status)) {
     return '<button class="primary" type="button" data-workspace-action="assign-booking" data-id="' + esc(row.id) + '">Assign</button>';
   }
   if (role === 'FINANCE' && row.status === 'PENDING') {
     return '<button class="primary" type="button" data-workspace-action="verify-payment" data-id="' + esc(row.id) + '">Verify PAID</button>';
+  }
+  if (role === 'OPERATIONS' && row.type === 'BOOKING' && ['REQUESTED','ACCEPTED'].includes(row.status)) {
+    return '<button class="primary" type="button" data-workspace-action="approve-deal" data-id="' + esc(row.id) + '">Approve Deal</button>';
+  }
+  if (role === 'OPERATIONS' && row.type === 'TRIP' && row.status !== 'DELIVERED') {
+    return '<button class="primary" type="button" data-workspace-action="trip-status" data-id="' + esc(row.id) + '">Update Trip</button>';
   }
   if (role === 'SUPPORT' && row.type === 'SOS') {
     if (row.status === 'OPEN') return '<button class="primary" type="button" data-workspace-action="sos-ack" data-id="' + esc(row.id) + '">Acknowledge</button>';
@@ -273,12 +285,12 @@ function workspaceActionCell(row) {
   }
   return '';
 }
-
 async function loadWorkspace() {
   try {
     const data = await api('/admin/workspace');
     const w = data.workspace || {};
     $('#workspaceTitle').textContent = w.title || roleDashboardTitle();
+    $('#fleetAddVehicleBtn').hidden = me?.role !== 'FLEET_OWNER';
     $('#workspaceHint').textContent = 'Role-specific operational workspace · live database data';
     $('#workspaceMetrics').innerHTML = Object.entries(w.metrics || {}).map(([key, value]) =>
       '<div class="stat"><span>' + esc(key.replace(/([A-Z])/g, ' $1')) + '</span><b>' + esc(value) + '</b></div>'
@@ -291,6 +303,51 @@ async function loadWorkspace() {
     $('#workspaceTable tbody').innerHTML = rows.length
       ? rows.map(row => '<tr>' + keys.map(k => '<td>' + esc(row[k]) + '</td>').join('') + '<td>' + workspaceActionCell(row) + '</td></tr>').join('')
       : '<tr><td>No operational records found</td></tr>';
+  } catch (error) { toast(error.message); }
+}
+
+async function openFleetVehicle(vehicle) {
+  try {
+    const data = await api('/vehicles/fleet/drivers');
+    const drivers = data.drivers || [];
+    $('#fleetVehicleDriver').innerHTML = '<option value="">Select driver</option>' +
+      drivers.map(d => '<option value="' + esc(d.id) + '">' + esc(d.user.fullName) + ' · ' + esc(d.user.mobile) + '</option>').join('');
+    $('#fleetVehicleId').value = vehicle?.id || '';
+    $('#fleetVehicleModalTitle').textContent = vehicle ? 'Edit Fleet Vehicle' : 'Add Fleet Vehicle';
+    $('#fleetVehicleDriver').value = vehicle?.driverId || '';
+    $('#fleetVehicleType').value = vehicle?.vehicleType || '';
+    $('#fleetVehicleNumber').value = vehicle?.vehicleNumber || '';
+    $('#fleetVehicleNumber').disabled = !!vehicle;
+    $('#fleetVehicleCapacity').value = vehicle?.capacityKg ?? '';
+    $('#fleetVehicleBrand').value = vehicle?.brand || '';
+    $('#fleetVehicleModel').value = vehicle?.model || '';
+    $('#fleetVehicleYear').value = vehicle?.year || '';
+    $('#fleetVehicleStatus').value = vehicle?.status === 'SUSPENDED' ? 'SUSPENDED' : (vehicle?.status || 'OFFLINE');
+    $('#fleetVehicleModal').hidden = false;
+  } catch (error) { toast(error.message); }
+}
+
+async function saveFleetVehicle(event) {
+  event.preventDefault();
+  const id = $('#fleetVehicleId').value;
+  const body = {
+    driverId: $('#fleetVehicleDriver').value,
+    vehicleType: $('#fleetVehicleType').value.trim(),
+    vehicleNumber: $('#fleetVehicleNumber').value.trim(),
+    capacityKg: Number($('#fleetVehicleCapacity').value),
+    brand: $('#fleetVehicleBrand').value.trim(),
+    model: $('#fleetVehicleModel').value.trim(),
+    year: $('#fleetVehicleYear').value ? Number($('#fleetVehicleYear').value) : '',
+    status: $('#fleetVehicleStatus').value,
+  };
+  try {
+    await api('/vehicles/fleet' + (id ? '/' + id : ''), {
+      method: id ? 'PATCH' : 'POST',
+      body: JSON.stringify(body),
+    });
+    toast(id ? 'Fleet vehicle updated' : 'Fleet vehicle created');
+    $('#fleetVehicleModal').hidden = true;
+    await loadWorkspace();
   } catch (error) { toast(error.message); }
 }
 
@@ -324,6 +381,28 @@ document.addEventListener('click', async (event) => {
   const action = btn.dataset.workspaceAction;
   const id = btn.dataset.id;
   try {
+    if (action === 'fleet-edit') {
+      const row = (await api('/vehicles/fleet')).vehicles.find(v => v.id === id);
+      return openFleetVehicle(row);
+    }
+    if (action === 'fleet-status') {
+      await api('/vehicles/fleet/' + id, { method:'PATCH', body:JSON.stringify({status:btn.dataset.status}) });
+      toast(btn.dataset.status === 'SUSPENDED' ? 'Vehicle disabled' : 'Vehicle activated');
+      return loadWorkspace();
+    }
+    if (action === 'approve-deal') {
+      if (!confirm('Is deal ko Operations approval deni hai?')) return;
+      await api('/admin/operations/bookings/' + id + '/approve', {method:'PATCH',body:JSON.stringify({})});
+      toast('Deal approved');
+      return loadWorkspace();
+    }
+    if (action === 'trip-status') {
+      const status = prompt('New status: ASSIGNED, PICKED_UP, IN_TRANSIT, NEAR_DESTINATION, DELIVERED');
+      if (!status) return;
+      await api('/admin/operations/trips/' + id, {method:'PATCH',body:JSON.stringify({status:status.trim().toUpperCase()})});
+      toast('Trip updated');
+      return loadWorkspace();
+    }
     if (action === 'assign-booking') return openDispatchAssignment(id);
     if (action === 'verify-payment') {
       if (!confirm('Is payment ko PAID verify karna hai?')) return;
@@ -767,6 +846,10 @@ function initializePortal() {
 }
 
 $('#workspaceRefresh')?.addEventListener('click', loadWorkspace);
+$('#fleetAddVehicleBtn')?.addEventListener('click', () => openFleetVehicle(null));
+$('#closeFleetVehicle')?.addEventListener('click', () => { $('#fleetVehicleModal').hidden = true; });
+$('#fleetVehicleModal')?.addEventListener('click', (event) => { if (event.target === $('#fleetVehicleModal')) $('#fleetVehicleModal').hidden = true; });
+$('#fleetVehicleForm')?.addEventListener('submit', saveFleetVehicle);
 
 $('#logoutBtn').addEventListener('click', () => {
   localStorage.removeItem('ll_admin_token');
