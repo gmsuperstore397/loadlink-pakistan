@@ -183,8 +183,8 @@ const streamTrip = asyncHandler(async (req, res) => {
   let closed = false;
   const send = async () => {
     if (closed) return;
-    const current = await prisma.trip.findUnique({ where: { id: trip.id }, select: { id: true, status: true, currentLatitude: true, currentLongitude: true, updatedAt: true } });
-    if (current) res.write(`data: ${JSON.stringify(current)}\\n\\n`);
+    const current = await prisma.trip.findUnique({ where: { id: trip.id }, select: { id: true, status: true, trackingEnabled: true, currentLatitude: true, currentLongitude: true, updatedAt: true } });
+    if (current) res.write(`data: ${JSON.stringify(current)}\n\n`);
   };
   await send();
   const timer = setInterval(send, 5000);
