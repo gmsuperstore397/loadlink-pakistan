@@ -62,6 +62,7 @@ function showSection(name, title = name) {
 const MODULES = {
   customers:{permission:'customers.view',title:'Customers',path:'/admin/customers',columns:[['fullName','Name'],['mobile','Mobile'],['email','Email'],['city','City'],['status','Status'],['createdAt','Joined']]},
   drivers:{permission:'drivers.view',title:'Drivers',path:'/admin/drivers',columns:[['user.fullName','Name'],['user.mobile','Mobile'],['user.city','City'],['user.status','Account'],['verification','Verification'],['vehicles.length','Vehicles'],['trustScore','Trust Score']]},
+  vehicles:{permission:'vehicles.view',title:'Vehicle Verification',path:'/admin/vehicles/verification',columns:[['vehicleNumber','Number'],['vehicleType','Type'],['capacityKg','Capacity KG'],['driver.user.fullName','Driver'],['driver.user.status','Driver Account'],['fleetOwner.fullName','Fleet Owner'],['isVerified','Verified'],['status','Status']]},
   loads:{permission:'loads.view',title:'Loads',path:'/admin/loads',columns:[['pickupAddress','Pickup'],['destinationAddress','Destination'],['weightKg','Weight KG'],['status','Status'],['customer.fullName','Customer'],['createdAt','Posted']]},
   bookings:{permission:'bookings.view',title:'Bookings',path:'/admin/bookings',columns:[['id','ID'],['status','Status'],['agreedFare','Fare'],['customer.fullName','Customer'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
   payments:{permission:'payments.verify',title:'Payments',path:'/admin/payments',columns:[['id','ID'],['amount','Amount'],['method','Method'],['status','Status'],['user.fullName','User'],['createdAt','Date']]},
@@ -95,6 +96,7 @@ function moduleActions(key,row){
   if(!row?.id)return '';
   const id=esc(row.id);
   if(key==='customers') return '<button class="primary" type="button" data-action="edit-customer" data-id="'+id+'">Edit</button> <button class="primary danger-action" type="button" data-action="toggle-customer" data-id="'+id+'" data-status="'+esc(row.status)+'">'+(row.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
+  if(key==='vehicles') return row.isVerified ? '<span class="muted">Verified</span>' : '<button class="primary" type="button" data-action="verify-vehicle" data-id="'+id+'">Verify</button> <button class="primary danger-action" type="button" data-action="reject-vehicle" data-id="'+id+'">Reject</button>';
   if(key==='drivers') return '<button class="primary danger-action" type="button" data-action="toggle-driver" data-id="'+id+'" data-status="'+esc(row.user?.status||'ACTIVE')+'">'+(row.user?.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
   if(key==='loads') return '<button class="primary" type="button" data-action="edit-load" data-id="'+id+'">Edit</button>';
   if(key==='bookings') return '<button class="primary" type="button" data-action="edit-booking" data-id="'+id+'">Update</button>';
