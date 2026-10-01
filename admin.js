@@ -3,7 +3,13 @@ const $ = (s) => document.querySelector(s);
 let token = localStorage.getItem('ll_admin_token');
 let me = null;
 let permissionCatalog = [];
+let roleCatalog = [];
 let managers = [];
+let roleAccounts = [];
+
+function portalRole(role) {
+  return role && !['CUSTOMER','DRIVER'].includes(role);
+}
 
 async function api(path, options = {}) {
   const response = await fetch('/api' + path, {
@@ -49,7 +55,7 @@ function showSection(name, title = name) {
   const section = $('#' + name + 'Section');
   if (section) section.hidden = false;
   if (name === 'module') { $('#moduleTitle').textContent=title; loadModule(title); }
-  else { $('#pageTitle').textContent = title; if (name === 'managers') loadManagers(); }
+  else { $('#pageTitle').textContent = title; if (name === 'managers') loadManagers(); if (name === 'roleAccounts') loadRoleAccounts(); }
 }
 
 const MODULES = {
@@ -252,6 +258,7 @@ function renderNav() {
     nav.appendChild(button);
   });
   if(me?.role==='ADMIN'){
+    const r=document.createElement('button');r.type='button';r.textContent='🧩 Role Management';r.onclick=()=>showSection('roleAccounts','Role Management');nav.appendChild(r);
     const m=document.createElement('button');m.type='button';m.textContent='👨‍💼 Managers';m.onclick=()=>showSection('managers','Managers');nav.appendChild(m);
     const p=document.createElement('button');p.type='button';p.textContent='🔐 Permissions';p.onclick=()=>showSection('permissions','Permission Matrix');nav.appendChild(p);
   }
@@ -272,15 +279,102 @@ async function loadDashboard() {
 
 async function loadPermissions() {
   try {
-    const data = await api('/admin/permissions');
+    const data = await api('/admin/role-catalog');
     permissionCatalog = data.permissions || [];
+    roleCatalog = data.roles || [];
     $('#permissionInfo').innerHTML = permissionCatalog
       .map((permission) => '<span class="tag">' + permission + '</span>')
       .join('');
+    renderRoleOptions();
   } catch (error) {
     toast(error.message);
   }
 }
+
+function renderRoleOptions() {
+  const select = $('#roleAccountRole');
+  if (!select) return;
+  select.innerHTML = '<option value="">Select role</option>' + roleCatalog
+    .filter((r) => r.role !== 'ADMIN' && r.role !== 'CUSTOMER' && r.role !== 'DRIVER')
+    .map((r) => '<option value="' + esc(r.role) + '">' + esc(r.label) + '</option>')
+    .join('');
+}
+
+function renderRoleAccountRow(account) {
+  const row = document.createElement('div');
+  row.className = 'manager-row';
+  const identity = document.createElement('div');
+  identity.innerHTML = '<b>' + esc(account.fullName) + '</b><br><small>' + esc(account.email) + ' · ' + esc(account.mobile) + '</small>';
+  const role = document.createElement('div');
+  role.innerHTML = '<span class="pill">' + esc(account.role) + '</span><br><small>' + esc(account.status) + '</small>';
+  const tags = document.createElement('div');
+  tags.className = 'tags';
+  (account.permissions || []).forEach((permission) => {
+    const tag = document.createElement('span');
+    tag.className = 'tag'; tag.textContent = permission; tags.appendChild(tag);
+  });
+  const actions = document.createElement('div');
+  const edit = document.createElement('button');
+  edit.className='primary'; edit.type='button'; edit.textContent='Edit';
+  edit.addEventListener('click',()=>openRoleAccount(account));
+  const toggle = document.createElement('button');
+  toggle.className='primary danger-action'; toggle.type='button';
+  toggle.textContent=account.status==='ACTIVE'?'Suspend':'Activate';
+  toggle.addEventListener('click',()=>toggleRoleAccount(account));
+  actions.append(edit,document.createTextNode(' '),toggle);
+  row.append(identity,role,tags,actions);
+  return row;
+}
+
+async function loadRoleAccounts() {
+  try {
+    const data = await api('/admin/role-accounts');
+    roleAccounts = data.accounts || [];
+    const container = $('#roleAccountList');
+    container.innerHTML = '';
+    if (!roleAccounts.length) {
+      container.innerHTML = '<p class="muted">No role accounts yet.</p>';
+      return;
+    }
+    roleAccounts.forEach((account) => container.appendChild(renderRoleAccountRow(account)));
+  } catch (error) { toast(error.message); }
+}
+
+function openRoleAccount(account) {
+  $('#roleAccountModal').hidden=false;
+  $('#roleAccountModalTitle').textContent=account?'Edit Role Account':'Create Role Account';
+  $('#roleAccountId').value=account?.id||'';
+  $('#roleAccountRole').value=account?.role||'';
+  $('#roleAccountRole').disabled=!!account;
+  $('#roleAccountName').value=account?.fullName||'';
+  $('#roleAccountEmail').value=account?.email||'';
+  $('#roleAccountMobile').value=account?.mobile||'';
+  $('#roleAccountEmail').disabled=!!account;
+  $('#roleAccountMobile').disabled=!!account;
+  $('#roleAccountPassword').required=!account;
+  $('#roleAccountPassword').value='';
+  const box=$('#roleAccountPermissionChecks'); box.innerHTML='';
+  permissionCatalog.forEach((permission)=>{
+    const label=document.createElement('label');
+    const input=document.createElement('input');
+    input.type='checkbox'; input.value=permission;
+    input.checked=(account?.permissions||[]).includes(permission);
+    label.append(input,document.createTextNode(' '+permission));
+    box.appendChild(label);
+  });
+}
+
+async function toggleRoleAccount(account) {
+  const next=account.status==='ACTIVE'?'SUSPENDED':'ACTIVE';
+  if(!confirm(next==='SUSPENDED'?'Is role account ko suspend karna hai?':'Is role account ko activate karna hai?')) return;
+  try {
+    await api('/admin/role-accounts/'+account.id,{method:'PATCH',body:JSON.stringify({status:next})});
+    toast(next==='ACTIVE'?'Account activated':'Account suspended');
+    await loadRoleAccounts();
+  } catch(error){ toast(error.message); }
+}
+
+
 
 function renderManagerRow(manager) {
   const row = document.createElement('div');
@@ -410,6 +504,29 @@ window.addEventListener('error', (event) => {
   if (event?.message) toast('Admin error: ' + event.message);
 });
 
+$('#newRoleAccountBtn').addEventListener('click', () => openRoleAccount(null));
+$('#closeRoleAccount').addEventListener('click', () => { $('#roleAccountModal').hidden = true; });
+$('#roleAccountModal').addEventListener('click', (event) => { if (event.target === $('#roleAccountModal')) $('#roleAccountModal').hidden = true; });
+$('#roleAccountRole').addEventListener('change', () => {
+  const role=$('#roleAccountRole').value;
+  const hint=document.querySelector('#roleAccountModal .muted');
+  if(hint) hint.textContent = role==='MANAGER' ? 'Manager ke liye selected permissions save hongi.' : 'Is role ke liye role-based default permissions use hongi.';
+});
+$('#roleAccountForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const id=$('#roleAccountId').value;
+  const selected=[...document.querySelectorAll('#roleAccountPermissionChecks input:checked')].map(x=>x.value);
+  const body={role:$('#roleAccountRole').value,fullName:$('#roleAccountName').value.trim(),permissions:selected};
+  if(!id) Object.assign(body,{email:$('#roleAccountEmail').value.trim(),mobile:$('#roleAccountMobile').value.replace(/\s+/g,''),password:$('#roleAccountPassword').value});
+  else if($('#roleAccountPassword').value) body.password=$('#roleAccountPassword').value;
+  try {
+    await api('/admin/role-accounts'+(id?'/'+id:''),{method:id?'PATCH':'POST',body:JSON.stringify(body)});
+    toast('Role account saved');
+    $('#roleAccountModal').hidden=true;
+    await loadRoleAccounts();
+  } catch(error){ toast(error.message); }
+});
+
 $('#newManagerBtn').addEventListener('click', () => openManager(null));
 $('#closeManager').addEventListener('click', () => { $('#managerModal').hidden = true; });
 $('#closeEdit').addEventListener('click', closeEditModal);
@@ -466,8 +583,8 @@ $('#loginForm').addEventListener('submit', async (event) => {
       body: JSON.stringify(body),
     });
 
-    if (!['ADMIN', 'MANAGER'].includes(data.user.role)) {
-      throw new Error('Admin portal sirf team accounts ke liye hai');
+    if (!portalRole(data.user.role)) {
+      throw new Error('Admin portal sirf team/professional accounts ke liye hai');
     }
 
     token = data.token;
@@ -513,7 +630,7 @@ $('#logoutBtn').addEventListener('click', () => {
     const data = await api('/auth/me');
     me = data.user || data;
 
-    if (!['ADMIN', 'MANAGER'].includes(me.role)) {
+    if (!portalRole(me.role)) {
       throw new Error('Team account required');
     }
 
