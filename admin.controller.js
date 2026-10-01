@@ -671,6 +671,40 @@ const operationalTripUpdate = asyncHandler(async (req, res) => {
   return success(res, 200, 'Trip status updated', { trip: updated });
 });
 
+const liveTrackingTrips = asyncHandler(async (req, res) => {
+  const trips = await prisma.trip.findMany({
+    where: {
+      trackingEnabled: true,
+      status: { in: ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'NEAR_DESTINATION'] },
+      currentLatitude: { not: null },
+      currentLongitude: { not: null },
+    },
+    include: {
+      load: { select: { id: true, pickupAddress: true, destinationAddress: true, customerId: true } },
+      driver: { include: { user: { select: { id: true, fullName: true, mobile: true } } } },
+      vehicle: { select: { id: true, vehicleNumber: true, vehicleType: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: 200,
+  });
+
+  return success(res, 200, 'Live tracking trips fetched', {
+    trips: trips.map((trip) => ({
+      id: trip.id,
+      status: trip.status,
+      trackingEnabled: trip.trackingEnabled,
+      currentLatitude: trip.currentLatitude,
+      currentLongitude: trip.currentLongitude,
+      updatedAt: trip.updatedAt,
+      pickup: trip.pickup,
+      destination: trip.destination,
+      loadId: trip.loadId,
+      driver: trip.driver?.user ? { id: trip.driver.user.id, fullName: trip.driver.user.fullName } : null,
+      vehicle: trip.vehicle || null,
+    })),
+  });
+});
+
 const roleWorkspace = asyncHandler(async (req, res) => {
   const role = req.user.role;
   const workspace = {
@@ -749,4 +783,4 @@ const roleWorkspace = asyncHandler(async (req, res) => {
   return success(res, 200, 'Role workspace fetched', { workspace });
 });
 
-module.exports = { listVehicleVerification, verifyVehicle, rejectVehicle, approveDeal, operationalTripUpdate, ROLE_DEFINITIONS, roleCatalog, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { listVehicleVerification, verifyVehicle, rejectVehicle, approveDeal, operationalTripUpdate, ROLE_DEFINITIONS, roleCatalog, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, liveTrackingTrips, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
