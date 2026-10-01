@@ -146,9 +146,13 @@ const updateBooking = asyncHandler(async (req,res) => {
 const updatePayment = asyncHandler(async (req,res) => {
   const payment=await prisma.payment.findUnique({where:{id:req.params.id}});
   if(!payment) throw new ApiError(404,'Payment not found');
-  if(!['PENDING','PAID','FAILED'].includes(req.body.status)) throw new ApiError(400,'Invalid payment status');
-  const updated=await prisma.payment.update({where:{id:payment.id},data:{status:req.body.status}});
-  await audit(req,'PAYMENT_UPDATED','Payment',payment.id,{status:req.body.status});
+  const status=String(req.body.status || '').toUpperCase();
+  if(!['PENDING','PAID','FAILED','CANCELLED','REFUNDED'].includes(status)) throw new ApiError(400,'Invalid payment status');
+  const updated=await prisma.payment.update({
+    where:{id:payment.id},
+    data:{status, paidAt: status === 'PAID' ? (payment.paidAt || new Date()) : null}
+  });
+  await audit(req,'PAYMENT_'+status,'Payment',payment.id,{status});
   return success(res,200,'Payment updated',{payment:updated});
 });
 
@@ -508,6 +512,78 @@ const updateSOSAlert = asyncHandler(async (req, res) => {
   return success(res, 200, 'SOS alert updated', { alert: updated });
 });
 
+const dispatchOptions = asyncHandler(async (req, res) => {
+  const [drivers, vehicles] = await Promise.all([
+    prisma.driverProfile.findMany({
+      where: { verification: 'VERIFIED', user: { status: 'ACTIVE', role: 'DRIVER' } },
+      include: { user: { select: { id: true, fullName: true, mobile: true } } },
+      orderBy: { user: { fullName: 'asc' } },
+      take: 300,
+    }),
+    prisma.vehicle.findMany({
+      where: { status: 'AVAILABLE', isVerified: true, driver: { verification: 'VERIFIED', user: { status: 'ACTIVE', role: 'DRIVER' } } },
+      select: { id: true, vehicleNumber: true, vehicleType: true, capacityKg: true, driverId: true },
+      orderBy: { vehicleNumber: 'asc' },
+      take: 500,
+    }),
+  ]);
+  return success(res, 200, 'Dispatch options fetched', {
+    drivers: drivers.map(d => ({ id: d.id, userId: d.user.id, name: d.user.fullName, mobile: d.user.mobile })),
+    vehicles,
+  });
+});
+
+const assignBooking = asyncHandler(async (req, res) => {
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.id },
+    include: { load: true, trip: true },
+  });
+  if (!booking) throw new ApiError(404, 'Booking not found');
+  if (booking.trip) throw new ApiError(409, 'Booking already has an active trip');
+  if (!['REQUESTED', 'ACCEPTED'].includes(booking.status)) throw new ApiError(409, 'Booking is not available for dispatch');
+
+  const driverId = String(req.body.driverId || '').trim();
+  const vehicleId = String(req.body.vehicleId || '').trim();
+  if (!driverId || !vehicleId) throw new ApiError(400, 'Driver and vehicle are required');
+
+  const [driver, vehicle] = await Promise.all([
+    prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true } }),
+    prisma.vehicle.findUnique({ where: { id: vehicleId } }),
+  ]);
+  if (!driver || driver.verification !== 'VERIFIED' || driver.user.status !== 'ACTIVE' || driver.user.role !== 'DRIVER') {
+    throw new ApiError(409, 'Selected driver is not available');
+  }
+  if (!vehicle || vehicle.driverId !== driver.id || vehicle.isVerified !== true || vehicle.status !== 'AVAILABLE') {
+    throw new ApiError(409, 'Selected vehicle is not available for this driver');
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedBooking = await tx.booking.update({
+      where: { id: booking.id },
+      data: { driverId: driver.id, vehicleId: vehicle.id, status: 'ACCEPTED' },
+    });
+    await tx.load.update({ where: { id: booking.loadId }, data: { status: 'ASSIGNED' } });
+    const trip = await tx.trip.create({
+      data: {
+        bookingId: booking.id,
+        loadId: booking.loadId,
+        driverId: driver.id,
+        vehicleId: vehicle.id,
+        pickup: booking.load.pickupAddress,
+        destination: booking.load.destinationAddress,
+        status: 'ASSIGNED',
+      },
+    });
+    await tx.vehicle.update({ where: { id: vehicle.id }, data: { status: 'BUSY' } });
+    return { booking: updatedBooking, trip };
+  });
+
+  await audit(req, 'DISPATCH_ASSIGNED', 'Booking', booking.id, { driverId: driver.id, vehicleId: vehicle.id, tripId: result.trip.id });
+  await notify(driver.userId, 'BOOKING_ACCEPTED', 'Booking assigned', 'Aapko LoadLink par ek booking assign ki gayi hai.');
+  await notify(booking.customerId, 'BOOKING_ACCEPTED', 'Booking assigned', 'Aapki booking driver aur vehicle ko assign kar di gayi hai.');
+  return success(res, 200, 'Booking dispatched successfully', result);
+});
+
 const roleWorkspace = asyncHandler(async (req, res) => {
   const role = req.user.role;
   const workspace = {
@@ -584,4 +660,4 @@ const roleWorkspace = asyncHandler(async (req, res) => {
   return success(res, 200, 'Role workspace fetched', { workspace });
 });
 
-module.exports = { ROLE_DEFINITIONS, roleCatalog, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { ROLE_DEFINITIONS, roleCatalog, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
