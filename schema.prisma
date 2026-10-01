@@ -351,6 +351,7 @@ model Trip {
   currentLatitude  Float?
   currentLongitude Float?
   status          TripStatus @default(ASSIGNED)
+  trackingEnabled Boolean    @default(false)
 
   startedAt   DateTime?
   completedAt DateTime?
