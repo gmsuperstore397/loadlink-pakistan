@@ -725,6 +725,11 @@ document.addEventListener('click', async (event) => {
   try {
     if (action === 'edit-customer') return editCustomer(id);
     if (action === 'toggle-customer') return toggleCustomerAccount(id, button.dataset.status);
+    if (action === 'verify-vehicle') return patchModule('/admin/vehicles/' + id + '/verify', {}, 'Vehicle Verification');
+    if (action === 'reject-vehicle') {
+      const reason = prompt('Reason (optional)') || '';
+      return patchModule('/admin/vehicles/' + id + '/reject', { reason }, 'Vehicle Verification');
+    }
     if (action === 'toggle-driver') return toggleDriverAccount(id, button.dataset.status);
     if (action === 'edit-load') return editLoad(id);
     if (action === 'edit-booking') return editBooking(id);
