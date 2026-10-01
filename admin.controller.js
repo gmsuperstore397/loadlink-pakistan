@@ -508,4 +508,80 @@ const updateSOSAlert = asyncHandler(async (req, res) => {
   return success(res, 200, 'SOS alert updated', { alert: updated });
 });
 
-module.exports = { ROLE_DEFINITIONS, roleCatalog, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+const roleWorkspace = asyncHandler(async (req, res) => {
+  const role = req.user.role;
+  const workspace = {
+    role,
+    title: {
+      MANAGER: 'Manager Operations',
+      FLEET_OWNER: 'Fleet Operations',
+      DISPATCHER: 'Dispatch Control',
+      FREIGHT_BROKER: 'Broker Workspace',
+      FREIGHT_FORWARDER: 'Forwarder Workspace',
+      CUSTOMS_AGENT: 'Customs Operations',
+      PORT_AGENT: 'Port Operations',
+      WAREHOUSE_OPERATOR: 'Warehouse Operations',
+      FINANCE: 'Finance Operations',
+      OPERATIONS: 'Operations Control',
+      SUPPORT: 'Support Desk',
+      ADMIN: 'Admin Operations',
+    }[role] || 'Operations Workspace',
+    metrics: {},
+    rows: [],
+  };
+
+  if (role === 'FLEET_OWNER') {
+    const [vehicles, trips, drivers] = await Promise.all([
+      prisma.vehicle.findMany({
+        include: { driver: { include: { user: { select: { id: true, fullName: true, mobile: true, status: true } } } } },
+        orderBy: { updatedAt: 'desc' }, take: 200,
+      }),
+      prisma.trip.findMany({
+        include: { driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true, vehicleType: true } } },
+        orderBy: { updatedAt: 'desc' }, take: 100,
+      }),
+      prisma.user.count({ where: { role: 'DRIVER', status: 'ACTIVE' } }),
+    ]);
+    workspace.metrics = { vehicles: vehicles.length, activeVehicles: vehicles.filter(v => v.status === 'AVAILABLE').length, activeDrivers: drivers, activeTrips: trips.filter(t => t.status !== 'DELIVERED').length };
+    workspace.rows = vehicles.map(v => ({ id: v.id, vehicleNumber: v.vehicleNumber, vehicleType: v.vehicleType, capacityKg: v.capacityKg, status: v.status, driver: v.driver?.user?.fullName || '—', driverStatus: v.driver?.user?.status || '—' }));
+  } else if (role === 'DISPATCHER') {
+    const [bookings, trips, loads] = await Promise.all([
+      prisma.booking.findMany({ include: { load: { select: { pickupAddress: true, destinationAddress: true } }, customer: { select: { fullName: true } }, driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true } } }, orderBy: { updatedAt: 'desc' }, take: 200 }),
+      prisma.trip.findMany({ include: { load: { select: { id: true } }, driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true } } }, orderBy: { updatedAt: 'desc' }, take: 100 }),
+      prisma.load.count({ where: { status: { in: ['POSTED','SEARCHING','ASSIGNED','PICKED_UP','IN_TRANSIT'] } } }),
+    ]);
+    workspace.metrics = { pendingLoads: loads, bookings: bookings.length, activeTrips: trips.filter(t => t.status !== 'DELIVERED').length };
+    workspace.rows = bookings.map(b => ({ id: b.id, type: 'BOOKING', status: b.status, pickup: b.load?.pickupAddress, destination: b.load?.destinationAddress, customer: b.customer?.fullName, driver: b.driver?.user?.fullName, vehicle: b.vehicle?.vehicleNumber }));
+  } else if (role === 'FINANCE') {
+    const [payments, paid, pending] = await Promise.all([
+      prisma.payment.findMany({ include: { user: { select: { fullName: true } } }, orderBy: { createdAt: 'desc' }, take: 200 }),
+      prisma.payment.aggregate({ where: { status: 'PAID' }, _sum: { amount: true } }),
+      prisma.payment.count({ where: { status: 'PENDING' } }),
+    ]);
+    workspace.metrics = { payments: payments.length, paidAmount: paid._sum.amount || 0, pendingPayments: pending };
+    workspace.rows = payments.map(p => ({ id: p.id, amount: p.amount, currency: p.currency, method: p.method, status: p.status, user: p.user?.fullName, date: p.createdAt }));
+  } else if (role === 'SUPPORT') {
+    const [disputes, sos, suspended] = await Promise.all([
+      prisma.dispute.findMany({ include: { raisedBy: { select: { fullName: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
+      prisma.sOSAlert.findMany({ include: { raisedBy: { select: { fullName: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
+      prisma.user.count({ where: { status: 'SUSPENDED' } }),
+    ]);
+    workspace.metrics = { disputes: disputes.length, openDisputes: disputes.filter(d => d.status !== 'RESOLVED' && d.status !== 'REJECTED').length, sosAlerts: sos.filter(a => a.status !== 'RESOLVED' && a.status !== 'CANCELLED').length, suspendedAccounts: suspended };
+    workspace.rows = disputes.map(d => ({ id: d.id, type: 'DISPUTE', status: d.status, category: d.category, raisedBy: d.raisedBy?.fullName, createdAt: d.createdAt }))
+      .concat(sos.map(a => ({ id: a.id, type: 'SOS', status: a.status, category: a.type, raisedBy: a.raisedBy?.fullName, createdAt: a.createdAt })));
+  } else {
+    const [loads, bookings, trips] = await Promise.all([
+      prisma.load.findMany({ include: { customer: { select: { fullName: true } } }, orderBy: { updatedAt: 'desc' }, take: 100 }),
+      prisma.booking.findMany({ include: { customer: { select: { fullName: true } }, driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true } } } }, orderBy: { updatedAt: 'desc' }, take: 100 }),
+      prisma.trip.findMany({ include: { driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true } } }, orderBy: { updatedAt: 'desc' }, take: 100 }),
+    ]);
+    workspace.metrics = { loads: loads.length, bookings: bookings.length, activeTrips: trips.filter(t => t.status !== 'DELIVERED').length };
+    workspace.rows = loads.map(l => ({ id: l.id, type: 'LOAD', status: l.status, pickup: l.pickupAddress, destination: l.destinationAddress, customer: l.customer?.fullName }))
+      .concat(bookings.map(b => ({ id: b.id, type: 'BOOKING', status: b.status, customer: b.customer?.fullName, driver: b.driver?.user?.fullName, vehicle: b.vehicle?.vehicleNumber })))
+      .concat(trips.map(t => ({ id: t.id, type: 'TRIP', status: t.status, driver: t.driver?.user?.fullName, vehicle: t.vehicle?.vehicleNumber, pickup: t.pickup, destination: t.destination })));
+  }
+
+  return success(res, 200, 'Role workspace fetched', { workspace });
+});
+
+module.exports = { ROLE_DEFINITIONS, roleCatalog, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
