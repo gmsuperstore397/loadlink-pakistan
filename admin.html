@@ -43,6 +43,13 @@
         <div class="table-wrap"><table id="moduleTable"><thead></thead><tbody></tbody></table></div>
       </div>
     </section>
+    <section id="workspaceSection" class="section" hidden>
+      <div class="panel">
+        <div class="panel-head"><div><h2 id="workspaceTitle">Operations Workspace</h2><p id="workspaceHint" class="muted">Role-specific operational data.</p></div><button id="workspaceRefresh" class="primary" type="button">Refresh</button></div>
+        <div id="workspaceMetrics" class="stats"></div>
+        <div class="table-wrap"><table id="workspaceTable"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </section>
     <section id="auditSection" class="section" hidden>
       <div class="panel">
         <div class="panel-head"><div><h2>🧾 Manager Audit Timeline</h2><p class="muted">Manager ki operational activities ka chronological record.</p></div></div>
@@ -133,7 +140,7 @@
     </form>
   </div>
 </div>
-<script src="/admin.js?v=20261001-2"></script>
+<script src="/admin.js?v=20261001-3"></script>
 <script src="/admin-analytics.js?v=20260929-1"></script>
 <script src="/admin-audit.js?v=20260929-1"></script>
 </body>
