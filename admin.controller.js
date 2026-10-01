@@ -241,8 +241,94 @@ const MANAGER_PERMISSIONS = [
   'audit.view',
 ];
 
+const ROLE_DEFAULT_PERMISSIONS = {
+  MANAGER: [],
+  DISPATCHER: ['dashboard.view','loads.view','bookings.view','trips.view','dispatch.view','dispatch.assign','vehicles.view'],
+  FINANCE: ['dashboard.view','payments.view','payments.verify','commission.view','commission.verify','reports.view'],
+  OPERATIONS: ['dashboard.view','loads.view','bookings.view','deals.approve','trips.view','trips.edit','dispatch.view','dispatch.assign','location.view','reports.view'],
+  SUPPORT: ['dashboard.view','customers.view','drivers.view','loads.view','bookings.view','trips.view','disputes.view','disputes.resolve','sos.view','sos.resolve','support.view','support.resolve'],
+  FLEET_OWNER: ['dashboard.view','fleet.view','fleet.edit','vehicles.view','vehicles.create','vehicles.edit','vehicles.disable','drivers.view','trips.view'],
+  FREIGHT_BROKER: ['dashboard.view','customers.view','loads.view','bookings.view','deals.approve','drivers.view','fleet.view'],
+  FREIGHT_FORWARDER: ['dashboard.view','loads.view','bookings.view','trips.view','reports.view'],
+  CUSTOMS_AGENT: ['dashboard.view','loads.view','bookings.view','documents.view','customs.view'],
+  PORT_AGENT: ['dashboard.view','loads.view','trips.view','ports.view'],
+  WAREHOUSE_OPERATOR: ['dashboard.view','loads.view','trips.view','warehouses.view'],
+  CUSTOMER: ['dashboard.view'],
+  DRIVER: ['dashboard.view','vehicles.view','trips.view'],
+};
+
+
 const roleCatalog = asyncHandler(async (req, res) => {
   return success(res, 200, 'Role catalog', { roles: ROLE_DEFINITIONS, permissions: MANAGER_PERMISSIONS });
+});
+
+const listRoleAccounts = asyncHandler(async (req, res) => {
+  const allowedRoles = ROLE_DEFINITIONS.filter((r) => r.role !== 'ADMIN').map((r) => r.role);
+  const users = await prisma.user.findMany({
+    where: { role: { in: allowedRoles } },
+    select: { id: true, fullName: true, email: true, mobile: true, role: true, status: true, permissions: true, createdAt: true, lastLoginAt: true },
+    orderBy: { createdAt: 'desc' },
+    take: 500,
+  });
+  return success(res, 200, 'Role accounts fetched', {
+    accounts: users.map((u) => ({ ...u, permissions: (() => { try { return JSON.parse(u.permissions || '[]'); } catch (_) { return []; } })() })),
+  });
+});
+
+const createRoleAccount = asyncHandler(async (req, res) => {
+  const role = String(req.body.role || '').trim().toUpperCase();
+  const definition = ROLE_DEFINITIONS.find((r) => r.role === role);
+  if (!definition || role === 'ADMIN') throw new ApiError(400, 'Invalid role for account creation');
+  const { fullName, email, mobile, password } = req.body;
+  if (!fullName || !email || !mobile || !password) throw new ApiError(400, 'Name, email, mobile and password are required');
+  if (String(password).length < 10) throw new ApiError(400, 'Password must be at least 10 characters');
+  const existingEmail = await prisma.user.findUnique({ where: { email: String(email).trim().toLowerCase() } });
+  const existingMobile = await prisma.user.findUnique({ where: { mobile: String(mobile).replace(/\s+/g, '') } });
+  if (existingEmail || existingMobile) throw new ApiError(409, 'Email ya mobile pehle se registered hai');
+  const bcrypt = require('bcryptjs');
+  const requested = Array.isArray(req.body.permissions) ? req.body.permissions.filter((p) => MANAGER_PERMISSIONS.includes(p)) : [];
+  const defaults = ROLE_DEFAULT_PERMISSIONS[role] || [];
+  const permissions = role === 'MANAGER' ? requested : [...new Set(defaults.filter((p) => MANAGER_PERMISSIONS.includes(p)))];
+  const user = await prisma.user.create({
+    data: {
+      fullName: String(fullName).trim(),
+      email: String(email).trim().toLowerCase(),
+      mobile: String(mobile).replace(/\s+/g, ''),
+      passwordHash: await bcrypt.hash(String(password), 12),
+      role,
+      status: 'ACTIVE',
+      emailVerified: true,
+      permissions: JSON.stringify(permissions),
+    },
+    select: { id: true, fullName: true, email: true, mobile: true, role: true, status: true, permissions: true, createdAt: true },
+  });
+  await audit(req, 'ROLE_ACCOUNT_CREATED', 'User', user.id, { role, permissions });
+  return success(res, 201, 'Role account created', { account: { ...user, permissions } });
+});
+
+const updateRoleAccount = asyncHandler(async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user || user.role === 'ADMIN') throw new ApiError(404, 'Role account not found');
+  const data = {};
+  if (req.body.fullName != null) data.fullName = String(req.body.fullName).trim();
+  if (req.body.status === 'ACTIVE' || req.body.status === 'SUSPENDED') data.status = req.body.status;
+  if (Array.isArray(req.body.permissions)) {
+    data.permissions = JSON.stringify(req.body.permissions.filter((p) => MANAGER_PERMISSIONS.includes(p)));
+  }
+  if (req.body.password) {
+    if (String(req.body.password).length < 10) throw new ApiError(400, 'Password must be at least 10 characters');
+    const bcrypt = require('bcryptjs');
+    data.passwordHash = await bcrypt.hash(String(req.body.password), 12);
+  }
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data,
+    select: { id: true, fullName: true, email: true, mobile: true, role: true, status: true, permissions: true, createdAt: true, lastLoginAt: true },
+  });
+  await audit(req, 'ROLE_ACCOUNT_UPDATED', 'User', user.id, { fields: Object.keys(data), role: user.role });
+  return success(res, 200, 'Role account updated', {
+    account: { ...updated, permissions: (() => { try { return JSON.parse(updated.permissions || '[]'); } catch (_) { return []; } })() },
+  });
 });
 
 const listManagers = asyncHandler(async (req, res) => {
