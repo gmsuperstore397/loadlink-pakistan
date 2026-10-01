@@ -45,11 +45,29 @@
     </section>
     <section id="workspaceSection" class="section" hidden>
       <div class="panel">
-        <div class="panel-head"><div><h2 id="workspaceTitle">Operations Workspace</h2><p id="workspaceHint" class="muted">Role-specific operational data.</p></div><button id="workspaceRefresh" class="primary" type="button">Refresh</button></div>
+        <div class="panel-head"><div><h2 id="workspaceTitle">Operations Workspace</h2><p id="workspaceHint" class="muted">Role-specific operational data.</p></div><div><button id="fleetAddVehicleBtn" class="primary" type="button" hidden>+ Add Vehicle</button> <button id="workspaceRefresh" class="primary" type="button">Refresh</button></div></div>
         <div id="workspaceMetrics" class="stats"></div>
         <div class="table-wrap"><table id="workspaceTable"><thead></thead><tbody></tbody></table></div>
       </div>
     </section>
+    <div id="fleetVehicleModal" class="modal" hidden>
+      <div class="modal-card">
+        <button class="close" id="closeFleetVehicle" type="button">×</button>
+        <h2 id="fleetVehicleModalTitle">Add Fleet Vehicle</h2>
+        <form id="fleetVehicleForm">
+          <input type="hidden" id="fleetVehicleId">
+          <label>Driver<select id="fleetVehicleDriver" required></select></label>
+          <label>Vehicle Type<input id="fleetVehicleType" required></label>
+          <label>Vehicle Number<input id="fleetVehicleNumber" required placeholder="LEA-1234"></label>
+          <label>Capacity (kg)<input id="fleetVehicleCapacity" type="number" min="1" required></label>
+          <label>Brand<input id="fleetVehicleBrand"></label>
+          <label>Model<input id="fleetVehicleModel"></label>
+          <label>Year<input id="fleetVehicleYear" type="number" min="1950" max="2100"></label>
+          <label>Status<select id="fleetVehicleStatus"><option>OFFLINE</option><option>AVAILABLE</option><option>SUSPENDED</option></select></label>
+          <button class="primary" type="submit">Save Vehicle</button>
+        </form>
+      </div>
+    </div>
     <div id="dispatchModal" class="modal" hidden>
       <div class="modal-card">
         <button class="close" id="closeDispatch" type="button">×</button>
@@ -153,7 +171,7 @@
     </form>
   </div>
 </div>
-<script src="/admin.js?v=20261001-4"></script>
+<script src="/admin.js?v=20261001-5"></script>
 <script src="/admin-analytics.js?v=20260929-1"></script>
 <script src="/admin-audit.js?v=20260929-1"></script>
 </body>
