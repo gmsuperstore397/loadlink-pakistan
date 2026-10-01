@@ -185,18 +185,22 @@ const updateVehicle = asyncHandler(async (req, res) => {
   }
 
   const { status, latitude, longitude, capacityKg, brand, model, year } = req.body;
-  const updated = await prisma.vehicle.update({
-    where: { id: vehicle.id },
-    data: {
-      ...(status && ['AVAILABLE', 'BUSY', 'OFFLINE'].includes(status) && { status }),
-      ...(latitude !== undefined && { latitude: Number(latitude) }),
-      ...(longitude !== undefined && { longitude: Number(longitude) }),
-      ...(capacityKg && { capacityKg: Number(capacityKg) }),
-      ...(brand !== undefined && { brand }),
-      ...(model !== undefined && { model }),
-      ...(year && { year: Number(year) }),
-    },
-  });
+  const data = {
+    ...(status && ['AVAILABLE', 'BUSY', 'OFFLINE'].includes(status) && { status }),
+    ...(latitude !== undefined && { latitude: Number(latitude) }),
+    ...(longitude !== undefined && { longitude: Number(longitude) }),
+    ...(capacityKg && { capacityKg: Number(capacityKg) }),
+    ...(brand !== undefined && { brand }),
+    ...(model !== undefined && { model }),
+    ...(year && { year: Number(year) }),
+  };
+  const coreChanged = capacityKg !== undefined || brand !== undefined || model !== undefined || year !== undefined;
+  if (coreChanged) {
+    data.isVerified = false;
+    data.verificationStatus = 'PENDING';
+    data.status = 'OFFLINE';
+  }
+  const updated = await prisma.vehicle.update({ where: { id: vehicle.id }, data });
 
   return success(res, 200, 'Vehicle updated', { vehicle: updated });
 });
