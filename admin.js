@@ -252,6 +252,25 @@ function roleDashboardTitle() {
   return map[me?.role] || 'Dashboard';
 }
 
+function workspaceActionCell(row) {
+  const role = me?.role;
+  if (!row?.id) return '';
+  if (role === 'DISPATCHER' && row.type === 'BOOKING' && ['REQUESTED','ACCEPTED'].includes(row.status)) {
+    return '<button class="primary" type="button" data-workspace-action="assign-booking" data-id="' + esc(row.id) + '">Assign</button>';
+  }
+  if (role === 'FINANCE' && row.status === 'PENDING') {
+    return '<button class="primary" type="button" data-workspace-action="verify-payment" data-id="' + esc(row.id) + '">Verify PAID</button>';
+  }
+  if (role === 'SUPPORT' && row.type === 'SOS') {
+    if (row.status === 'OPEN') return '<button class="primary" type="button" data-workspace-action="sos-ack" data-id="' + esc(row.id) + '">Acknowledge</button>';
+    if (row.status === 'ACKNOWLEDGED') return '<button class="primary" type="button" data-workspace-action="sos-resolve" data-id="' + esc(row.id) + '">Resolve</button>';
+  }
+  if (role === 'SUPPORT' && row.type === 'DISPUTE' && ['OPEN','UNDER_REVIEW'].includes(row.status)) {
+    return '<button class="primary" type="button" data-workspace-action="dispute-review" data-id="' + esc(row.id) + '">Review</button>';
+  }
+  return '';
+}
+
 async function loadWorkspace() {
   try {
     const data = await api('/admin/workspace');
@@ -263,12 +282,96 @@ async function loadWorkspace() {
     ).join('');
     const rows = w.rows || [];
     const keys = rows.length ? Object.keys(rows[0]) : [];
-    $('#workspaceTable thead').innerHTML = keys.length ? '<tr>' + keys.map(k => '<th>' + esc(k.replace(/([A-Z])/g, ' $1')) + '</th>').join('') + '</tr>' : '';
+    $('#workspaceTable thead').innerHTML = keys.length
+      ? '<tr>' + keys.map(k => '<th>' + esc(k.replace(/([A-Z])/g, ' $1')) + '</th>').join('') + '<th>Actions</th></tr>'
+      : '';
     $('#workspaceTable tbody').innerHTML = rows.length
-      ? rows.map(row => '<tr>' + keys.map(k => '<td>' + esc(row[k]) + '</td>').join('') + '</tr>').join('')
+      ? rows.map(row => '<tr>' + keys.map(k => '<td>' + esc(row[k]) + '</td>').join('') + '<td>' + workspaceActionCell(row) + '</td></tr>').join('')
       : '<tr><td>No operational records found</td></tr>';
   } catch (error) { toast(error.message); }
 }
+
+async function openDispatchAssignment(bookingId) {
+  try {
+    const data = await api('/admin/dispatch/options');
+    const drivers = data.drivers || [];
+    const vehicles = data.vehicles || [];
+    if (!drivers.length || !vehicles.length) {
+      toast('Verified driver ya available vehicle nahi mila');
+      return;
+    }
+    $('#dispatchBookingId').value = bookingId;
+    $('#dispatchDriver').innerHTML = '<option value="">Select driver</option>' +
+      drivers.map(d => '<option value="' + esc(d.id) + '">' + esc(d.name) + ' · ' + esc(d.mobile) + '</option>').join('');
+    const renderVehicles = (driverId) => {
+      const list = vehicles.filter(v => !driverId || v.driverId === driverId);
+      $('#dispatchVehicle').innerHTML = '<option value="">Select vehicle</option>' +
+        list.map(v => '<option value="' + esc(v.id) + '">' + esc(v.vehicleNumber) + ' · ' + esc(v.vehicleType) + ' · ' + esc(v.capacityKg) + 'kg</option>').join('');
+    };
+    $('#dispatchDriver').onchange = () => renderVehicles($('#dispatchDriver').value);
+    renderVehicles('');
+    $('#dispatchBookingInfo').textContent = 'Booking ID: ' + bookingId;
+    $('#dispatchModal').hidden = false;
+  } catch (error) { toast(error.message); }
+}
+
+document.addEventListener('click', async (event) => {
+  const btn = event.target.closest('[data-workspace-action]');
+  if (!btn) return;
+  const action = btn.dataset.workspaceAction;
+  const id = btn.dataset.id;
+  try {
+    if (action === 'assign-booking') return openDispatchAssignment(id);
+    if (action === 'verify-payment') {
+      if (!confirm('Is payment ko PAID verify karna hai?')) return;
+      await api('/admin/payments/' + id, { method:'PATCH', body:JSON.stringify({status:'PAID'}) });
+      toast('Payment verified');
+      return loadWorkspace();
+    }
+    if (action === 'sos-ack') {
+      await api('/admin/sos/' + id, { method:'PATCH', body:JSON.stringify({status:'ACKNOWLEDGED'}) });
+      toast('SOS acknowledged');
+      return loadWorkspace();
+    }
+    if (action === 'sos-resolve') {
+      if (!confirm('SOS ko resolved mark karna hai?')) return;
+      await api('/admin/sos/' + id, { method:'PATCH', body:JSON.stringify({status:'RESOLVED'}) });
+      toast('SOS resolved');
+      return loadWorkspace();
+    }
+    if (action === 'dispute-review') {
+      const status = btn.textContent.trim() === 'Review' ? 'UNDER_REVIEW' : 'RESOLVED';
+      const resolution = status === 'RESOLVED' ? prompt('Resolution note likhein (minimum 5 characters):') : null;
+      if (status === 'RESOLVED' && (!resolution || resolution.trim().length < 5)) return;
+      await api('/admin/disputes/' + id, { method:'PATCH', body:JSON.stringify({status, ...(resolution ? {resolution:resolution.trim()} : {})}) });
+      toast(status === 'UNDER_REVIEW' ? 'Dispute review started' : 'Dispute resolved');
+      return loadWorkspace();
+    }
+  } catch (error) { toast(error.message); }
+});
+
+document.addEventListener('submit', async (event) => {
+  if (event.target.id !== 'dispatchForm') return;
+  event.preventDefault();
+  const bookingId = $('#dispatchBookingId').value;
+  const driverId = $('#dispatchDriver').value;
+  const vehicleId = $('#dispatchVehicle').value;
+  if (!bookingId || !driverId || !vehicleId) return;
+  try {
+    await api('/admin/dispatch/bookings/' + bookingId + '/assign', {
+      method:'POST',
+      body:JSON.stringify({driverId, vehicleId})
+    });
+    toast('Booking assigned aur trip create ho gaya');
+    $('#dispatchModal').hidden = true;
+    await loadWorkspace();
+  } catch (error) { toast(error.message); }
+});
+
+$('#closeDispatch')?.addEventListener('click', () => { $('#dispatchModal').hidden = true; });
+$('#dispatchModal')?.addEventListener('click', (event) => {
+  if (event.target === $('#dispatchModal')) $('#dispatchModal').hidden = true;
+});
 
 function renderNav() {
   const nav=$('#sideNav'); nav.innerHTML='';
