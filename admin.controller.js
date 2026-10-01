@@ -584,6 +584,45 @@ const assignBooking = asyncHandler(async (req, res) => {
   return success(res, 200, 'Booking dispatched successfully', result);
 });
 
+
+// PATCH /api/admin/operations/bookings/:id/approve
+const approveDeal = asyncHandler(async (req, res) => {
+  const booking = await prisma.booking.findUnique({ where: { id: req.params.id }, include: { load: true } });
+  if (!booking) throw new ApiError(404, 'Booking not found');
+  if (!['REQUESTED','ACCEPTED'].includes(booking.status)) throw new ApiError(409, 'Booking is not pending approval');
+  const updated = await prisma.booking.update({ where: { id: booking.id }, data: { status: 'ACCEPTED' } });
+  await prisma.load.update({ where: { id: booking.loadId }, data: { status: 'ASSIGNED' } });
+  await audit(req, 'DEAL_APPROVED', 'Booking', booking.id, { loadId: booking.loadId });
+  await notify(booking.customerId, 'BOOKING_ACCEPTED', 'Deal approved', 'LoadLink Operations ne aapki deal approve kar di hai.');
+  return success(res, 200, 'Deal approved', { booking: updated });
+});
+
+// PATCH /api/admin/operations/trips/:id
+const operationalTripUpdate = asyncHandler(async (req, res) => {
+  const trip = await prisma.trip.findUnique({ where: { id: req.params.id } });
+  if (!trip) throw new ApiError(404, 'Trip not found');
+  const allowed = ['ASSIGNED','PICKED_UP','IN_TRANSIT','NEAR_DESTINATION','DELIVERED'];
+  const status = String(req.body.status || '').toUpperCase();
+  if (!allowed.includes(status)) throw new ApiError(400, 'Invalid trip status');
+  if (status === 'DELIVERED') {
+    const updated = await prisma.$transaction(async (tx) => {
+      const t = await tx.trip.update({ where: { id: trip.id }, data: { status, completedAt: new Date(), trackingEnabled: false } });
+      await tx.booking.update({ where: { id: trip.bookingId }, data: { status: 'COMPLETED' } });
+      await tx.load.update({ where: { id: trip.loadId }, data: { status: 'DELIVERED' } });
+      await tx.vehicle.update({ where: { id: trip.vehicleId }, data: { status: 'AVAILABLE' } });
+      return t;
+    });
+    await audit(req, 'TRIP_DELIVERED_BY_OPERATIONS', 'Trip', trip.id, { status });
+    await notify((await prisma.load.findUnique({where:{id:trip.loadId}})).customerId, 'TRIP_DELIVERED', 'Trip delivered', 'Trip ko Operations ne delivered mark kiya hai.');
+    return success(res, 200, 'Trip delivered', { trip: updated });
+  }
+  const data = { status };
+  if (status === 'PICKED_UP' && !trip.startedAt) data.startedAt = new Date();
+  const updated = await prisma.trip.update({ where: { id: trip.id }, data });
+  await audit(req, 'TRIP_STATUS_UPDATED_BY_OPERATIONS', 'Trip', trip.id, { status });
+  return success(res, 200, 'Trip status updated', { trip: updated });
+});
+
 const roleWorkspace = asyncHandler(async (req, res) => {
   const role = req.user.role;
   const workspace = {
@@ -660,4 +699,4 @@ const roleWorkspace = asyncHandler(async (req, res) => {
   return success(res, 200, 'Role workspace fetched', { workspace });
 });
 
-module.exports = { ROLE_DEFINITIONS, roleCatalog, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { approveDeal, operationalTripUpdate, ROLE_DEFINITIONS, roleCatalog, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
