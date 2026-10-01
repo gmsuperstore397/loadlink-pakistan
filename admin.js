@@ -236,6 +236,21 @@ function renderReports(data){
   const groups=[['Revenue (PKR)',data.revenue],['Users by role',data.usersByRole],['Loads by status',data.loadStatus],['Bookings by status',data.bookingStatus],['Payments by status',data.paymentStatus]];
   $('#moduleTable tbody').innerHTML=groups.map(([k,v])=>'<tr><td>'+esc(k)+'</td><td><pre>'+esc(JSON.stringify(v,null,2))+'</pre></td></tr>').join('');
 }
+function roleLabel(role) {
+  const found = roleCatalog.find((r) => r.role === role);
+  return found?.label || role || 'Team';
+}
+
+function roleDashboardTitle() {
+  const map = {
+    MANAGER:'Manager Dashboard', FLEET_OWNER:'Fleet Dashboard', DISPATCHER:'Dispatch Dashboard',
+    FREIGHT_BROKER:'Broker Dashboard', FREIGHT_FORWARDER:'Forwarder Dashboard', CUSTOMS_AGENT:'Customs Dashboard',
+    PORT_AGENT:'Port Operations Dashboard', WAREHOUSE_OPERATOR:'Warehouse Dashboard', FINANCE:'Finance Dashboard',
+    OPERATIONS:'Operations Dashboard', SUPPORT:'Support Dashboard', ADMIN:'Admin Dashboard'
+  };
+  return map[me?.role] || 'Dashboard';
+}
+
 function renderNav() {
   const nav=$('#sideNav'); nav.innerHTML='';
   const items=[
@@ -266,6 +281,8 @@ function renderNav() {
 
 async function loadDashboard() {
   try {
+    $('#pageTitle').textContent = roleDashboardTitle();
+    $('#roleText').textContent = roleLabel(me?.role);
     const data = await api('/admin/dashboard');
     $('#stats').innerHTML = Object.entries(data).map(([key, value]) => (
       '<div class="stat"><span>' +
