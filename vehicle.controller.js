@@ -41,6 +41,7 @@ const createFleetVehicle = asyncHandler(async (req, res) => {
       documentExpiryDate: req.body.documentExpiryDate ? new Date(req.body.documentExpiryDate) : null,
       status: 'OFFLINE',
       isVerified: false,
+      verificationStatus: 'PENDING',
     },
   });
   await audit(req, 'FLEET_VEHICLE_CREATED', 'Vehicle', vehicle.id, { driverId: driver.id });
@@ -67,6 +68,12 @@ const updateFleetVehicle = asyncHandler(async (req, res) => {
     const driver = await prisma.driverProfile.findUnique({ where: { id: String(driverId) }, include: { user: true } });
     if (!driver || driver.verification !== 'VERIFIED' || driver.user.status !== 'ACTIVE') throw new ApiError(409, 'Selected driver is not active and verified');
     data.driverId = driver.id;
+  }
+  const coreChanged = capacityKg !== undefined || brand !== undefined || model !== undefined || year !== undefined;
+  if (vehicle.fleetOwnerId && coreChanged) {
+    data.isVerified = false;
+    data.verificationStatus = 'PENDING';
+    data.status = 'OFFLINE';
   }
   const updated = await prisma.vehicle.update({ where: { id: vehicle.id }, data });
   await audit(req, 'FLEET_VEHICLE_UPDATED', 'Vehicle', vehicle.id, data);
