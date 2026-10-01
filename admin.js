@@ -265,8 +265,11 @@ function workspaceActionCell(row) {
     if (row.status === 'OPEN') return '<button class="primary" type="button" data-workspace-action="sos-ack" data-id="' + esc(row.id) + '">Acknowledge</button>';
     if (row.status === 'ACKNOWLEDGED') return '<button class="primary" type="button" data-workspace-action="sos-resolve" data-id="' + esc(row.id) + '">Resolve</button>';
   }
-  if (role === 'SUPPORT' && row.type === 'DISPUTE' && ['OPEN','UNDER_REVIEW'].includes(row.status)) {
+  if (role === 'SUPPORT' && row.type === 'DISPUTE' && row.status === 'OPEN') {
     return '<button class="primary" type="button" data-workspace-action="dispute-review" data-id="' + esc(row.id) + '">Review</button>';
+  }
+  if (role === 'SUPPORT' && row.type === 'DISPUTE' && row.status === 'UNDER_REVIEW') {
+    return '<button class="primary" type="button" data-workspace-action="dispute-resolve" data-id="' + esc(row.id) + '">Resolve</button>';
   }
   return '';
 }
@@ -340,11 +343,15 @@ document.addEventListener('click', async (event) => {
       return loadWorkspace();
     }
     if (action === 'dispute-review') {
-      const status = btn.textContent.trim() === 'Review' ? 'UNDER_REVIEW' : 'RESOLVED';
-      const resolution = status === 'RESOLVED' ? prompt('Resolution note likhein (minimum 5 characters):') : null;
-      if (status === 'RESOLVED' && (!resolution || resolution.trim().length < 5)) return;
-      await api('/admin/disputes/' + id, { method:'PATCH', body:JSON.stringify({status, ...(resolution ? {resolution:resolution.trim()} : {})}) });
-      toast(status === 'UNDER_REVIEW' ? 'Dispute review started' : 'Dispute resolved');
+      await api('/admin/disputes/' + id, { method:'PATCH', body:JSON.stringify({status:'UNDER_REVIEW'}) });
+      toast('Dispute review started');
+      return loadWorkspace();
+    }
+    if (action === 'dispute-resolve') {
+      const resolution = prompt('Resolution note likhein (minimum 5 characters):');
+      if (!resolution || resolution.trim().length < 5) return;
+      await api('/admin/disputes/' + id, { method:'PATCH', body:JSON.stringify({status:'RESOLVED', resolution:resolution.trim()}) });
+      toast('Dispute resolved');
       return loadWorkspace();
     }
   } catch (error) { toast(error.message); }
