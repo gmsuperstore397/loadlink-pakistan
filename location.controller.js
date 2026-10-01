@@ -70,131 +70,132 @@ const geocode = asyncHandler(async (req, res) => {
       .replace(/\s+/g, ' ')
       .trim();
 
+    // Common romanized spellings seen in Pakistani addresses.
+    const spellingVariants = (value) => {
+      const variants = new Set([value]);
+      const replacements = [
+        [/\bmaripure\b/gi, 'maripur'],
+        [/\bmauripur\b/gi, 'maripur'],
+        [/\bmari\s*pur\b/gi, 'maripur'],
+        [/\bmaripur\b/gi, 'mauripur'],
+      ];
+      for (const [pattern, replacement] of replacements) {
+        for (const item of [...variants]) variants.add(item.replace(pattern, replacement));
+      }
+      return [...variants];
+    };
+
     const queries = [];
     const add = (q) => {
       const value = String(q || '').replace(/\s+/g, ' ').trim().replace(/,+/g, ',');
       if (value && !queries.includes(value)) queries.push(value);
     };
 
-    // First try exactly what the user typed. Nominatim supports free-form
-    // addresses and different component orders.
-    add(normalized);
-
-    const withoutPakistan = normalized.replace(/,?\s*Pakistan\s*$/i, '').trim();
-    add(withoutPakistan);
-    add(`${withoutPakistan}, Pakistan`);
-
-    // Build useful variants for detailed real-world addresses where landmarks
-    // such as "near", "next to", "opposite" are not themselves mapped POIs.
-    let base = withoutPakistan;
-    base = base
-      .replace(/\b(next\s+to|near|opposite|behind|beside|in\s+front\s+of|close\s+to)\b[^,]*/gi, '')
-      .replace(/\s*,\s*,+/g, ',')
-      .replace(/^\s*,|,\s*$/g, '')
-      .trim();
-    add(base);
-    add(`${base}, Pakistan`);
-
-    // Try removing a business/shop name at the beginning while retaining
-    // the street, locality and city.
     const parts = normalized.split(',').map((part) => part.trim()).filter(Boolean);
-    if (parts.length >= 3) {
-      add(parts.slice(1).join(', '));
-      add(`${parts.slice(1).join(', ')}, Pakistan`);
+    const withoutCountry = normalized
+      .replace(/,?\s*(Pakistan|India|UAE|United Arab Emirates|Saudi Arabia|United Kingdom|UK|USA|United States)\s*$/i, '')
+      .trim();
+
+    // Identify the city/country from the end where possible, without forcing
+    // a Pakistan-only city list. The last component is commonly the city.
+    const countryMatch = normalized.match(/(?:,\s*|\s+)(Pakistan|India|UAE|United Arab Emirates|Saudi Arabia|United Kingdom|UK|USA|United States)\s*$/i);
+    const country = countryMatch ? countryMatch[1] : '';
+    const coreParts = withoutCountry.split(',').map((p) => p.trim()).filter(Boolean);
+    const city = coreParts.length >= 2 ? coreParts[coreParts.length - 1] : '';
+
+    const relational = /\b(next\s+to|near|opposite|behind|beside|in\s+front\s+of|close\s+to|adjacent\s+to)\b/i;
+    const streetPattern = /\b(road|rd|street|st|avenue|ave|boulevard|blvd|highway|hwy|drive|dr|lane|ln|way|roadside|main\s+road|link\s+road)\b/i;
+
+    let poiName = '';
+    let street = '';
+    let localityParts = [];
+
+    if (coreParts.length) {
+      // First segment is treated as a POI only when a later segment clearly
+      // looks like a street/address. This prevents "Kashif Transport" from
+      // becoming the street in a structured query.
+      const streetIndex = coreParts.findIndex((p) => streetPattern.test(p));
+      if (streetIndex > 0) poiName = coreParts[0];
+      if (streetIndex >= 0) street = coreParts[streetIndex];
+      if (!street && coreParts.length >= 2) street = coreParts[0];
+
+      localityParts = coreParts.slice(0, -1).filter((p) =>
+        p !== poiName && p !== street && !relational.test(p)
+      );
+
+      // Remove landmark-only phrases while keeping the actual locality.
+      localityParts = localityParts
+        .flatMap((p) => p.split(/\b(?:next\s+to|near|opposite|behind|beside|in\s+front\s+of|close\s+to|adjacent\s+to)\b/i))
+        .map((p) => p.trim())
+        .filter(Boolean);
     }
 
-    // If the address contains a city, also try a compact street/locality/city
-    // query. This is especially useful for Pakistani addresses with many
-    // landmarks that are not present in OSM.
-    const cities = [
-      'Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad',
-      'Multan', 'Peshawar', 'Quetta', 'Hyderabad', 'Gujranwala',
-      'Sialkot', 'Bahawalpur', 'Sukkur', 'Abbottabad', 'Murree',
-      'Gujrat', 'Sargodha', 'Mardan', 'Kasur', 'Okara', 'Jhelum',
-      'Sheikhupura', 'Rahim Yar Khan', 'Larkana', 'Nawabshah'
-    ];
-    const foundCity = cities.find((city) => new RegExp('\\b' + city.replace(/\s+/g, '\\s+') + '\\b', 'i').test(normalized));
+    const locality = localityParts.slice(-2).join(', ');
 
-    if (foundCity) {
-      const cityRegex = new RegExp('(?:,?\\s*)' + foundCity.replace(/\s+/g, '\\s+') + '(?:,?\\s*Pakistan)?\\s*$', 'i');
-      const beforeCity = withoutPakistan.replace(cityRegex, '').trim().replace(/,+$/g, '').trim();
-      add(`${beforeCity}, ${foundCity}`);
-      add(`${beforeCity}, ${foundCity}, Pakistan`);
-      add(`${foundCity}, ${beforeCity}, Pakistan`);
+    // Build several focused free-form queries. Nominatim processes free-form
+    // searches left-to-right/right-to-left, and commas improve performance.
+    for (const variant of spellingVariants(normalized)) add(variant);
+    for (const variant of spellingVariants(withoutCountry)) add(variant);
+    if (street && city) {
+      for (const s of spellingVariants(street)) {
+        add(`${s}, ${city}${country ? `, ${country}` : ''}`);
+        if (locality) add(`${s}, ${locality}, ${city}${country ? `, ${country}` : ''}`);
+      }
+    }
+    if (locality && city) add(`${locality}, ${city}${country ? `, ${country}` : ''}`);
+    if (poiName && city) add(`${poiName}, ${city}${country ? `, ${country}` : ''}`);
+    if (city) add(`${city}${country ? `, ${country}` : ''}`);
 
-      // Structured query is a second-stage fallback. Nominatim supports
-      // street/city/state/country independently from free-form q.
-      const stateByCity = {
-        Karachi: 'Sindh',
-        Lahore: 'Punjab',
-        Islamabad: 'Islamabad Capital Territory',
-        Rawalpindi: 'Punjab',
-        Faisalabad: 'Punjab',
-        Multan: 'Punjab',
-        Peshawar: 'Khyber Pakhtunkhwa',
-        Quetta: 'Balochistan',
-        Hyderabad: 'Sindh',
-        Gujranwala: 'Punjab',
-        Sialkot: 'Punjab',
-        Bahawalpur: 'Punjab',
-        Sukkur: 'Sindh',
-        Abbottabad: 'Khyber Pakhtunkhwa',
-        Murree: 'Punjab',
-        Gujrat: 'Punjab',
-        Sargodha: 'Punjab',
-        Mardan: 'Khyber Pakhtunkhwa',
-        Kasur: 'Punjab',
-        Okara: 'Punjab',
-        Jhelum: 'Punjab',
-        Sheikhupura: 'Punjab',
-        'Rahim Yar Khan': 'Punjab',
-        Larkana: 'Sindh',
-        Nawabshah: 'Sindh',
-      };
-
-      const streetPart = parts
-        .filter((part) => !new RegExp('^' + foundCity.replace(/\s+/g, '\\s+') + '$', 'i').test(part))
-        .filter((part) => !/^(pakistan)$/i.test(part))
-        .filter((part) => !/^(near|next\s+to|opposite|behind|beside)$/i.test(part))
-        .slice(0, 2)
-        .join(', ');
-
-      if (streetPart) {
-        const street = streetPart.split(',')[0].trim();
-        const structured = {
-          street,
-          city: foundCity,
-          state: stateByCity[foundCity],
-          country: 'Pakistan',
-        };
-        const structuredResults = await search('', structured);
-        if (Array.isArray(structuredResults) && structuredResults.length) {
-          const first = structuredResults[0];
-          const lat = Number(first.lat);
-          const lng = Number(first.lon);
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            return success(res, 200, 'Location resolved', {
-              location: {
-                lat,
-                lng,
-                displayName: first.display_name || address,
-                raw: first,
-                approximate: true,
-              },
-            });
-          }
-        }
+    // Structured search is deliberately last. It is useful when the street and
+    // city are known, but must never override a better free-form POI result.
+    const structuredCandidates = [];
+    if (street && city) {
+      for (const s of spellingVariants(street)) {
+        structuredCandidates.push({
+          street: s,
+          city,
+          ...(country ? { country } : {}),
+        });
       }
     }
 
     let first = null;
+    let approximate = false;
+
+    // First pass: focused free-form queries.
     for (let i = 0; i < queries.length; i += 1) {
       const data = await search(queries[i]);
       if (Array.isArray(data) && data.length) {
-        first = data[0];
-        break;
+        // Prefer results in the same city when a city was identified.
+        const ranked = data
+          .filter((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)))
+          .sort((a, b) => {
+            const aCity = String(a.address?.city || a.address?.town || a.address?.municipality || a.address?.village || '').toLowerCase();
+            const bCity = String(b.address?.city || b.address?.town || b.address?.municipality || b.address?.village || '').toLowerCase();
+            const target = city.toLowerCase();
+            const aMatch = target && aCity.includes(target) ? 1 : 0;
+            const bMatch = target && bCity.includes(target) ? 1 : 0;
+            return bMatch - aMatch;
+          });
+        if (ranked.length) {
+          first = ranked[0];
+          break;
+        }
       }
       if (i < queries.length - 1) await sleep(1100);
+    }
+
+    // Second pass: structured street/city fallback.
+    if (!first) {
+      for (let i = 0; i < structuredCandidates.length; i += 1) {
+        const data = await search('', structuredCandidates[i]);
+        if (Array.isArray(data) && data.length) {
+          first = data[0];
+          approximate = true;
+          break;
+        }
+        if (i < structuredCandidates.length - 1) await sleep(1100);
+      }
     }
 
     if (!first) {
@@ -216,7 +217,7 @@ const geocode = asyncHandler(async (req, res) => {
         lng,
         displayName: first.display_name || address,
         raw: first,
-        approximate: false,
+        approximate,
       },
     });
   } catch (e) {
