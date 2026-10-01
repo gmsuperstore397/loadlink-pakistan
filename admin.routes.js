@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  dashboard, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert,
+  dashboard, roleWorkspace, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert,
 } = require('./admin.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
 
@@ -20,6 +20,7 @@ router.post('/managers', requireRole('ADMIN'), createManager);
 router.patch('/managers/:id', requireRole('ADMIN'), updateManager);
 
 router.get('/dashboard', requirePermission('dashboard.view'), dashboard);
+router.get('/workspace', requirePermission('dashboard.view'), roleWorkspace);
 router.get('/customers', requirePermission('customers.view'), listCustomers);
 router.patch('/customers/:id', requirePermission('customers.edit'), updateCustomer);
 router.patch('/customers/:id/status', requirePermission('customers.edit'), setCustomerAccountStatus);
