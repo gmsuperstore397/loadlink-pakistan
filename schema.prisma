@@ -167,6 +167,7 @@ model User {
   spaceRequests SpaceRequest[]
   spaceBookingsAsCustomer SpaceBooking[] @relation("SpaceCustomerBookings")
   auditLogs AuditLog[]
+  fleetVehicles Vehicle[] @relation("FleetOwnedVehicles")
   deliveryProofs DeliveryProof[]
   disputesRaised Dispute[] @relation("DisputesRaised")
   disputesResolved Dispute[] @relation("DisputesResolved")
@@ -200,6 +201,8 @@ model Vehicle {
   id            String        @id @default(uuid())
   driverId      String
   driver        DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  fleetOwnerId  String?
+  fleetOwner    User? @relation("FleetOwnedVehicles", fields: [fleetOwnerId], references: [id], onDelete: SetNull)
   vehicleType   String
   vehicleNumber String        @unique
   capacityKg    Int
@@ -219,6 +222,7 @@ model Vehicle {
   spaceListings SpaceListing[] @relation("VehicleSpaceListings")
   spaceBookings SpaceBooking[]
   trips    Trip[]
+  @@index([fleetOwnerId])
 }
 
 model Load {
