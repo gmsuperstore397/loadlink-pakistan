@@ -50,7 +50,42 @@ const getLiveTrip = asyncHandler(async (req, res) => {
     status: trip.status,
     currentLatitude: trip.currentLatitude,
     currentLongitude: trip.currentLongitude,
+    trackingEnabled: trip.trackingEnabled,
     updatedAt: trip.updatedAt,
+  });
+});
+
+
+// PATCH /api/trips/:id/tracking - assigned driver controls live location sharing.
+const setTracking = asyncHandler(async (req, res) => {
+  const trip = await prisma.trip.findUnique({ where: { id: req.params.id } });
+  if (!trip) throw new ApiError(404, 'Trip not found');
+  if (!req.user.driverProfile || trip.driverId !== req.user.driverProfile.id) {
+    throw new ApiError(403, 'Only the assigned driver can control live location');
+  }
+  const enabled = req.body.enabled === true;
+  const activeStatuses = ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'NEAR_DESTINATION'];
+  if (enabled && !activeStatuses.includes(trip.status)) {
+    throw new ApiError(409, 'Live tracking is only available for an active trip');
+  }
+
+  const updated = await prisma.trip.update({
+    where: { id: trip.id },
+    data: { trackingEnabled: enabled },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId: req.user.id,
+      action: enabled ? 'TRIP_TRACKING_STARTED' : 'TRIP_TRACKING_STOPPED',
+      entity: 'Trip',
+      entityId: trip.id,
+      metadata: JSON.stringify({ trackingEnabled: enabled }),
+    },
+  });
+  return success(res, 200, enabled ? 'Live tracking started' : 'Live tracking stopped', {
+    tripId: updated.id,
+    trackingEnabled: updated.trackingEnabled,
+    updatedAt: updated.updatedAt,
   });
 });
 
@@ -62,15 +97,22 @@ const updateLocation = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Only the assigned driver can update this trip\u2019s location');
   }
 
+  if (!trip.trackingEnabled) throw new ApiError(409, 'Live tracking is OFF. Driver must start tracking first');
+
   const { latitude, longitude } = req.body;
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw new ApiError(422, 'Invalid GPS coordinates');
+  }
   const updated = await prisma.$transaction([
     prisma.trip.update({
       where: { id: trip.id },
-      data: { currentLatitude: Number(latitude), currentLongitude: Number(longitude) },
+      data: { currentLatitude: lat, currentLongitude: lng },
     }),
     prisma.vehicle.update({
       where: { id: trip.vehicleId },
-      data: { latitude: Number(latitude), longitude: Number(longitude) },
+      data: { latitude: lat, longitude: lng },
     }),
   ]);
 
@@ -110,7 +152,7 @@ const updateTripStatus = asyncHandler(async (req, res) => {
   const updated = await prisma.$transaction(async (tx) => {
     const t = await tx.trip.update({
       where: { id: trip.id },
-      data: { status, ...(isDelivered && { completedAt: new Date() }) },
+      data: { status, ...(isDelivered && { completedAt: new Date(), trackingEnabled: false }) },
     });
     await tx.load.update({ where: { id: trip.loadId }, data: { status: loadStatusMap[status] } });
     if (isDelivered) {
@@ -206,4 +248,4 @@ const getDeliveryProof = asyncHandler(async (req, res) => {
   return success(res, 200, 'Delivery proof fetched', { proof });
 });
 
-module.exports = { listTrips, getTrip, getLiveTrip, updateLocation, updateTripStatus, streamTrip, submitDeliveryProof, getDeliveryProof };
+module.exports = { listTrips, getTrip, getLiveTrip, setTracking, updateLocation, updateTripStatus, streamTrip, submitDeliveryProof, getDeliveryProof };
