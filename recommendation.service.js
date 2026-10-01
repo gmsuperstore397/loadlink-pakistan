@@ -31,7 +31,7 @@ async function getRecommendation({ weightKg, preferredVehicle, pickupLatitude, p
   let preferredVehicles = [];
   if (preferredVehicle) {
     preferredVehicles = await prisma.vehicle.findMany({
-      where: { vehicleType: preferredVehicle, status: 'AVAILABLE' },
+      where: { vehicleType: preferredVehicle, status: 'AVAILABLE', isVerified: true },
       include: { driver: { include: { user: true } } },
       take: 20,
     });
