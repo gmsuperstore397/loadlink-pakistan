@@ -745,7 +745,37 @@ const roleWorkspace = asyncHandler(async (req, res) => {
     workspace.rows = vehicles.map(v => ({ id: v.id, vehicleNumber: v.vehicleNumber, vehicleType: v.vehicleType, capacityKg: v.capacityKg, status: v.status, driver: v.driver?.user?.fullName || '—', driverStatus: v.driver?.user?.status || '—' }));
   } else if (role === 'DISPATCHER') {
     const [bookings, trips, loads] = await Promise.all([
-      prisma.booking.findMany({ include: { load: { select: { pickupAddress: true, destinationAddress: true } }, customer: { select: { fullName: true } }, driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true } } }, orderBy: { updatedAt: 'desc' }, take: 200 }),
+      prisma.booking.findMany({
+        include: {
+          load: {
+            select: {
+              pickupAddress: true,
+              destinationAddress: true,
+            },
+          },
+          customer: {
+            select: {
+              fullName: true,
+            },
+          },
+          driver: {
+            include: {
+              user: {
+                select: {
+                  fullName: true,
+                },
+              },
+            },
+          },
+          vehicle: {
+            select: {
+              vehicleNumber: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 200,
+      }),
       prisma.trip.findMany({ include: { load: { select: { id: true } }, driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true } } }, orderBy: { updatedAt: 'desc' }, take: 100 }),
       prisma.load.count({ where: { status: { in: ['POSTED','SEARCHING','ASSIGNED','PICKED_UP','IN_TRANSIT'] } } }),
     ]);
