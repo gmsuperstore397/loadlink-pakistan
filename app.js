@@ -33,6 +33,8 @@ const state = {
   pickupCoords: null,
   destinationCoords: null,
   pendingOtpEmail: null,
+  liveTripMap: null,
+  liveTripMarkers: new Map(),
 };
 
 /* ---------------- generic helpers ---------------- */
@@ -1646,6 +1648,82 @@ function startDriverTracking(trip) {
 }
 async function enableDriverTracking(tripId) { if(!navigator.geolocation) return toast('Is browser mein GPS location support nahi hai.'); try { await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,maximumAge:0,timeout:15000})); await setTripTracking(tripId,true); toast('📍 Live location ON ho gayi.'); await loadLiveTrips(); } catch(err) { toast(err?.code===1?'Location permission denied. Browser settings mein Location allow karein.':(err.message||'Live tracking start nahi ho saki.')); } }
 async function disableDriverTracking(tripId) { try { await setTripTracking(tripId,false); if(driverGeoTripId===tripId) stopDriverTracking(); toast('📍 Live location OFF ho gayi.'); await loadLiveTrips(); } catch(err) { toast(err.message || 'Live tracking stop nahi ho saki.'); } }
+function clearLiveTripMap() {
+  if (state.liveTripMap) {
+    state.liveTripMap.remove();
+    state.liveTripMap = null;
+  }
+  state.liveTripMarkers.clear();
+}
+
+function renderCustomerLiveTripMap(trips) {
+  const host = $('#liveTripMap');
+  const status = $('#liveTripMapStatus');
+  if (!host) return;
+
+  const customerTrips = (trips || []).filter((t) =>
+    state.user?.role === 'CUSTOMER' &&
+    t.trackingEnabled &&
+    Number.isFinite(Number(t.currentLatitude)) &&
+    Number.isFinite(Number(t.currentLongitude)) &&
+    t.status !== 'DELIVERED'
+  );
+
+  if (!customerTrips.length || typeof L === 'undefined') {
+    clearLiveTripMap();
+    host.hidden = true;
+    if (status) status.textContent = customerTrips.length ? 'Map library load nahi hui.' : 'Abhi koi authorized driver live location share nahi kar raha.';
+    return;
+  }
+
+  host.hidden = false;
+  if (status) status.textContent = customerTrips.length === 1
+    ? 'Driver ki live location authorized trip par update ho rahi hai.'
+    : customerTrips.length + ' active trips ki live locations update ho rahi hain.';
+
+  if (!state.liveTripMap) {
+    state.liveTripMap = L.map(host, { zoomControl: true, attributionControl: true }).setView(
+      [Number(customerTrips[0].currentLatitude), Number(customerTrips[0].currentLongitude)], 11
+    );
+    L.tileLayer('/api/map/tiles/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(state.liveTripMap);
+  }
+
+  const activeIds = new Set();
+  const bounds = [];
+  customerTrips.forEach((trip) => {
+    const lat = Number(trip.currentLatitude);
+    const lng = Number(trip.currentLongitude);
+    activeIds.add(trip.id);
+    bounds.push([lat, lng]);
+
+    let marker = state.liveTripMarkers.get(trip.id);
+    const label = '🚚 Driver live · ' + (trip.vehicle?.vehicleNumber || trip.driver?.user?.fullName || 'Vehicle');
+    if (!marker) {
+      marker = L.marker([lat, lng]).addTo(state.liveTripMap);
+      marker.bindPopup('<b>' + escapeHtml(label) + '</b><br>' + escapeHtml(trip.pickup || '') + ' → ' + escapeHtml(trip.destination || ''));
+      state.liveTripMarkers.set(trip.id, marker);
+    } else {
+      marker.setLatLng([lat, lng]);
+      marker.setPopupContent('<b>' + escapeHtml(label) + '</b><br>' + escapeHtml(trip.pickup || '') + ' → ' + escapeHtml(trip.destination || ''));
+    }
+  });
+
+  for (const [id, marker] of state.liveTripMarkers.entries()) {
+    if (!activeIds.has(id)) {
+      state.liveTripMap.removeLayer(marker);
+      state.liveTripMarkers.delete(id);
+    }
+  }
+
+  if (bounds.length) {
+    state.liveTripMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
+    setTimeout(() => state.liveTripMap?.invalidateSize(), 50);
+  }
+}
+
 async function loadLiveTrips() {
   const el = $('#ltResults');
   if (!state.user) { el.innerHTML = '<p class="muted-empty">Login to see your live trips.</p>'; return; }
@@ -1653,6 +1731,7 @@ async function loadLiveTrips() {
     const { trips } = await getTrips();
     if (!trips.length) { el.innerHTML = '<p class="muted-empty">No active trips.</p>'; return; }
     if (state.user.role === 'DRIVER') { const trackingTrip=trips.find(t=>t.trackingEnabled && ['ASSIGNED','PICKED_UP','IN_TRANSIT','NEAR_DESTINATION'].includes(t.status)); if(trackingTrip) startDriverTracking(trackingTrip); else stopDriverTracking(); }
+    renderCustomerLiveTripMap(trips);
     el.innerHTML = trips.map((t) => `
       <div class="result-card">
         <div class="rc-top">
