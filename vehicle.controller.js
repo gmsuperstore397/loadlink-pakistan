@@ -5,6 +5,86 @@ const ApiError = require('./ApiError');
 const { distanceKm } = require('./geo');
 
 
+
+// GET /api/vehicles/fleet  (fleet owner)
+const listFleetVehicles = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'FLEET_OWNER') throw new ApiError(403, 'Fleet Owner access required');
+  const vehicles = await prisma.vehicle.findMany({
+    where: { fleetOwnerId: req.user.id },
+    include: { driver: { include: { user: { select: { id: true, fullName: true, mobile: true, status: true } } } } },
+    orderBy: { updatedAt: 'desc' },
+    take: 300,
+  });
+  return success(res, 200, 'Fleet vehicles fetched', { vehicles });
+});
+
+// POST /api/vehicles/fleet  (fleet owner)
+const createFleetVehicle = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'FLEET_OWNER') throw new ApiError(403, 'Fleet Owner access required');
+  const { driverId, vehicleType, vehicleNumber, capacityKg, brand, model, year } = req.body;
+  if (!driverId || !vehicleType || !vehicleNumber || !capacityKg) throw new ApiError(400, 'Driver, vehicle type, number and capacity are required');
+  const driver = await prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true } });
+  if (!driver || driver.user.status !== 'ACTIVE' || driver.verification !== 'VERIFIED') throw new ApiError(409, 'Driver must be active and verified');
+  const existing = await prisma.vehicle.findUnique({ where: { vehicleNumber: String(vehicleNumber).trim() } });
+  if (existing) throw new ApiError(409, 'A vehicle with this number is already registered');
+  const vehicle = await prisma.vehicle.create({
+    data: {
+      driverId: driver.id,
+      fleetOwnerId: req.user.id,
+      vehicleType: String(vehicleType).trim(),
+      vehicleNumber: String(vehicleNumber).trim(),
+      capacityKg: Number(capacityKg),
+      brand: brand ? String(brand).trim() : null,
+      model: model ? String(model).trim() : null,
+      year: year ? Number(year) : null,
+      documentUrl: req.file ? '/api/documents/' + req.file.filename : null,
+      documentExpiryDate: req.body.documentExpiryDate ? new Date(req.body.documentExpiryDate) : null,
+      status: 'OFFLINE',
+      isVerified: false,
+    },
+  });
+  await audit(req, 'FLEET_VEHICLE_CREATED', 'Vehicle', vehicle.id, { driverId: driver.id });
+  return success(res, 201, 'Fleet vehicle created. Pending verification.', { vehicle });
+});
+
+// PATCH /api/vehicles/fleet/:id
+const updateFleetVehicle = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'FLEET_OWNER') throw new ApiError(403, 'Fleet Owner access required');
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: req.params.id } });
+  if (!vehicle || vehicle.fleetOwnerId !== req.user.id) throw new ApiError(404, 'Fleet vehicle not found');
+  const { status, capacityKg, brand, model, year, driverId } = req.body;
+  const data = {};
+  if (status && ['AVAILABLE','OFFLINE','SUSPENDED'].includes(status) && vehicle.status !== 'BUSY') data.status = status;
+  if (capacityKg !== undefined) {
+    const n = Number(capacityKg);
+    if (!Number.isFinite(n) || n <= 0) throw new ApiError(422, 'Invalid capacity');
+    data.capacityKg = Math.round(n);
+  }
+  if (brand !== undefined) data.brand = String(brand).trim() || null;
+  if (model !== undefined) data.model = String(model).trim() || null;
+  if (year !== undefined && year !== '') data.year = Number(year);
+  if (driverId !== undefined) {
+    const driver = await prisma.driverProfile.findUnique({ where: { id: String(driverId) }, include: { user: true } });
+    if (!driver || driver.verification !== 'VERIFIED' || driver.user.status !== 'ACTIVE') throw new ApiError(409, 'Selected driver is not active and verified');
+    data.driverId = driver.id;
+  }
+  const updated = await prisma.vehicle.update({ where: { id: vehicle.id }, data });
+  await audit(req, 'FLEET_VEHICLE_UPDATED', 'Vehicle', vehicle.id, data);
+  return success(res, 200, 'Fleet vehicle updated', { vehicle: updated });
+});
+
+// GET /api/vehicles/fleet/drivers
+const listFleetDrivers = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'FLEET_OWNER') throw new ApiError(403, 'Fleet Owner access required');
+  const drivers = await prisma.driverProfile.findMany({
+    where: { verification: 'VERIFIED', user: { status: 'ACTIVE' } },
+    include: { user: { select: { id: true, fullName: true, mobile: true } } },
+    orderBy: { user: { fullName: 'asc' } },
+    take: 300,
+  });
+  return success(res, 200, 'Fleet drivers fetched', { drivers });
+});
+
 // GET /api/vehicles
 const listVehicles = asyncHandler(async (req, res) => {
   const vehicles = await prisma.vehicle.findMany({
@@ -114,4 +194,4 @@ const updateVehicle = asyncHandler(async (req, res) => {
   return success(res, 200, 'Vehicle updated', { vehicle: updated });
 });
 
-module.exports = { listVehicles, listMyVehicles, listAvailableVehicles, getVehicle, createVehicle, updateVehicle };
+module.exports = { listVehicles, listMyVehicles, listAvailableVehicles, getVehicle, createVehicle, updateVehicle, listFleetVehicles, createFleetVehicle, updateFleetVehicle, listFleetDrivers };
