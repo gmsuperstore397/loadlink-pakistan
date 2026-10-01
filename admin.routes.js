@@ -4,9 +4,11 @@ const {
   dashboard, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert,
 } = require('./admin.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
+
+const PORTAL_ROLES = ['ADMIN','MANAGER','FLEET_OWNER','DISPATCHER','FREIGHT_BROKER','FREIGHT_FORWARDER','CUSTOMS_AGENT','PORT_AGENT','WAREHOUSE_OPERATOR','FINANCE','OPERATIONS','SUPPORT'];
 const { analytics } = require('./analytics.controller');
 
-router.use(authenticateUser, requireRole('ADMIN', 'MANAGER'));
+router.use(authenticateUser, requireRole(...PORTAL_ROLES));
 
 router.get('/permissions', requireRole('ADMIN'), (req, res) => res.json({ success: true, message: 'Manager permissions', data: { permissions: MANAGER_PERMISSIONS } }));
 router.get('/role-catalog', requireRole('ADMIN'), roleCatalog);
