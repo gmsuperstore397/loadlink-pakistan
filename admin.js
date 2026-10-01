@@ -6,6 +6,8 @@ let permissionCatalog = [];
 let roleCatalog = [];
 let managers = [];
 let roleAccounts = [];
+let adminLiveMap = null;
+let adminLiveMarkers = new Map();
 
 function portalRole(role) {
   return role && !['CUSTOMER','DRIVER'].includes(role);
@@ -56,6 +58,7 @@ function showSection(name, title = name) {
   if (section) section.hidden = false;
   if (name === 'module') { $('#moduleTitle').textContent=title; loadModule(title); }
   else if (name === 'workspace') { $('#pageTitle').textContent = title; loadWorkspace(); }
+  else if (name === 'liveTracking') { $('#pageTitle').textContent = title; loadLiveTracking(); setTimeout(() => adminLiveMap?.invalidateSize(), 100); }
   else { $('#pageTitle').textContent = title; if (name === 'managers') loadManagers(); if (name === 'roleAccounts') loadRoleAccounts(); }
 }
 
@@ -461,6 +464,68 @@ $('#dispatchModal')?.addEventListener('click', (event) => {
   if (event.target === $('#dispatchModal')) $('#dispatchModal').hidden = true;
 });
 
+async function loadLiveTracking() {
+  const tableBody = $('#liveTrackingTable tbody');
+  const hint = $('#liveTrackingHint');
+  try {
+    const data = await api('/admin/live-trips');
+    const trips = data.trips || [];
+    if (hint) hint.textContent = trips.length
+      ? trips.length + ' authorized active trip(s) currently sharing live location.'
+      : 'Abhi koi active trip live location share nahi kar raha.';
+
+    if (typeof L !== 'undefined') {
+      if (!adminLiveMap) {
+        adminLiveMap = L.map('adminLiveMap', { zoomControl: true }).setView([30.3753, 69.3451], 5);
+        L.tileLayer('/api/map/tiles/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(adminLiveMap);
+      }
+      const activeIds = new Set();
+      const bounds = [];
+      trips.forEach((trip) => {
+        const lat = Number(trip.currentLatitude), lng = Number(trip.currentLongitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        activeIds.add(trip.id);
+        bounds.push([lat, lng]);
+        let marker = adminLiveMarkers.get(trip.id);
+        const popup = '<b>🚚 ' + esc(trip.driver?.fullName || 'Driver') + '</b><br>' +
+          esc(trip.vehicle?.vehicleNumber || 'Vehicle') + '<br>' +
+          esc(trip.pickup || '') + ' → ' + esc(trip.destination || '') +
+          '<br><b>' + esc(trip.status) + '</b>';
+        if (!marker) {
+          marker = L.marker([lat, lng]).addTo(adminLiveMap).bindPopup(popup);
+          adminLiveMarkers.set(trip.id, marker);
+        } else {
+          marker.setLatLng([lat, lng]).setPopupContent(popup);
+        }
+      });
+      for (const [id, marker] of adminLiveMarkers.entries()) {
+        if (!activeIds.has(id)) {
+          adminLiveMap.removeLayer(marker);
+          adminLiveMarkers.delete(id);
+        }
+      }
+      if (bounds.length) {
+        adminLiveMap.fitBounds(bounds, { padding: [30,30], maxZoom: 12 });
+        setTimeout(() => adminLiveMap?.invalidateSize(), 50);
+      }
+    }
+
+    if (tableBody) {
+      tableBody.innerHTML = trips.length ? trips.map((trip) =>
+        '<tr><td>' + esc(trip.id.slice(0,8)) + '</td>' +
+        '<td>' + esc(trip.driver?.fullName || '—') + '</td>' +
+        '<td>' + esc(trip.vehicle?.vehicleNumber || '—') + '</td>' +
+        '<td>' + esc(trip.status) + '</td>' +
+        '<td>' + Number(trip.currentLatitude).toFixed(5) + ', ' + Number(trip.currentLongitude).toFixed(5) + '</td>' +
+        '<td>' + new Date(trip.updatedAt).toLocaleString() + '</td></tr>'
+      ).join('') : '<tr><td colspan="6">No live trips.</td></tr>';
+    }
+  } catch (error) {
+    if (hint) hint.textContent = error.message;
+    if (tableBody) tableBody.innerHTML = '<tr><td colspan="6">Live tracking data load nahi ho saki.</td></tr>';
+  }
+}
+
 function renderNav() {
   const nav=$('#sideNav'); nav.innerHTML='';
   const items=[
@@ -472,6 +537,7 @@ function renderNav() {
     ['commission.verify','💰 Commission','module','Bookings'],
     ['payments.verify','💳 Payments','module','Payments'],
     ['trips.view','📍 Trips','module','Trips'],
+    ['location.view','📡 Live Tracking','liveTracking','Live Driver Tracking'],
     ['disputes.view','⚖️ Disputes','module','Disputes'],
     ['sos.view','🚨 SOS Alerts','module','SOS Alerts'],
     ['reports.view','📈 Reports','module','Reports']
@@ -853,6 +919,7 @@ function initializePortal() {
 }
 
 $('#workspaceRefresh')?.addEventListener('click', loadWorkspace);
+$('#liveTrackingRefresh')?.addEventListener('click', loadLiveTracking);
 $('#fleetAddVehicleBtn')?.addEventListener('click', () => openFleetVehicle(null));
 $('#closeFleetVehicle')?.addEventListener('click', () => { $('#fleetVehicleModal').hidden = true; });
 $('#fleetVehicleModal')?.addEventListener('click', (event) => { if (event.target === $('#fleetVehicleModal')) $('#fleetVehicleModal').hidden = true; });
