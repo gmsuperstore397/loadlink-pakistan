@@ -59,7 +59,6 @@ const verifyTransporter = asyncHandler(async (req, res) => {
       where: { id: driver.id },
       data: { verification: 'VERIFIED', rejectionReason: null },
     });
-    await tx.vehicle.updateMany({ where: { driverId: driver.id }, data: { isVerified: true, status: 'AVAILABLE' } });
     return d;
   });
 
