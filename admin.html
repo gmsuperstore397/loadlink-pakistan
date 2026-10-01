@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#062b45">
 <title>LoadLink Admin Portal</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <link rel="stylesheet" href="/admin.css">
 </head>
 <body>
@@ -35,6 +36,16 @@
     <section id="dashboardSection" class="section">
       <div id="stats" class="stats"></div>
       <div class="panel"><h2>Quick overview</h2><p class="muted">Team activity aur platform operations yahan manage honge.</p></div>
+    </section>
+    <section id="liveTrackingSection" class="section" hidden>
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>📍 Live Driver Tracking</h2><p id="liveTrackingHint" class="muted">Sirf active trips jahan driver ne Live Location ON ki hai.</p></div>
+          <button id="liveTrackingRefresh" class="primary" type="button">Refresh</button>
+        </div>
+        <div id="adminLiveMap" style="height:420px;border-radius:14px;overflow:hidden;margin-bottom:16px"></div>
+        <div class="table-wrap"><table id="liveTrackingTable"><thead><tr><th>Trip</th><th>Driver</th><th>Vehicle</th><th>Status</th><th>Location</th><th>Updated</th></tr></thead><tbody></tbody></table></div>
+      </div>
     </section>
     <section id="moduleSection" class="section" hidden>
       <div class="panel">
