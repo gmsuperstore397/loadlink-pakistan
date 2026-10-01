@@ -174,7 +174,7 @@ const verifyVehicle = asyncHandler(async (req, res) => {
   }
   const updated = await prisma.vehicle.update({
     where: { id: vehicle.id },
-    data: { isVerified: true, status: 'AVAILABLE' },
+    data: { isVerified: true, verificationStatus: 'VERIFIED', status: 'AVAILABLE' },
   });
   await audit(req, 'VEHICLE_VERIFIED', 'Vehicle', vehicle.id, { driverId: vehicle.driverId, fleetOwnerId: vehicle.fleetOwnerId });
   await notify(vehicle.driver.userId, 'ACCOUNT_VERIFIED', 'Vehicle verified', 'Your vehicle has been verified and is now available on LoadLink.');
@@ -186,7 +186,7 @@ const rejectVehicle = asyncHandler(async (req, res) => {
   if (!vehicle) throw new ApiError(404, 'Vehicle not found');
   const updated = await prisma.vehicle.update({
     where: { id: vehicle.id },
-    data: { isVerified: false, status: 'OFFLINE' },
+    data: { isVerified: false, verificationStatus: 'REJECTED', status: 'OFFLINE' },
   });
   await audit(req, 'VEHICLE_REJECTED', 'Vehicle', vehicle.id, { reason: req.body.reason || null });
   return success(res, 200, 'Vehicle rejected', { vehicle: updated });
