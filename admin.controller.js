@@ -156,6 +156,43 @@ const updatePayment = asyncHandler(async (req,res) => {
   return success(res,200,'Payment updated',{payment:updated});
 });
 
+
+const listVehicleVerification = asyncHandler(async (req, res) => {
+  const vehicles = await prisma.vehicle.findMany({
+    where: { isVerified: false },
+    include: { driver: { include: { user: { select: { id: true, fullName: true, mobile: true, city: true, status: true } } } }, fleetOwner: { select: { id: true, fullName: true, mobile: true } } },
+    orderBy: { createdAt: 'asc' },
+    take: 500,
+  });
+  return success(res, 200, 'Vehicle verification queue fetched', { vehicles });
+});
+
+const verifyVehicle = asyncHandler(async (req, res) => {
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: req.params.id }, include: { driver: { include: { user: true } } } });
+  if (!vehicle) throw new ApiError(404, 'Vehicle not found');
+  if (vehicle.driver.verification !== 'VERIFIED' || vehicle.driver.user.status !== 'ACTIVE') {
+    throw new ApiError(409, 'Driver must be verified and active before vehicle verification');
+  }
+  const updated = await prisma.vehicle.update({
+    where: { id: vehicle.id },
+    data: { isVerified: true, status: 'AVAILABLE' },
+  });
+  await audit(req, 'VEHICLE_VERIFIED', 'Vehicle', vehicle.id, { driverId: vehicle.driverId, fleetOwnerId: vehicle.fleetOwnerId });
+  await notify(vehicle.driver.userId, 'ACCOUNT_VERIFIED', 'Vehicle verified', 'Your vehicle has been verified and is now available on LoadLink.');
+  return success(res, 200, 'Vehicle verified', { vehicle: updated });
+});
+
+const rejectVehicle = asyncHandler(async (req, res) => {
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: req.params.id } });
+  if (!vehicle) throw new ApiError(404, 'Vehicle not found');
+  const updated = await prisma.vehicle.update({
+    where: { id: vehicle.id },
+    data: { isVerified: false, status: 'OFFLINE' },
+  });
+  await audit(req, 'VEHICLE_REJECTED', 'Vehicle', vehicle.id, { reason: req.body.reason || null });
+  return success(res, 200, 'Vehicle rejected', { vehicle: updated });
+});
+
 const listAuditLogs = asyncHandler(async (req, res) => {
   const logs = await prisma.auditLog.findMany({ include: { user: { select: { id: true, fullName: true, mobile: true, role: true } } }, orderBy: { createdAt: 'desc' }, take: 200 });
   return success(res, 200, 'Audit logs fetched', { logs });
@@ -229,7 +266,7 @@ const MANAGER_PERMISSIONS = [
   'dashboard.view',
   'customers.view', 'customers.create', 'customers.edit', 'customers.disable',
   'drivers.view', 'drivers.verify', 'drivers.documents', 'drivers.edit', 'drivers.disable',
-  'fleet.view', 'fleet.edit', 'vehicles.view', 'vehicles.create', 'vehicles.edit', 'vehicles.disable',
+  'fleet.view', 'fleet.edit', 'vehicles.view', 'vehicles.create', 'vehicles.edit', 'vehicles.disable', 'vehicles.verify',
   'loads.view', 'loads.create', 'loads.edit', 'loads.delete',
   'bookings.view', 'bookings.edit', 'deals.approve',
   'commission.view', 'commission.verify',
@@ -713,4 +750,4 @@ const roleWorkspace = asyncHandler(async (req, res) => {
   return success(res, 200, 'Role workspace fetched', { workspace });
 });
 
-module.exports = { approveDeal, operationalTripUpdate, ROLE_DEFINITIONS, roleCatalog, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { listVehicleVerification, verifyVehicle, rejectVehicle, approveDeal, operationalTripUpdate, ROLE_DEFINITIONS, roleCatalog, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
