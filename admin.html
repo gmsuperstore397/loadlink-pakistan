@@ -50,6 +50,19 @@
         <div class="table-wrap"><table id="workspaceTable"><thead></thead><tbody></tbody></table></div>
       </div>
     </section>
+    <div id="dispatchModal" class="modal" hidden>
+      <div class="modal-card">
+        <button class="close" id="closeDispatch" type="button">×</button>
+        <h2>Assign Booking</h2>
+        <p id="dispatchBookingInfo" class="muted"></p>
+        <form id="dispatchForm">
+          <input type="hidden" id="dispatchBookingId">
+          <label>Driver<select id="dispatchDriver" required></select></label>
+          <label>Vehicle<select id="dispatchVehicle" required></select></label>
+          <button class="primary" type="submit">Assign & Create Trip</button>
+        </form>
+      </div>
+    </div>
     <section id="auditSection" class="section" hidden>
       <div class="panel">
         <div class="panel-head"><div><h2>🧾 Manager Audit Timeline</h2><p class="muted">Manager ki operational activities ka chronological record.</p></div></div>
@@ -140,7 +153,7 @@
     </form>
   </div>
 </div>
-<script src="/admin.js?v=20261001-3"></script>
+<script src="/admin.js?v=20261001-4"></script>
 <script src="/admin-analytics.js?v=20260929-1"></script>
 <script src="/admin-audit.js?v=20260929-1"></script>
 </body>
