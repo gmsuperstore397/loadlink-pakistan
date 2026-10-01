@@ -35,6 +35,12 @@ enum UserStatus {
   PENDING
 }
 
+enum VehicleVerification {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 enum VehicleStatus {
   AVAILABLE
   BUSY
@@ -213,6 +219,7 @@ model Vehicle {
   documentExpiryDate DateTime?
   status        VehicleStatus @default(OFFLINE)
   isVerified    Boolean       @default(false)
+  verificationStatus VehicleVerification @default(PENDING)
   latitude      Float?
   longitude     Float?
   createdAt     DateTime      @default(now())
