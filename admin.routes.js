@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  dashboard, listUsers, managerAuditTimeline, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert,
+  dashboard, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert,
 } = require('./admin.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
 const { analytics } = require('./analytics.controller');
@@ -9,6 +9,7 @@ const { analytics } = require('./analytics.controller');
 router.use(authenticateUser, requireRole('ADMIN', 'MANAGER'));
 
 router.get('/permissions', requireRole('ADMIN'), (req, res) => res.json({ success: true, message: 'Manager permissions', data: { permissions: MANAGER_PERMISSIONS } }));
+router.get('/role-catalog', requireRole('ADMIN'), roleCatalog);
 router.get('/managers', requireRole('ADMIN'), listManagers);
 router.post('/managers', requireRole('ADMIN'), createManager);
 router.patch('/managers/:id', requireRole('ADMIN'), updateManager);
