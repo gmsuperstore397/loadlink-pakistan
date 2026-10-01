@@ -55,6 +55,7 @@ function showSection(name, title = name) {
   const section = $('#' + name + 'Section');
   if (section) section.hidden = false;
   if (name === 'module') { $('#moduleTitle').textContent=title; loadModule(title); }
+  else if (name === 'workspace') { $('#pageTitle').textContent = title; loadWorkspace(); }
   else { $('#pageTitle').textContent = title; if (name === 'managers') loadManagers(); if (name === 'roleAccounts') loadRoleAccounts(); }
 }
 
@@ -251,6 +252,24 @@ function roleDashboardTitle() {
   return map[me?.role] || 'Dashboard';
 }
 
+async function loadWorkspace() {
+  try {
+    const data = await api('/admin/workspace');
+    const w = data.workspace || {};
+    $('#workspaceTitle').textContent = w.title || roleDashboardTitle();
+    $('#workspaceHint').textContent = 'Role-specific operational workspace · live database data';
+    $('#workspaceMetrics').innerHTML = Object.entries(w.metrics || {}).map(([key, value]) =>
+      '<div class="stat"><span>' + esc(key.replace(/([A-Z])/g, ' $1')) + '</span><b>' + esc(value) + '</b></div>'
+    ).join('');
+    const rows = w.rows || [];
+    const keys = rows.length ? Object.keys(rows[0]) : [];
+    $('#workspaceTable thead').innerHTML = keys.length ? '<tr>' + keys.map(k => '<th>' + esc(k.replace(/([A-Z])/g, ' $1')) + '</th>').join('') + '</tr>' : '';
+    $('#workspaceTable tbody').innerHTML = rows.length
+      ? rows.map(row => '<tr>' + keys.map(k => '<td>' + esc(row[k]) + '</td>').join('') + '</tr>').join('')
+      : '<tr><td>No operational records found</td></tr>';
+  } catch (error) { toast(error.message); }
+}
+
 function renderNav() {
   const nav=$('#sideNav'); nav.innerHTML='';
   const items=[
@@ -266,6 +285,13 @@ function renderNav() {
     ['sos.view','🚨 SOS Alerts','module','SOS Alerts'],
     ['reports.view','📈 Reports','module','Reports']
   ];
+  if (me?.role !== 'ADMIN' && allowed('dashboard.view')) {
+    const workspace=document.createElement('button');
+    workspace.type='button';
+    workspace.textContent='🛠️ Operations Workspace';
+    workspace.onclick=()=>showSection('workspace', roleDashboardTitle());
+    nav.appendChild(workspace);
+  }
   items.forEach(([permission,label,section,title])=>{
     if(!allowed(permission))return;
     const button=document.createElement('button'); button.type='button'; button.textContent=label;
@@ -629,6 +655,8 @@ function initializePortal() {
     loadDashboard();
   }
 }
+
+$('#workspaceRefresh')?.addEventListener('click', loadWorkspace);
 
 $('#logoutBtn').addEventListener('click', () => {
   localStorage.removeItem('ll_admin_token');
