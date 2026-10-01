@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  dashboard, roleWorkspace, dispatchOptions, assignBooking, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert,
+  dashboard, roleWorkspace, dispatchOptions, assignBooking, approveDeal, operationalTripUpdate, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert,
 } = require('./admin.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
 
@@ -23,6 +23,8 @@ router.get('/dashboard', requirePermission('dashboard.view'), dashboard);
 router.get('/workspace', requirePermission('dashboard.view'), roleWorkspace);
 router.get('/dispatch/options', requirePermission('dispatch.view'), dispatchOptions);
 router.post('/dispatch/bookings/:id/assign', requirePermission('dispatch.assign'), assignBooking);
+router.patch('/operations/bookings/:id/approve', requirePermission('deals.approve'), approveDeal);
+router.patch('/operations/trips/:id', requirePermission('trips.edit'), operationalTripUpdate);
 router.get('/customers', requirePermission('customers.view'), listCustomers);
 router.patch('/customers/:id', requirePermission('customers.edit'), updateCustomer);
 router.patch('/customers/:id/status', requirePermission('customers.edit'), setCustomerAccountStatus);
