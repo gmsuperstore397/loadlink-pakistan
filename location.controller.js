@@ -39,15 +39,20 @@ const geocode = asyncHandler(async (req, res) => {
   if (address.length > 250) throw new ApiError(400, 'address is too long');
 
   try {
-    const search = async (query, extra = {}) => {
+    const search = async (query, structured = null) => {
       const url = new URL('https://nominatim.openstreetmap.org/search');
       url.searchParams.set('format', 'jsonv2');
-      url.searchParams.set('q', query);
-      url.searchParams.set('countrycodes', 'pk');
       url.searchParams.set('limit', '5');
       url.searchParams.set('addressdetails', '1');
       url.searchParams.set('accept-language', 'en');
-      Object.entries(extra).forEach(([key, value]) => url.searchParams.set(key, String(value)));
+
+      if (structured) {
+        Object.entries(structured).forEach(([key, value]) => {
+          if (value) url.searchParams.set(key, String(value));
+        });
+      } else {
+        url.searchParams.set('q', query);
+      }
 
       const resp = await fetch(url, {
         headers: {
@@ -65,56 +70,137 @@ const geocode = asyncHandler(async (req, res) => {
       .replace(/\s+/g, ' ')
       .trim();
 
-    // Try several equivalent forms because detailed Pakistani addresses are
-    // often written in a different order than the OSM address index.
     const queries = [];
     const add = (q) => {
-      const value = String(q || '').trim();
+      const value = String(q || '').replace(/\s+/g, ' ').trim().replace(/,+/g, ',');
       if (value && !queries.includes(value)) queries.push(value);
     };
 
+    // First try exactly what the user typed. Nominatim supports free-form
+    // addresses and different component orders.
     add(normalized);
-    add(/\bpakistan\b/i.test(normalized) ? normalized : normalized + ', Pakistan');
 
-    // If the address contains a common Karachi/Lahore/Islamabad city name,
-    // put the city at the end as Nominatim's free-form parser handles
-    // comma-separated city context better.
+    const withoutPakistan = normalized.replace(/,?\s*Pakistan\s*$/i, '').trim();
+    add(withoutPakistan);
+    add(`${withoutPakistan}, Pakistan`);
+
+    // Build useful variants for detailed real-world addresses where landmarks
+    // such as "near", "next to", "opposite" are not themselves mapped POIs.
+    let base = withoutPakistan;
+    base = base
+      .replace(/\b(next\s+to|near|opposite|behind|beside|in\s+front\s+of|close\s+to)\b[^,]*/gi, '')
+      .replace(/\s*,\s*,+/g, ',')
+      .replace(/^\s*,|,\s*$/g, '')
+      .trim();
+    add(base);
+    add(`${base}, Pakistan`);
+
+    // Try removing a business/shop name at the beginning while retaining
+    // the street, locality and city.
+    const parts = normalized.split(',').map((part) => part.trim()).filter(Boolean);
+    if (parts.length >= 3) {
+      add(parts.slice(1).join(', '));
+      add(`${parts.slice(1).join(', ')}, Pakistan`);
+    }
+
+    // If the address contains a city, also try a compact street/locality/city
+    // query. This is especially useful for Pakistani addresses with many
+    // landmarks that are not present in OSM.
     const cities = [
       'Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad',
       'Multan', 'Peshawar', 'Quetta', 'Hyderabad', 'Gujranwala',
-      'Sialkot', 'Bahawalpur', 'Sukkur', 'Abbottabad'
+      'Sialkot', 'Bahawalpur', 'Sukkur', 'Abbottabad', 'Murree',
+      'Gujrat', 'Sargodha', 'Mardan', 'Kasur', 'Okara', 'Jhelum',
+      'Sheikhupura', 'Rahim Yar Khan', 'Larkana', 'Nawabshah'
     ];
-    const foundCity = cities.find((city) => new RegExp('\\b' + city + '\\b', 'i').test(normalized));
+    const foundCity = cities.find((city) => new RegExp('\\b' + city.replace(/\s+/g, '\\s+') + '\\b', 'i').test(normalized));
+
     if (foundCity) {
-      const withoutCity = normalized
-        .replace(new RegExp('(?:,?\\s*)' + foundCity + '(?:,?\\s*Pakistan)?\\s*$', 'i'), '')
-        .trim()
-        .replace(/,+$/g, '')
-        .trim();
-      add(withoutCity + ', ' + foundCity + ', Pakistan');
-      add(foundCity + ', ' + withoutCity + ', Pakistan');
+      const cityRegex = new RegExp('(?:,?\\s*)' + foundCity.replace(/\s+/g, '\\s+') + '(?:,?\\s*Pakistan)?\\s*$', 'i');
+      const beforeCity = withoutPakistan.replace(cityRegex, '').trim().replace(/,+$/g, '').trim();
+      add(`${beforeCity}, ${foundCity}`);
+      add(`${beforeCity}, ${foundCity}, Pakistan`);
+      add(`${foundCity}, ${beforeCity}, Pakistan`);
+
+      // Structured query is a second-stage fallback. Nominatim supports
+      // street/city/state/country independently from free-form q.
+      const stateByCity = {
+        Karachi: 'Sindh',
+        Lahore: 'Punjab',
+        Islamabad: 'Islamabad Capital Territory',
+        Rawalpindi: 'Punjab',
+        Faisalabad: 'Punjab',
+        Multan: 'Punjab',
+        Peshawar: 'Khyber Pakhtunkhwa',
+        Quetta: 'Balochistan',
+        Hyderabad: 'Sindh',
+        Gujranwala: 'Punjab',
+        Sialkot: 'Punjab',
+        Bahawalpur: 'Punjab',
+        Sukkur: 'Sindh',
+        Abbottabad: 'Khyber Pakhtunkhwa',
+        Murree: 'Punjab',
+        Gujrat: 'Punjab',
+        Sargodha: 'Punjab',
+        Mardan: 'Khyber Pakhtunkhwa',
+        Kasur: 'Punjab',
+        Okara: 'Punjab',
+        Jhelum: 'Punjab',
+        Sheikhupura: 'Punjab',
+        'Rahim Yar Khan': 'Punjab',
+        Larkana: 'Sindh',
+        Nawabshah: 'Sindh',
+      };
+
+      const streetPart = parts
+        .filter((part) => !new RegExp('^' + foundCity.replace(/\s+/g, '\\s+') + '$', 'i').test(part))
+        .filter((part) => !/^(pakistan)$/i.test(part))
+        .filter((part) => !/^(near|next\s+to|opposite|behind|beside)$/i.test(part))
+        .slice(0, 2)
+        .join(', ');
+
+      if (streetPart) {
+        const street = streetPart.split(',')[0].trim();
+        const structured = {
+          street,
+          city: foundCity,
+          state: stateByCity[foundCity],
+          country: 'Pakistan',
+        };
+        const structuredResults = await search('', structured);
+        if (Array.isArray(structuredResults) && structuredResults.length) {
+          const first = structuredResults[0];
+          const lat = Number(first.lat);
+          const lng = Number(first.lon);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            return success(res, 200, 'Location resolved', {
+              location: {
+                lat,
+                lng,
+                displayName: first.display_name || address,
+                raw: first,
+                approximate: true,
+              },
+            });
+          }
+        }
+      }
     }
 
-    // Remove Pakistan for one final spelling/order attempt while keeping the
-    // Pakistan hard filter active.
-    add(normalized.replace(/,?\s*Pakistan\s*$/i, '').trim());
-
     let first = null;
-    for (let i = 0; i < queries.length && i < 4; i += 1) {
-      const data = await search(queries[i], {
-        layer: 'address,poi',
-      });
+    for (let i = 0; i < queries.length; i += 1) {
+      const data = await search(queries[i]);
       if (Array.isArray(data) && data.length) {
         first = data[0];
         break;
       }
-      if (i < 3) await sleep(1100);
+      if (i < queries.length - 1) await sleep(1100);
     }
 
     if (!first) {
       return success(res, 200, 'No location found', {
         location: null,
-        message: 'Address OSM map database mein nahi mila.',
+        message: 'Address map database mein nahi mila. Map par pin manually set karein.',
       });
     }
 
@@ -130,6 +216,7 @@ const geocode = asyncHandler(async (req, res) => {
         lng,
         displayName: first.display_name || address,
         raw: first,
+        approximate: false,
       },
     });
   } catch (e) {
@@ -140,4 +227,5 @@ const geocode = asyncHandler(async (req, res) => {
     });
   }
 });
+
 module.exports = { reverseGeocode, geocode };
