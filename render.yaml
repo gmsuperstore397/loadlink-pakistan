@@ -3,7 +3,7 @@ services:
     name: loadlink-pakistan
     runtime: node
     plan: free
-    buildCommand: npm install && npx prisma generate --schema=./schema.prisma
+    buildCommand: npm install && npx prisma generate --schema=./schema.prisma && npm run preflight
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
