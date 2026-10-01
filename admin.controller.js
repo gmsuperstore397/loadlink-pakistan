@@ -591,7 +591,6 @@ const approveDeal = asyncHandler(async (req, res) => {
   if (!booking) throw new ApiError(404, 'Booking not found');
   if (!['REQUESTED','ACCEPTED'].includes(booking.status)) throw new ApiError(409, 'Booking is not pending approval');
   const updated = await prisma.booking.update({ where: { id: booking.id }, data: { status: 'ACCEPTED' } });
-  await prisma.load.update({ where: { id: booking.loadId }, data: { status: 'ASSIGNED' } });
   await audit(req, 'DEAL_APPROVED', 'Booking', booking.id, { loadId: booking.loadId });
   await notify(booking.customerId, 'BOOKING_ACCEPTED', 'Deal approved', 'LoadLink Operations ne aapki deal approve kar di hai.');
   return success(res, 200, 'Deal approved', { booking: updated });
@@ -601,9 +600,17 @@ const approveDeal = asyncHandler(async (req, res) => {
 const operationalTripUpdate = asyncHandler(async (req, res) => {
   const trip = await prisma.trip.findUnique({ where: { id: req.params.id } });
   if (!trip) throw new ApiError(404, 'Trip not found');
-  const allowed = ['ASSIGNED','PICKED_UP','IN_TRANSIT','NEAR_DESTINATION','DELIVERED'];
+  const transitions = {
+    ASSIGNED: ['PICKED_UP'],
+    PICKED_UP: ['IN_TRANSIT'],
+    IN_TRANSIT: ['NEAR_DESTINATION'],
+    NEAR_DESTINATION: ['DELIVERED'],
+    DELIVERED: [],
+  };
   const status = String(req.body.status || '').toUpperCase();
-  if (!allowed.includes(status)) throw new ApiError(400, 'Invalid trip status');
+  if (!(transitions[trip.status] || []).includes(status)) {
+    throw new ApiError(400, 'Cannot move trip from ' + trip.status + ' to ' + status);
+  }
   if (status === 'DELIVERED') {
     const updated = await prisma.$transaction(async (tx) => {
       const t = await tx.trip.update({ where: { id: trip.id }, data: { status, completedAt: new Date(), trackingEnabled: false } });
@@ -616,9 +623,14 @@ const operationalTripUpdate = asyncHandler(async (req, res) => {
     await notify((await prisma.load.findUnique({where:{id:trip.loadId}})).customerId, 'TRIP_DELIVERED', 'Trip delivered', 'Trip ko Operations ne delivered mark kiya hai.');
     return success(res, 200, 'Trip delivered', { trip: updated });
   }
+  const loadStatusMap = { PICKED_UP: 'PICKED_UP', IN_TRANSIT: 'IN_TRANSIT', NEAR_DESTINATION: 'IN_TRANSIT' };
   const data = { status };
   if (status === 'PICKED_UP' && !trip.startedAt) data.startedAt = new Date();
-  const updated = await prisma.trip.update({ where: { id: trip.id }, data });
+  const updated = await prisma.$transaction(async (tx) => {
+    const t = await tx.trip.update({ where: { id: trip.id }, data });
+    await tx.load.update({ where: { id: trip.loadId }, data: { status: loadStatusMap[status] } });
+    return t;
+  });
   await audit(req, 'TRIP_STATUS_UPDATED_BY_OPERATIONS', 'Trip', trip.id, { status });
   return success(res, 200, 'Trip status updated', { trip: updated });
 });
