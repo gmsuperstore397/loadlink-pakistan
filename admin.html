@@ -78,6 +78,12 @@
         <div id="managerList"></div>
       </div>
     </section>
+    <section id="roleAccountsSection" class="section" hidden>
+      <div class="panel">
+        <div class="panel-head"><div><h2>Role Management</h2><p class="muted">Admin yahan professional aur internal role accounts create aur control kar sakta hai.</p></div><button id="newRoleAccountBtn" class="primary" type="button">+ Create Role Account</button></div>
+        <div id="roleAccountList"></div>
+      </div>
+    </section>
     <section id="permissionsSection" class="section" hidden>
       <div class="panel"><h2>Permission Matrix</h2><p class="muted">Har manager ko sirf required access dein.</p><div id="permissionInfo"></div></div>
     </section>
@@ -96,6 +102,23 @@
       <label>Password <small>(10+ characters)</small><input id="managerPassword" type="password"></label>
       <div><b>Permissions</b><div id="permissionChecks" class="checks"></div></div>
       <button class="primary" type="submit">Save Manager</button>
+    </form>
+  </div>
+</div>
+
+<div id="roleAccountModal" class="modal" hidden>
+  <div class="modal-card">
+    <button class="close" id="closeRoleAccount" type="button">×</button>
+    <h2 id="roleAccountModalTitle">Create Role Account</h2>
+    <form id="roleAccountForm">
+      <input type="hidden" id="roleAccountId">
+      <label>Role<select id="roleAccountRole" required></select></label>
+      <label>Name<input id="roleAccountName" required></label>
+      <label>Email<input id="roleAccountEmail" type="email" required></label>
+      <label>Mobile<input id="roleAccountMobile" required></label>
+      <label>Password <small>(10+ characters)</small><input id="roleAccountPassword" type="password"></label>
+      <div><b>Permissions</b><p class="muted" style="font-size:12px">Manager ke liye selected permissions save hongi. Baqi roles ko role-based defaults milenge.</p><div id="roleAccountPermissionChecks" class="checks"></div></div>
+      <button class="primary" type="submit">Save Role Account</button>
     </form>
   </div>
 </div>
