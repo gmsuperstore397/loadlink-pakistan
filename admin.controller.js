@@ -771,8 +771,23 @@ const roleWorkspace = asyncHandler(async (req, res) => {
   } else {
     const [loads, bookings, trips] = await Promise.all([
       prisma.load.findMany({ include: { customer: { select: { fullName: true } } }, orderBy: { updatedAt: 'desc' }, take: 100 }),
-      prisma.booking.findMany({ include: { customer: { select: { fullName: true } }, driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true } } } }, orderBy: { updatedAt: 'desc' }, take: 100 }),
-      prisma.trip.findMany({ include: { driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true } } }, orderBy: { updatedAt: 'desc' }, take: 100 }),
+      prisma.booking.findMany({
+        include: {
+          customer: { select: { fullName: true } },
+          driver: { include: { user: { select: { fullName: true } } } },
+          vehicle: { select: { vehicleNumber: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 100,
+      }),
+      prisma.trip.findMany({
+        include: {
+          driver: { include: { user: { select: { fullName: true } } } },
+          vehicle: { select: { vehicleNumber: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 100,
+      }),
     ]);
     workspace.metrics = { loads: loads.length, bookings: bookings.length, activeTrips: trips.filter(t => t.status !== 'DELIVERED').length };
     workspace.rows = loads.map(l => ({ id: l.id, type: 'LOAD', status: l.status, pickup: l.pickupAddress, destination: l.destinationAddress, customer: l.customer?.fullName }))
