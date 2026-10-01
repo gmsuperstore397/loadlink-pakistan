@@ -168,6 +168,7 @@ const getMySOS = () => apiRequest('/sos/mine');
 
 const getTrips = () => apiRequest('/trips');
 const updateTripLocation = (tripId, latitude, longitude) => apiRequest(`/trips/${tripId}/location`, { method: 'PATCH', body: { latitude, longitude } });
+const setTripTracking = (tripId, enabled) => apiRequest(`/trips/${tripId}/tracking`, { method: 'PATCH', body: { enabled } });
 const updateTripStatus = (tripId, status) => apiRequest(`/trips/${tripId}/status`, { method: 'PATCH', body: { status } });
 const forgotPassword = (identifier) => apiRequest('/auth/forgot-password', { method: 'POST', body: identifier.includes('@') ? { email: identifier } : { mobile: identifier } });
 const resetPassword = (token, password) => apiRequest('/auth/reset-password', { method: 'POST', body: { token, password } });
@@ -1634,69 +1635,24 @@ document.addEventListener('click', (e) => {
 let driverGeoWatch = null;
 let driverGeoTripId = null;
 let driverGeoErrorShown = false;
-
-function stopDriverTracking() {
-  if (driverGeoWatch !== null && navigator.geolocation) {
-    navigator.geolocation.clearWatch(driverGeoWatch);
-  }
-  driverGeoWatch = null;
-  driverGeoTripId = null;
+function stopDriverTracking() { if (driverGeoWatch !== null && navigator.geolocation) navigator.geolocation.clearWatch(driverGeoWatch); driverGeoWatch = null; driverGeoTripId = null; }
+function startDriverTracking(trip) {
+  if (!state.user || state.user.role !== 'DRIVER' || !navigator.geolocation || !trip?.trackingEnabled) return;
+  if (driverGeoWatch !== null && driverGeoTripId === trip.id) return;
+  stopDriverTracking(); driverGeoTripId = trip.id; driverGeoErrorShown = false;
+  const sendPosition = async (pos) => { const { latitude, longitude, accuracy } = pos.coords || {}; if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return; try { await updateTripLocation(trip.id, latitude, longitude); const accuracyText = Number.isFinite(accuracy) ? Math.round(accuracy) + 'm' : 'GPS'; const el=document.querySelector('[data-location-status="'+trip.id+'"]'); if(el) el.textContent='📍 Live location ON · ±'+accuracyText; } catch(err) { if(!driverGeoErrorShown){ driverGeoErrorShown=true; toast(err.message || 'Live location update nahi ho saki.'); } } };
+  const handleError = (err) => { if(driverGeoErrorShown)return; driverGeoErrorShown=true; const messages={1:'Location permission denied. Browser settings mein Location allow karein.',2:'Current location mil nahi saki. GPS/location ON karke dobara try karein.',3:'Location request timeout. GPS signal check karein.'}; toast(messages[err?.code] || 'Live location available nahi hai.'); };
+  driverGeoWatch=navigator.geolocation.watchPosition(sendPosition,handleError,{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
 }
-
-function startDriverTracking(trips) {
-  if (!state.user || state.user.role !== 'DRIVER' || !navigator.geolocation) return;
-  const activeStatuses = ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'NEAR_DESTINATION'];
-  const active = trips.find(t => activeStatuses.includes(t.status));
-  if (!active) {
-    stopDriverTracking();
-    return;
-  }
-  if (driverGeoWatch !== null && driverGeoTripId === active.id) return;
-
-  stopDriverTracking();
-  driverGeoTripId = active.id;
-  driverGeoErrorShown = false;
-
-  const sendPosition = async (pos) => {
-    const { latitude, longitude, accuracy } = pos.coords || {};
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-    try {
-      await updateTripLocation(active.id, latitude, longitude);
-      const accuracyText = Number.isFinite(accuracy) ? Math.round(accuracy) + 'm' : 'GPS';
-      const status = document.querySelector('[data-location-status]');
-      if (status) status.textContent = '📍 Live location active · ±' + accuracyText;
-    } catch (err) {
-      if (!driverGeoErrorShown) {
-        driverGeoErrorShown = true;
-        toast(err.message || 'Live location update nahi ho saki.');
-      }
-    }
-  };
-
-  const handleError = (err) => {
-    if (driverGeoErrorShown) return;
-    driverGeoErrorShown = true;
-    const messages = {
-      1: 'Location permission denied. Browser settings mein Location allow karein.',
-      2: 'Current location mil nahi saki. GPS/location ON karke dobara try karein.',
-      3: 'Location request timeout. GPS signal check karein.',
-    };
-    toast(messages[err?.code] || 'Live location available nahi hai.');
-  };
-
-  driverGeoWatch = navigator.geolocation.watchPosition(
-    sendPosition,
-    handleError,
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
-  );
-}
+async function enableDriverTracking(tripId) { if(!navigator.geolocation) return toast('Is browser mein GPS location support nahi hai.'); try { await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,maximumAge:0,timeout:15000})); await setTripTracking(tripId,true); toast('📍 Live location ON ho gayi.'); await loadLiveTrips(); } catch(err) { toast(err?.code===1?'Location permission denied. Browser settings mein Location allow karein.':(err.message||'Live tracking start nahi ho saki.')); } }
+async function disableDriverTracking(tripId) { try { await setTripTracking(tripId,false); if(driverGeoTripId===tripId) stopDriverTracking(); toast('📍 Live location OFF ho gayi.'); await loadLiveTrips(); } catch(err) { toast(err.message || 'Live tracking stop nahi ho saki.'); } }
 async function loadLiveTrips() {
   const el = $('#ltResults');
   if (!state.user) { el.innerHTML = '<p class="muted-empty">Login to see your live trips.</p>'; return; }
   try {
     const { trips } = await getTrips();
     if (!trips.length) { el.innerHTML = '<p class="muted-empty">No active trips.</p>'; return; }
-    startDriverTracking(trips);
+    if (state.user.role === 'DRIVER') { const trackingTrip=trips.find(t=>t.trackingEnabled && ['ASSIGNED','PICKED_UP','IN_TRANSIT','NEAR_DESTINATION'].includes(t.status)); if(trackingTrip) startDriverTracking(trackingTrip); else stopDriverTracking(); }
     el.innerHTML = trips.map((t) => `
       <div class="result-card">
         <div class="rc-top">
@@ -1706,9 +1662,10 @@ async function loadLiveTrips() {
         <p>${t.pickup} → ${t.destination}</p>
         <p>Vehicle: ${t.vehicle?.vehicleType || '—'}</p>
         <p>Last updated: ${new Date(t.updatedAt).toLocaleString()}</p>
-        ${state.user.role === 'DRIVER' && ['ASSIGNED','PICKED_UP','IN_TRANSIT','NEAR_DESTINATION'].includes(t.status) ? '<p class="muted-empty" data-location-status>📍 Live location active…</p>' : ''}
+        ${state.user.role === 'DRIVER' && ['ASSIGNED','PICKED_UP','IN_TRANSIT','NEAR_DESTINATION'].includes(t.status) ? '<p class="muted-empty" data-location-status="' + t.id + '">' + (t.trackingEnabled ? '📍 Live location ON' : '📍 Live location OFF') + '</p>' : ''}
         <div class="field-row">
           ${state.user.role === 'DRIVER' ? `
+            ${t.trackingEnabled ? '<button class="btn btn-outline trip-tracking-btn" data-trip="' + t.id + '" data-tracking="false">⏹ Stop Location</button>' : '<button class="btn btn-primary trip-tracking-btn" data-trip="' + t.id + '" data-tracking="true">📍 Start Live Location</button>'}
             ${t.status === 'ASSIGNED' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="PICKED_UP">Picked Up</button>' : ''}
             ${t.status === 'PICKED_UP' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="IN_TRANSIT">In Transit</button>' : ''}
             ${t.status === 'IN_TRANSIT' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="NEAR_DESTINATION">Near Destination</button>' : ''}
@@ -1763,6 +1720,7 @@ async function loadLiveTrips() {
 }
 
 document.addEventListener('click', async (e) => {
+  const tracking=e.target.closest('.trip-tracking-btn'); if(tracking){ tracking.disabled=true; try{ if(tracking.dataset.tracking==='true') await enableDriverTracking(tracking.dataset.trip); else await disableDriverTracking(tracking.dataset.trip); } finally{tracking.disabled=false;} return; }
   const rate = e.target.closest('.rate-driver-btn');
   if (rate) {
     $('#ratingForm').reset();
@@ -1780,6 +1738,7 @@ document.addEventListener('click', async (e) => {
     } catch (err) { toast(err.message); }
     return;
   }
+  const statusBtn=e.target.closest('.trip-status-btn'); if(statusBtn){ statusBtn.disabled=true; try{ await updateTripStatus(statusBtn.dataset.trip,statusBtn.dataset.status); if(statusBtn.dataset.status==='DELIVERED' && driverGeoTripId===statusBtn.dataset.trip) stopDriverTracking(); toast('Trip status update ho gaya.'); await loadLiveTrips(); } catch(err){toast(err.message);} finally{statusBtn.disabled=false;} return; }
   const btn = e.target.closest('.delivery-proof-btn');
   if (!btn) return;
   $('#deliveryProofForm').reset();
