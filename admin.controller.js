@@ -655,7 +655,7 @@ const roleWorkspace = asyncHandler(async (req, res) => {
         include: { driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true, vehicleType: true } } },
         orderBy: { updatedAt: 'desc' }, take: 100,
       }),
-      prisma.user.count({ where: { role: 'DRIVER', status: 'ACTIVE' } }),
+      prisma.user.count({ where: { role: 'DRIVER', status: 'ACTIVE', driverProfile: { vehicles: { some: { fleetOwnerId: req.user.id } } } } }),
     ]);
     workspace.metrics = { vehicles: vehicles.length, activeVehicles: vehicles.filter(v => v.status === 'AVAILABLE').length, activeDrivers: drivers, activeTrips: trips.filter(t => t.status !== 'DELIVERED').length };
     workspace.rows = vehicles.map(v => ({ id: v.id, vehicleNumber: v.vehicleNumber, vehicleType: v.vehicleType, capacityKg: v.capacityKg, status: v.status, driver: v.driver?.user?.fullName || '—', driverStatus: v.driver?.user?.status || '—' }));
