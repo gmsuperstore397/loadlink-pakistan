@@ -648,10 +648,12 @@ const roleWorkspace = asyncHandler(async (req, res) => {
   if (role === 'FLEET_OWNER') {
     const [vehicles, trips, drivers] = await Promise.all([
       prisma.vehicle.findMany({
+        where: { fleetOwnerId: req.user.id },
         include: { driver: { include: { user: { select: { id: true, fullName: true, mobile: true, status: true } } } } },
         orderBy: { updatedAt: 'desc' }, take: 200,
       }),
       prisma.trip.findMany({
+        where: { vehicle: { fleetOwnerId: req.user.id } },
         include: { driver: { include: { user: { select: { fullName: true } } } }, vehicle: { select: { vehicleNumber: true, vehicleType: true } } },
         orderBy: { updatedAt: 'desc' }, take: 100,
       }),
