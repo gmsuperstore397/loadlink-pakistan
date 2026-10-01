@@ -55,6 +55,7 @@ const updateFleetVehicle = asyncHandler(async (req, res) => {
   if (!vehicle || vehicle.fleetOwnerId !== req.user.id) throw new ApiError(404, 'Fleet vehicle not found');
   const { status, capacityKg, brand, model, year, driverId } = req.body;
   const data = {};
+  if (status === 'AVAILABLE' && !vehicle.isVerified) throw new ApiError(409, 'Vehicle must be verified before it can become available');
   if (status && ['AVAILABLE','OFFLINE','SUSPENDED'].includes(status) && vehicle.status !== 'BUSY') data.status = status;
   if (capacityKg !== undefined) {
     const n = Number(capacityKg);
@@ -118,6 +119,7 @@ const listAvailableVehicles = asyncHandler(async (req, res) => {
 
   const where = {
     status: 'AVAILABLE',
+    isVerified: true,
     ...(vehicleType && { vehicleType }),
     ...(minCapacity && { capacityKg: { gte: Number(minCapacity) } }),
     ...(verifiedOnly === 'true' && { isVerified: true }),
@@ -185,6 +187,7 @@ const updateVehicle = asyncHandler(async (req, res) => {
   }
 
   const { status, latitude, longitude, capacityKg, brand, model, year } = req.body;
+  if (status === 'AVAILABLE' && !vehicle.isVerified) throw new ApiError(409, 'Vehicle must be verified before it can become available');
   const data = {
     ...(status && ['AVAILABLE', 'BUSY', 'OFFLINE'].includes(status) && { status }),
     ...(latitude !== undefined && { latitude: Number(latitude) }),
