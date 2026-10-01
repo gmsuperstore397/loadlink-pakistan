@@ -204,27 +204,46 @@ const expiringDocuments = asyncHandler(async (req, res) => {
 });
 
 
+const ROLE_DEFINITIONS = [
+  { role: 'ADMIN', label: 'Admin', category: 'INTERNAL', publicSignup: false, dashboard: 'Full Admin Portal' },
+  { role: 'MANAGER', label: 'Manager', category: 'INTERNAL', publicSignup: false, dashboard: 'Permission-based Admin Portal' },
+  { role: 'CUSTOMER', label: 'Customer / Shipper', category: 'PUBLIC', publicSignup: true, dashboard: 'Customer Dashboard' },
+  { role: 'DRIVER', label: 'Driver / Transporter', category: 'PUBLIC', publicSignup: true, dashboard: 'Driver Dashboard' },
+  { role: 'FLEET_OWNER', label: 'Fleet Owner', category: 'PUBLIC_PROFESSIONAL', publicSignup: true, dashboard: 'Fleet Dashboard' },
+  { role: 'DISPATCHER', label: 'Dispatcher', category: 'PROFESSIONAL', publicSignup: false, dashboard: 'Dispatch Dashboard' },
+  { role: 'FREIGHT_BROKER', label: 'Freight Broker', category: 'PUBLIC_PROFESSIONAL', publicSignup: true, dashboard: 'Broker Dashboard' },
+  { role: 'FREIGHT_FORWARDER', label: 'Freight Forwarder', category: 'PUBLIC_PROFESSIONAL', publicSignup: true, dashboard: 'Forwarder Dashboard' },
+  { role: 'CUSTOMS_AGENT', label: 'Customs Agent', category: 'PUBLIC_PROFESSIONAL', publicSignup: true, dashboard: 'Customs Dashboard' },
+  { role: 'PORT_AGENT', label: 'Port / Shipping Agent', category: 'PUBLIC_PROFESSIONAL', publicSignup: true, dashboard: 'Port Operations Dashboard' },
+  { role: 'WAREHOUSE_OPERATOR', label: 'Warehouse Operator', category: 'PUBLIC_PROFESSIONAL', publicSignup: true, dashboard: 'Warehouse Dashboard' },
+  { role: 'FINANCE', label: 'Finance Officer', category: 'INTERNAL', publicSignup: false, dashboard: 'Finance Dashboard' },
+  { role: 'OPERATIONS', label: 'Operations Officer', category: 'INTERNAL', publicSignup: false, dashboard: 'Operations Dashboard' },
+  { role: 'SUPPORT', label: 'Support Officer', category: 'INTERNAL', publicSignup: false, dashboard: 'Support Dashboard' },
+];
+
 const MANAGER_PERMISSIONS = [
   'dashboard.view',
-  'customers.view',
-  'customers.edit',
-  'drivers.view',
-  'drivers.verify',
-  'drivers.documents',
-  'loads.view',
-  'loads.edit',
-  'bookings.view',
-  'deals.approve',
-  'commission.verify',
-  'payments.verify',
-  'location.unlock',
-  'trips.view',
-  'reports.view',
-  'disputes.view',
-  'disputes.resolve',
-  'sos.view',
-  'sos.resolve',
+  'customers.view', 'customers.create', 'customers.edit', 'customers.disable',
+  'drivers.view', 'drivers.verify', 'drivers.documents', 'drivers.edit', 'drivers.disable',
+  'fleet.view', 'fleet.edit', 'vehicles.view', 'vehicles.create', 'vehicles.edit', 'vehicles.disable',
+  'loads.view', 'loads.create', 'loads.edit', 'loads.delete',
+  'bookings.view', 'bookings.edit', 'deals.approve',
+  'commission.view', 'commission.verify',
+  'payments.view', 'payments.verify', 'payments.refund',
+  'location.view', 'location.unlock',
+  'trips.view', 'trips.edit',
+  'dispatch.view', 'dispatch.assign',
+  'brokers.view', 'forwarders.view', 'customs.view', 'ports.view', 'warehouses.view',
+  'reports.view', 'reports.export',
+  'disputes.view', 'disputes.resolve',
+  'sos.view', 'sos.resolve',
+  'support.view', 'support.resolve',
+  'audit.view',
 ];
+
+const roleCatalog = asyncHandler(async (req, res) => {
+  return success(res, 200, 'Role catalog', { roles: ROLE_DEFINITIONS, permissions: MANAGER_PERMISSIONS });
+});
 
 const listManagers = asyncHandler(async (req, res) => {
   const managers = await prisma.user.findMany({
@@ -403,4 +422,4 @@ const updateSOSAlert = asyncHandler(async (req, res) => {
   return success(res, 200, 'SOS alert updated', { alert: updated });
 });
 
-module.exports = { listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { ROLE_DEFINITIONS, roleCatalog, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
