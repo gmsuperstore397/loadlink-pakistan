@@ -14,6 +14,7 @@ async function getRecommendation({ weightKg, preferredVehicle, pickupLatitude, p
       where: {
         vehicleType: { in: recommendedTypes },
         status: 'AVAILABLE',
+        isVerified: true,
       },
       include: { driver: { include: { user: true } } },
       take: 20,
