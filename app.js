@@ -1658,6 +1658,7 @@ function clearLiveTripMap() {
 
 function renderCustomerLiveTripMap(trips) {
   const host = $('#liveTripMap');
+  const card = $('#customerLiveMapCard');
   const status = $('#liveTripMapStatus');
   if (!host) return;
 
@@ -1672,10 +1673,12 @@ function renderCustomerLiveTripMap(trips) {
   if (!customerTrips.length || typeof L === 'undefined') {
     clearLiveTripMap();
     host.hidden = true;
+    if (card) card.hidden = false;
     if (status) status.textContent = customerTrips.length ? 'Map library load nahi hui.' : 'Abhi koi authorized driver live location share nahi kar raha.';
     return;
   }
 
+  if (card) card.hidden = false;
   host.hidden = false;
   if (status) status.textContent = customerTrips.length === 1
     ? 'Driver ki live location authorized trip par update ho rahi hai.'
