@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  dashboard, roleWorkspace, liveTrackingTrips, dispatchOptions, assignBooking, approveDeal, operationalTripUpdate, listVehicleVerification, verifyVehicle, rejectVehicle, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert,
+  dashboard, roleWorkspace, liveTrackingTrips, dispatchOptions, assignBooking, approveDeal, operationalTripUpdate, listVehicleVerification, verifyVehicle, rejectVehicle, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert, listContactRequests, updateContactRequest,
 } = require('./admin.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
 
@@ -35,6 +35,8 @@ router.patch('/vehicles/:id/verify', requirePermission('vehicles.verify'), verif
 router.patch('/vehicles/:id/reject', requirePermission('vehicles.verify'), rejectVehicle);
 router.patch('/drivers/:id/status', requirePermission('drivers.verify'), setDriverAccountStatus);
 router.get('/loads', requirePermission('loads.view'), listLoads);
+router.get('/contact-requests', requirePermission('loads.view'), listContactRequests);
+router.patch('/contact-requests/:id', requirePermission('loads.edit'), updateContactRequest);
 router.patch('/loads/:id', requirePermission('loads.edit'), updateLoad);
 router.get('/bookings', requirePermission('bookings.view'), listBookings);
 router.patch('/bookings/:id', requirePermission('deals.approve'), updateBooking);
