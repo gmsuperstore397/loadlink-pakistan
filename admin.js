@@ -562,6 +562,24 @@ function renderNav() {
   }
 }
 
+async function loadContactRequests() {
+  const body = $('#contactRequestsTable tbody');
+  if (!body) return;
+  try {
+    const data = await api('/admin/contact-requests');
+    const requests = data.requests || [];
+    $('#contactRequestsNotice').textContent = requests.filter(r => r.status === 'NEW').length ? 'New requests pending: ' + requests.filter(r => r.status === 'NEW').length : 'Koi new request pending nahi.';
+    body.innerHTML = requests.length ? requests.map((r) => {
+      const load = r.load || {};
+      const driver = r.requester || {};
+      const vehicles = driver.driverProfile?.vehicles || [];
+      const vehicleText = vehicles.length ? vehicles.map(v => (v.vehicleType || 'Vehicle') + ' · ' + (v.vehicleNumber || '—') + ' · ' + (v.capacityKg || '—') + 'kg').join('<br>') : 'No vehicle added';
+      const options = ['NEW','IN_PROGRESS','COMPLETED','REJECTED'].map(x => '<option value="'+x+'" '+(x===r.status?'selected':'')+'>'+x+'</option>').join('');
+      return '<tr><td><select data-contact-status="'+esc(r.id)+'">'+options+'</select></td><td><b>'+esc(load.pickupAddress)+' → '+esc(load.destinationAddress)+'</b><br><small>'+esc(load.weightKg)+' kg · '+esc(load.status)+'</small></td><td>'+esc(load.customer?.fullName)+'<br><small>'+esc(load.customer?.mobile)+' · '+esc(load.customer?.city)+'</small></td><td><b>'+esc(driver.fullName)+'</b><br><small>'+esc(driver.mobile)+' · '+esc(driver.city)+'</small></td><td>'+vehicleText+'</td><td>'+esc(new Date(r.createdAt).toLocaleString())+'</td><td><button class="primary" type="button" data-contact-save="'+esc(r.id)+'">Save</button></td></tr>';
+    }).join('') : '<tr><td colspan="7">No contact requests found.</td></tr>';
+  } catch (error) { toast(error.message); }
+}
+
 async function loadDashboard() {
   try {
     $('#pageTitle').textContent = roleDashboardTitle();
@@ -913,11 +931,24 @@ function initializePortal() {
   if (me.role === 'ADMIN') {
     loadPermissions();
     loadDashboard();
+    loadContactRequests();
   } else if (allowed('dashboard.view')) {
     loadDashboard();
   }
 }
 
+$('#contactRequestsRefresh')?.addEventListener('click', loadContactRequests);
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-contact-save]');
+  if (!button) return;
+  const id = button.dataset.contactSave;
+  const select = document.querySelector('[data-contact-status="'+id+'"]');
+  try {
+    await api('/admin/contact-requests/'+encodeURIComponent(id), { method:'PATCH', body:JSON.stringify({ status: select?.value || 'IN_PROGRESS' }) });
+    toast('Contact request updated');
+    await loadContactRequests();
+  } catch (error) { toast(error.message); }
+});
 $('#workspaceRefresh')?.addEventListener('click', loadWorkspace);
 $('#liveTrackingRefresh')?.addEventListener('click', loadLiveTracking);
 $('#fleetAddVehicleBtn')?.addEventListener('click', () => openFleetVehicle(null));
