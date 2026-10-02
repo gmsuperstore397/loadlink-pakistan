@@ -473,6 +473,24 @@ const listDrivers = asyncHandler(async (req,res) => {
   return success(res,200,'Drivers fetched',{drivers:enriched});
 });
 const listLoads = asyncHandler(async (req,res) => { const loads=await prisma.load.findMany({include:{customer:{select:{id:true,fullName:true,mobile:true}},bookings:{select:{id:true,status:true,agreedFare:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Loads fetched',{loads}); });
+const listContactRequests = asyncHandler(async (req,res) => {
+  const requests = await prisma.contactRequest.findMany({
+    include: {
+      load: { include: { customer: { select: { id:true, fullName:true, mobile:true, city:true } } } },
+      requester: { select: { id:true, fullName:true, mobile:true, city:true, role:true, status:true, driverProfile: { include: { vehicles: { select: { id:true, vehicleType:true, vehicleNumber:true, capacityKg:true, status:true, isVerified:true } } } } } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
+  return success(res,200,'Contact requests fetched',{requests});
+});
+const updateContactRequest = asyncHandler(async (req,res) => {
+  const allowed = ['NEW','IN_PROGRESS','COMPLETED','REJECTED'];
+  const status = String(req.body?.status || '');
+  if (!allowed.includes(status)) throw new ApiError(400,'Invalid contact request status');
+  const request = await prisma.contactRequest.update({ where: { id: req.params.id }, data: { status } });
+  return success(res,200,'Contact request updated',{request});
+});
 const listBookings = asyncHandler(async (req,res) => { const bookings=await prisma.booking.findMany({include:{load:{select:{id:true,pickupAddress:true,destinationAddress:true,status:true,weightKg:true}},customer:{select:{id:true,fullName:true,mobile:true}},driver:{include:{user:{select:{id:true,fullName:true,mobile:true}}}},vehicle:{select:{id:true,vehicleNumber:true,vehicleType:true}},trip:{select:{id:true,status:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Bookings fetched',{bookings}); });
 const listPayments = asyncHandler(async (req,res) => { const payments=await prisma.payment.findMany({include:{user:{select:{id:true,fullName:true,mobile:true}},trip:{select:{id:true,status:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Payments fetched',{payments}); });
 const listTrips = asyncHandler(async (req,res) => { const trips=await prisma.trip.findMany({include:{load:{select:{id:true,pickupAddress:true,destinationAddress:true}},driver:{include:{user:{select:{id:true,fullName:true,mobile:true}}}},vehicle:{select:{id:true,vehicleNumber:true,vehicleType:true}},booking:{select:{id:true,status:true,agreedFare:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Trips fetched',{trips}); });
@@ -828,4 +846,4 @@ const roleWorkspace = asyncHandler(async (req, res) => {
   return success(res, 200, 'Role workspace fetched', { workspace });
 });
 
-module.exports = { listVehicleVerification, verifyVehicle, rejectVehicle, approveDeal, operationalTripUpdate, ROLE_DEFINITIONS, roleCatalog, listRoleAccounts, createRoleAccount, updateRoleAccount, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, liveTrackingTrips, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { listContactRequests, updateContactRequest,  listVehicleVerification, verifyVehicle, rejectVehicle, approveDeal, operationalTripUpdate, ROLE_DEFINITIONS, roleCatalog, listRoleAccounts, createRoleAccount, updateRoleAccount, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, liveTrackingTrips, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
