@@ -568,7 +568,8 @@ async function loadContactRequests() {
   try {
     const data = await api('/admin/contact-requests');
     const requests = data.requests || [];
-    $('#contactRequestsNotice').textContent = requests.filter(r => r.status === 'NEW').length ? 'New requests pending: ' + requests.filter(r => r.status === 'NEW').length : 'Koi new request pending nahi.';
+    const newCount = requests.filter(r => r.status === 'NEW').length;
+    $('#contactRequestsNotice').textContent = 'Total requests: ' + requests.length + ' · New pending: ' + newCount + (newCount ? ' · ⚠️ Action required' : '');
     body.innerHTML = requests.length ? requests.map((r) => {
       const load = r.load || {};
       const driver = r.requester || {};
