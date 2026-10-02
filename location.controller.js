@@ -54,14 +54,21 @@ const geocode = asyncHandler(async (req, res) => {
         url.searchParams.set('q', query);
       }
 
-      const resp = await fetch(url, {
-        headers: {
-          'User-Agent': NOMINATIM_USER_AGENT,
-          Accept: 'application/json',
-        },
-      });
-      if (!resp.ok) throw new Error('Nominatim HTTP ' + resp.status);
-      return resp.json();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const resp = await fetch(url, {
+          headers: {
+            'User-Agent': NOMINATIM_USER_AGENT,
+            Accept: 'application/json',
+          },
+          signal: controller.signal,
+        });
+        if (!resp.ok) throw new Error('Nominatim HTTP ' + resp.status);
+        return resp.json();
+      } finally {
+        clearTimeout(timeout);
+      }
     };
 
     const normalized = address
@@ -162,8 +169,10 @@ const geocode = asyncHandler(async (req, res) => {
     let first = null;
     let approximate = false;
 
-    // First pass: focused free-form queries.
-    for (let i = 0; i < queries.length; i += 1) {
+    // First pass: use only a few focused queries. Nominatim is rate-limited,
+    // so firing a long chain of searches can make production look like a
+    // geocoding failure even when the address itself is valid.
+    for (let i = 0; i < Math.min(queries.length, 3); i += 1) {
       const data = await search(queries[i]);
       if (Array.isArray(data) && data.length) {
         // Prefer results in the same city when a city was identified.
@@ -195,6 +204,53 @@ const geocode = asyncHandler(async (req, res) => {
           break;
         }
         if (i < structuredCandidates.length - 1) await sleep(1100);
+      }
+    }
+
+    // Production fallback: Photon uses OpenStreetMap data through a separate
+    // geocoding service. This prevents a temporary Nominatim throttle/outage
+    // from turning every valid address into "Address not found".
+    if (!first) {
+      try {
+        const photonUrl = new URL('https://photon.komoot.io/api/');
+        photonUrl.searchParams.set('q', normalized);
+        photonUrl.searchParams.set('limit', '5');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        try {
+          const resp = await fetch(photonUrl, {
+            headers: { 'User-Agent': NOMINATIM_USER_AGENT, Accept: 'application/json' },
+            signal: controller.signal,
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            const features = Array.isArray(data?.features) ? data.features : [];
+            const targetCity = city.toLowerCase();
+            const ranked = features
+              .filter((item) => Number.isFinite(Number(item?.geometry?.coordinates?.[1])) && Number.isFinite(Number(item?.geometry?.coordinates?.[0])))
+              .sort((a, b) => {
+                const aCity = String(a?.properties?.city || a?.properties?.town || a?.properties?.municipality || '').toLowerCase();
+                const bCity = String(b?.properties?.city || b?.properties?.town || b?.properties?.municipality || '').toLowerCase();
+                return (targetCity && bCity.includes(targetCity) ? 1 : 0) - (targetCity && aCity.includes(targetCity) ? 1 : 0);
+              });
+            const item = ranked[0];
+            if (item) {
+              const [lng, lat] = item.geometry.coordinates;
+              first = {
+                lat,
+                lon: lng,
+                display_name: item.properties?.name
+                  ? [item.properties.name, item.properties.street, item.properties.city || item.properties.town, item.properties.country].filter(Boolean).join(', ')
+                  : address,
+              };
+              approximate = true;
+            }
+          }
+        } finally {
+          clearTimeout(timeout);
+        }
+      } catch (fallbackError) {
+        console.error('Photon geocoding fallback error:', fallbackError.message);
       }
     }
 
