@@ -169,11 +169,20 @@ const geocode = asyncHandler(async (req, res) => {
     let first = null;
     let approximate = false;
 
-    // First pass: use only a few focused queries. Nominatim is rate-limited,
-    // so firing a long chain of searches can make production look like a
-    // geocoding failure even when the address itself is valid.
-    for (let i = 0; i < Math.min(queries.length, 3); i += 1) {
-      const data = await search(queries[i]);
+    // First pass: use a small set of focused queries. Keep the city fallback
+    // explicitly in this pass; otherwise limiting the request count can
+    // accidentally skip the useful city-level match for Pakistani addresses.
+    const focusedQueries = [];
+    const addFocused = (q) => {
+      const value = String(q || '').trim();
+      if (value && !focusedQueries.includes(value)) focusedQueries.push(value);
+    };
+    addFocused(normalized);
+    addFocused(withoutCountry);
+    if (city) addFocused(city + (country ? ', ' + country : ''));
+    if (street && city) addFocused(street + ', ' + city + (country ? ', ' + country : ''));
+    for (let i = 0; i < Math.min(focusedQueries.length, 4); i += 1) {
+      const data = await search(focusedQueries[i]);
       if (Array.isArray(data) && data.length) {
         // Prefer results in the same city when a city was identified.
         const ranked = data
@@ -213,7 +222,7 @@ const geocode = asyncHandler(async (req, res) => {
     if (!first) {
       try {
         const photonUrl = new URL('https://photon.komoot.io/api/');
-        photonUrl.searchParams.set('q', normalized);
+        photonUrl.searchParams.set('q', city ? normalized + ', ' + city + (country ? ', ' + country : '') : normalized);
         photonUrl.searchParams.set('limit', '5');
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
