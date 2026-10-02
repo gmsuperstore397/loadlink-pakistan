@@ -1575,6 +1575,12 @@ async function contactPostedLoad(loadId) {
   }
 
   const load = await apiRequest(`/loads/${encodeURIComponent(loadId)}`);
+  try {
+    await apiRequest(`/loads/${encodeURIComponent(loadId)}/contact-team`, { method: 'POST', body: {} });
+    toast('✅ Team ko request bhej di gayi. WhatsApp bhi open ho raha hai.');
+  } catch (requestError) {
+    toast(requestError.message || 'Team request save nahi ho saki.');
+  }
   let vehicles = [];
   try {
     const result = await getMyVehicles();
