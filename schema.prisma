@@ -115,6 +115,7 @@ enum NotificationType {
   PAYMENT_FAILED
   PASSWORD_RESET
   SYSTEM
+  TEAM_CONTACT_REQUEST
 }
 enum PaymentStatus {
   PENDING
@@ -164,6 +165,7 @@ model User {
   loads         Load[]
   bookingsAsCustomer Booking[] @relation("CustomerBookings")
   notifications Notification[]
+  contactRequests ContactRequest[] @relation("ContactRequestRequester")
   ratingsGiven  Rating[] @relation("RatingsGiven")
   ratingsReceived Rating[] @relation("RatingsReceived")
   passwordResetTokens PasswordResetToken[]
@@ -255,6 +257,7 @@ model Load {
 
   bookings Booking[]
   trips    Trip[]
+  contactRequests ContactRequest[]
 }
 
 model Booking {
@@ -418,6 +421,30 @@ model Notification {
   type      NotificationType
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
+}
+
+model ContactRequest {
+  id           String   @id @default(uuid())
+  loadId       String
+  requesterId  String
+  status       ContactRequestStatus @default(NEW)
+  message      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  load         Load @relation(fields: [loadId], references: [id], onDelete: Cascade)
+  requester    User @relation("ContactRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([loadId, createdAt])
+  @@index([requesterId, createdAt])
+}
+
+enum ContactRequestStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
 }
 
 
