@@ -3,6 +3,7 @@ const asyncHandler = require('./asyncHandler');
 const { success, fail } = require('./apiResponse');
 const ApiError = require('./ApiError');
 const notify = require('./notification.service');
+const notify = require('./notification.service');
 
 // POST /api/loads  (customer only)
 const createLoad = asyncHandler(async (req, res) => {
@@ -116,6 +117,47 @@ const updateLoad = asyncHandler(async (req, res) => {
   return success(res, 200, 'Load updated', { load: updated });
 });
 
+// POST /api/loads/:id/contact-team (driver only)
+const contactTeam = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'DRIVER') throw new ApiError(403, 'Driver account required');
+
+  const load = await prisma.load.findUnique({
+    where: { id: req.params.id },
+    include: { customer: { select: { id: true, fullName: true, mobile: true, city: true } } },
+  });
+  if (!load) throw new ApiError(404, 'Load not found');
+  if (!['POSTED', 'SEARCHING'].includes(load.status)) throw new ApiError(400, 'This load is no longer available for contact');
+
+  const existing = await prisma.contactRequest.findFirst({
+    where: { loadId: load.id, requesterId: req.user.id, status: { in: ['NEW', 'IN_PROGRESS'] } },
+  });
+  if (existing) return success(res, 200, 'Contact request already sent', { request: existing, alreadyExists: true });
+
+  const request = await prisma.contactRequest.create({
+    data: {
+      loadId: load.id,
+      requesterId: req.user.id,
+      status: 'NEW',
+      message: req.body?.message ? String(req.body.message).slice(0, 1000) : null,
+    },
+  });
+
+  const teamUsers = await prisma.user.findMany({
+    where: { role: { in: ['ADMIN', 'MANAGER'] }, status: 'ACTIVE' },
+    select: { id: true },
+  });
+  const title = '🚨 New Driver Contact Request';
+  const message = [
+    'Driver ne posted load ke liye LoadLink Team se contact request bheji hai.',
+    'Load: ' + load.pickupAddress + ' → ' + load.destinationAddress,
+    'Driver: ' + (req.user.fullName || '—') + ' · ' + (req.user.mobile || '—'),
+    'Request ID: ' + request.id,
+  ].join(' | ');
+  await Promise.all(teamUsers.map((u) => notify(u.id, 'TEAM_CONTACT_REQUEST', title, message)));
+
+  return success(res, 201, 'LoadLink Team ko contact request bhej di gayi', { request });
+});
+
 // DELETE /api/loads/:id  (owner only, and only while not yet assigned)
 const deleteLoad = asyncHandler(async (req, res) => {
   const load = await prisma.load.findUnique({ where: { id: req.params.id } });
@@ -128,4 +170,4 @@ const deleteLoad = asyncHandler(async (req, res) => {
   return success(res, 200, 'Load cancelled');
 });
 
-module.exports = { createLoad, listLoads, listMyLoads, getLoad, updateLoad, deleteLoad };
+module.exports = { createLoad, listLoads, listMyLoads, getLoad, updateLoad, deleteLoad, contactTeam };
