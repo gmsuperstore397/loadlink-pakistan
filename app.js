@@ -1574,12 +1574,16 @@ async function contactPostedLoad(loadId) {
     return toast('Driver account se login karein.');
   }
 
-  const load = await apiRequest(`/loads/${encodeURIComponent(loadId)}`);
+  let load;
   try {
+    // Save the team-contact request FIRST. WhatsApp must not open as if the
+    // team was contacted when the backend request failed.
     await apiRequest(`/loads/${encodeURIComponent(loadId)}/contact-team`, { method: 'POST', body: {} });
-    toast('✅ Team ko request bhej di gayi. WhatsApp bhi open ho raha hai.');
+    load = await apiRequest(`/loads/${encodeURIComponent(loadId)}`);
+    toast('✅ LoadLink Team ko request save ho gayi. WhatsApp bhi open ho raha hai.');
   } catch (requestError) {
-    toast(requestError.message || 'Team request save nahi ho saki.');
+    toast(requestError.message || 'Team request save nahi ho saki. WhatsApp nahi khola gaya.');
+    return;
   }
   let vehicles = [];
   try {
