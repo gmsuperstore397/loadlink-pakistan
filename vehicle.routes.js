@@ -5,7 +5,7 @@ const {
 } = require('./vehicle.controller');
 const { createVehicleRules } = require('./vehicle.validator');
 const validate = require('./validate');
-const { authenticateUser, requireRole } = require('./auth');
+const { authenticateUser, requireRole, requireDriver } = require('./auth');
 const upload = require('./upload');
 
 router.get('/fleet', authenticateUser, requireRole('FLEET_OWNER'), listFleetVehicles);
@@ -13,10 +13,10 @@ router.get('/fleet/drivers', authenticateUser, requireRole('FLEET_OWNER'), listF
 router.post('/fleet', authenticateUser, requireRole('FLEET_OWNER'), upload.single('vehicleDoc'), createFleetVehicle);
 router.patch('/fleet/:id', authenticateUser, requireRole('FLEET_OWNER'), updateFleetVehicle);
 router.get('/', authenticateUser, listVehicles);
-router.get('/mine', authenticateUser, requireRole('DRIVER'), listMyVehicles);
+router.get('/mine', authenticateUser, requireDriver, listMyVehicles);
 router.get('/available', authenticateUser, listAvailableVehicles);
 router.get('/:id', authenticateUser, getVehicle);
-router.post('/', authenticateUser, requireRole('DRIVER'), upload.single('vehicleDoc'), createVehicleRules, validate, createVehicle);
-router.patch('/:id', authenticateUser, requireRole('DRIVER'), updateVehicle);
+router.post('/', authenticateUser, requireDriver, upload.single('vehicleDoc'), createVehicleRules, validate, createVehicle);
+router.patch('/:id', authenticateUser, requireDriver, updateVehicle);
 
 module.exports = router;
