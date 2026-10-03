@@ -32,6 +32,14 @@ async function authenticateUser(req, res, next) {
   }
 }
 
+function requireDriver(req, res, next) {
+  if (!req.user) return fail(res, 401, 'Authentication required');
+  if (req.user.role !== 'DRIVER' && !req.user.driverProfile) {
+    return fail(res, 403, 'Driver profile required');
+  }
+  next();
+}
+
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user) return fail(res, 401, 'Authentication required');
@@ -63,4 +71,4 @@ function requirePermission(permission) {
   };
 }
 
-module.exports = { authenticateUser, requireRole, hasPermission, requirePermission };
+module.exports = { authenticateUser, requireRole, requireDriver, hasPermission, requirePermission };
