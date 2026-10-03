@@ -118,7 +118,7 @@ const updateLoad = asyncHandler(async (req, res) => {
 
 // POST /api/loads/:id/contact-team (driver only)
 const contactTeam = asyncHandler(async (req, res) => {
-  if (req.user.role !== 'DRIVER') throw new ApiError(403, 'Driver account required');
+  if (req.user.role !== 'DRIVER' && !req.user.driverProfile) throw new ApiError(403, 'Driver profile required');
 
   const load = await prisma.load.findUnique({
     where: { id: req.params.id },
