@@ -24,6 +24,10 @@ const VEHICLE_CAPACITY = {
   'Trailer': '40 Ton', 'Container': '40 Ton',
 };
 
+function isDriverUser(user = state.user) {
+  return !!user && (user.role === 'DRIVER' || !!user.driverProfile);
+}
+
 const state = {
   token: null,
   user: JSON.parse(localStorage.getItem('ll_user') || 'null'),
@@ -551,7 +555,7 @@ async function loadDashboard() {
   if (!state.user) return;
   try {
     const [n, p, u, d] = await Promise.all([getNotifications(), getPayments(), getUnreadCount(), getMyDisputes()]);
-    if (state.user.role === 'DRIVER') {
+    if (isDriverUser()) {
       const b = await getMyBookings();
       const pending = (b.bookings || []).filter(x => x.status === 'REQUESTED');
       $('#driverBookingsCard').hidden = false;
@@ -809,7 +813,7 @@ async function loadDriverFeedback() {
 
 async function loadDriverVehicles() {
   const list = $('#driverVehicles');
-  if (!list || !state.user || state.user.role !== 'DRIVER') return;
+  if (!list || !isDriverUser()) return;
   try {
     const result = await getMyVehicles();
     const vehicles = result.vehicles || [];
@@ -832,7 +836,7 @@ function initDriverVehicles() {
   if (!form) return;
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!state.user || state.user.role !== 'DRIVER') return toast('Driver account se login karein.');
+    if (!isDriverUser()) return toast('Driver/Transporter account se login karein.');
     if (!form.checkValidity()) return form.reportValidity();
     const file = $('#vDocument').files?.[0];
     if (file && file.size > 5 * 1024 * 1024) return toast('Vehicle document 5MB se chhota hona chahiye.');
@@ -1570,7 +1574,7 @@ function renderLoadResults(loads, targetSel = '#flResults', ownOnly = false) {
 }
 
 async function contactPostedLoad(loadId) {
-  if (!state.user || state.user.role !== 'DRIVER') {
+  if (!isDriverUser()) {
     return toast('Driver account se login karein.');
   }
 
