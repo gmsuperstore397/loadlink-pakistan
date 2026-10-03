@@ -34,8 +34,8 @@ async function authenticateUser(req, res, next) {
 
 function requireDriver(req, res, next) {
   if (!req.user) return fail(res, 401, 'Authentication required');
-  if (req.user.role !== 'DRIVER' && !req.user.driverProfile) {
-    return fail(res, 403, 'Driver profile required');
+  if (!['DRIVER', 'FLEET_OWNER'].includes(req.user.role) && !req.user.driverProfile) {
+    return fail(res, 403, 'Driver/Transporter account required');
   }
   next();
 }
