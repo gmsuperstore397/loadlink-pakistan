@@ -7,16 +7,18 @@ const { sanitizeUser } = require('./sanitizeUser');
 const { randomInt } = require('crypto');
 const { hashToken, sendOtpEmail } = require('./delivery.service');
 const ApiError = require('./ApiError');
+const { generateReferralCode, attachReferral, validateReferralCode } = require('./referral.service');
 
 // POST /api/transporters/register  (driver account only; vehicles are added separately)
 const registerTransporter = asyncHandler(async (req, res) => {
   const {
     fullName, mobile, email, city, password,
-    cnic, drivingLicense, cnicExpiryDate, licenseExpiryDate,
+    cnic, drivingLicense, cnicExpiryDate, licenseExpiryDate, referralCode,
   } = req.body;
 
   const normalizedMobile = String(mobile || '').replace(/\s+/g, '');
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  if (referralCode) await validateReferralCode(referralCode);
 
   const existingUser = await prisma.user.findFirst({
     where: {
@@ -114,6 +116,7 @@ const registerTransporter = asyncHandler(async (req, res) => {
         city,
         passwordHash,
         role: 'DRIVER',
+        referralCode: await generateReferralCode(fullName),
         driverProfile: {
           create: {
             cnic,
@@ -129,6 +132,9 @@ const registerTransporter = asyncHandler(async (req, res) => {
       include: { driverProfile: { include: { vehicles: true } } },
     });
   }
+
+
+  if (referralCode) await attachReferral(user.id, referralCode);
 
   const otp = String(randomInt(100000, 1000000));
   await prisma.otpVerification.deleteMany({
