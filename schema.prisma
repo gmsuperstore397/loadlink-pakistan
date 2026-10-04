@@ -161,8 +161,6 @@ model User {
   updatedAt    DateTime   @updatedAt
   lastLoginAt  DateTime?
   referralCode String?    @unique
-  referredById String?
-  referredBy User? @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
 
   driverProfile DriverProfile?
   loads         Load[]
