@@ -6,6 +6,7 @@ const { health } = require('./health.controller');
 router.get('/health', health);
 router.use('/config', require('./config.routes'));
 router.use('/auth', require('./auth.routes'));
+router.use('/referrals', require('./referral.routes'));
 router.use('/loads', require('./load.routes'));
 router.use('/vehicles', require('./vehicle.routes'));
 router.use('/transporters', require('./transporter.routes'));
