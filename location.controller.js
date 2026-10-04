@@ -177,13 +177,17 @@ const geocode = asyncHandler(async (req, res) => {
       const value = String(q || '').trim();
       if (value && !focusedQueries.includes(value)) focusedQueries.push(value);
     };
-    addFocused(normalized);
-    addFocused(withoutCountry);
+    for (const variant of spellingVariants(normalized)) addFocused(variant);
+    for (const variant of spellingVariants(withoutCountry)) addFocused(variant);
     if (street && locality && city) {
-      addFocused(street + ', ' + locality + ', ' + city + (country ? ', ' + country : ''));
+      for (const s of spellingVariants(street)) {
+        addFocused(s + ', ' + locality + ', ' + city + (country ? ', ' + country : ''));
+      }
     }
     if (street && city) {
-      addFocused(street + ', ' + city + (country ? ', ' + country : ''));
+      for (const s of spellingVariants(street)) {
+        addFocused(s + ', ' + city + (country ? ', ' + country : ''));
+      }
     }
     if (locality && city) {
       addFocused(locality + ', ' + city + (country ? ', ' + country : ''));
@@ -192,8 +196,40 @@ const geocode = asyncHandler(async (req, res) => {
       addFocused(poiName + ', ' + city + (country ? ', ' + country : ''));
     }
     if (city) addFocused(city + (country ? ', ' + country : ''));
-    for (let i = 0; i < Math.min(focusedQueries.length, 8); i += 1) {
+
+    // Try the focused queries first, but do not stop at the first weak city
+    // result. Prefer a result whose display/address contains the searched
+    // locality, street or POI.
+    const relevanceTerms = [poiName, street, ...localityParts].filter(Boolean).map(x => x.toLowerCase());
+    const rankResults = (items) => items
+      .filter((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)))
+      .sort((a, b) => {
+        const score = (item) => {
+          const text = [item.display_name, item.name, JSON.stringify(item.address || {})].join(' ').toLowerCase();
+          const cityText = String(item.address?.city || item.address?.town || item.address?.municipality || item.address?.village || '').toLowerCase();
+          let n = 0;
+          if (city && cityText.includes(city.toLowerCase())) n += 20;
+          for (const term of relevanceTerms) if (term && text.includes(term)) n += 10;
+          return n;
+        };
+        return score(b) - score(a);
+      });
+
+    for (let i = 0; i < Math.min(focusedQueries.length, 12); i += 1) {
       const data = await search(focusedQueries[i]);
+      if (Array.isArray(data) && data.length) {
+        const ranked = rankResults(data);
+        if (ranked.length) {
+          first = ranked[0];
+          // Exact/strong POI/street match is good enough; otherwise keep trying
+          // a few richer queries before falling back to city level.
+          const textValue = [first.display_name, JSON.stringify(first.address || {})].join(' ').toLowerCase();
+          const strong = relevanceTerms.some(term => term && textValue.includes(term));
+          if (strong || i >= Math.min(7, focusedQueries.length - 1)) break;
+          approximate = true;
+        }
+      }
+      if (i < Math.min(focusedQueries.length, 12) - 1) await sleep(700);
       if (Array.isArray(data) && data.length) {
         // Prefer results in the same city when a city was identified.
         const ranked = data
