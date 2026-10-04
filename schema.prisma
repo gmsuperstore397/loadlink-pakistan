@@ -160,6 +160,9 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   lastLoginAt  DateTime?
+  referralCode String?    @unique
+  referredById String?
+  referredBy User? @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
 
   driverProfile DriverProfile?
   loads         Load[]
@@ -176,6 +179,9 @@ model User {
   spaceBookingsAsCustomer SpaceBooking[] @relation("SpaceCustomerBookings")
   auditLogs AuditLog[]
   fleetVehicles Vehicle[] @relation("FleetOwnedVehicles")
+  referralsGiven Referral[] @relation("ReferralReferrer")
+  referralsReceived Referral[] @relation("ReferralReferred")
+  rewardTransactions RewardTransaction[]
   deliveryProofs DeliveryProof[]
   disputesRaised Dispute[] @relation("DisputesRaised")
   disputesResolved Dispute[] @relation("DisputesResolved")
@@ -566,4 +572,48 @@ model SOSAlert {
   @@index([tripId, status])
   @@index([raisedById, status])
   @@index([status, createdAt])
+}
+
+
+enum ReferralStatus {
+  PENDING
+  QUALIFIED
+  REWARDED
+  REJECTED
+}
+
+model Referral {
+  id              String         @id @default(uuid())
+  referrerId      String
+  referredUserId  String         @unique
+  code            String
+  status          ReferralStatus @default(PENDING)
+  rewardAmount    Float          @default(0)
+  rewardReason    String?
+  qualifiedAt     DateTime?
+  rewardedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  referrer       User @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUser   User @relation("ReferralReferred", fields: [referredUserId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId, status, createdAt])
+  @@index([code, status])
+}
+
+model RewardTransaction {
+  id           String   @id @default(uuid())
+  userId       String
+  amount       Float    @default(0)
+  points       Int      @default(0)
+  type         String
+  description  String
+  referenceKey String   @unique
+  metadata     String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
