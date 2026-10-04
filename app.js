@@ -39,6 +39,7 @@ const state = {
   pendingOtpEmail: null,
   liveTripMap: null,
   liveTripMarkers: new Map(),
+  referral: null,
 };
 
 /* ---------------- generic helpers ---------------- */
@@ -84,6 +85,28 @@ async function apiRequest(path, { method = 'GET', body, isForm = false } = {}) {
 }
 
 /* ---------------- auth API ---------------- */
+function getPendingReferralCode() {
+  const fromUrl = new URLSearchParams(location.search).get('ref');
+  if (fromUrl) {
+    localStorage.setItem('ll_referral_code', fromUrl.trim().toUpperCase());
+    return fromUrl.trim().toUpperCase();
+  }
+  return (localStorage.getItem('ll_referral_code') || '').trim().toUpperCase();
+}
+
+function clearPendingReferralCode() {
+  localStorage.removeItem('ll_referral_code');
+}
+
+async function saveAndAttachPendingReferral() {
+  const code = getPendingReferralCode();
+  if (!state.user || !code) return;
+  try {
+    await attachReferral(code);
+    clearPendingReferralCode();
+  } catch (_) {}
+}
+
 function saveSession(token, user) {
   state.token = token || null;
   state.user = user;
@@ -255,6 +278,8 @@ const getPendingDrivers = () => apiRequest('/admin/transporters/pending');
 const verifyDriver = (id) => apiRequest(`/admin/transporters/${id}/verify`, { method: 'PATCH' });
 const rejectDriver = (id, reason) => apiRequest(`/admin/transporters/${id}/reject`, { method: 'PATCH', body: { reason } });
 const subscribePush = (subscription) => apiRequest('/push/subscribe', { method: 'POST', body: subscription });
+const getReferralDashboard = () => apiRequest('/referrals/me');
+const attachReferral = (referralCode) => apiRequest('/referrals/attach', { method: 'POST', body: { referralCode } });
 
 
 /* ============================================================
@@ -438,6 +463,7 @@ function initAuthModals() {
         email,
         password: $('#cPassword').value,
         city: $('#cCity').value.trim() || undefined,
+        referralCode: $('#cReferralCode').value.trim() || getPendingReferralCode() || undefined,
       });
       state.pendingOtpEmail = email.toLowerCase();
       closeModal('signupModal');
@@ -502,6 +528,8 @@ function initAuthModals() {
     fd.append('drivingLicense', $('#dLicense').value.trim());
     fd.append('cnicExpiryDate', $('#dCnicExpiry').value);
     fd.append('licenseExpiryDate', $('#dLicenseExpiry').value);
+    const driverReferralCode = $('#dReferralCode').value.trim() || getPendingReferralCode();
+    if (driverReferralCode) fd.append('referralCode', driverReferralCode);
     const cnicDoc = $('#dCnicDoc').files?.[0];
     const licenseDoc = $('#dLicenseDoc').files?.[0];
     const documents = [cnicDoc, licenseDoc].filter(Boolean);
@@ -555,6 +583,7 @@ async function loadDashboard() {
   if (!state.user) return;
   try {
     const [n, p, u, d] = await Promise.all([getNotifications(), getPayments(), getUnreadCount(), getMyDisputes()]);
+    loadReferralDashboard().catch(() => {});
     if (isDriverUser()) {
       const b = await getMyBookings();
       const pending = (b.bookings || []).filter(x => x.status === 'REQUESTED');
@@ -620,6 +649,21 @@ document.addEventListener('click', async (e) => {
 });
 
 function initDashboard() {
+  $('#copyReferralBtn')?.addEventListener('click', async () => {
+    const value = $('#myReferralLink')?.value || $('#myReferralCode')?.value || '';
+    if (!value) return;
+    try { await navigator.clipboard.writeText(value); toast('Referral link copy ho gaya.'); }
+    catch (_) { $('#myReferralLink')?.select(); document.execCommand('copy'); toast('Referral link copy ho gaya.'); }
+  });
+  $('#shareReferralBtn')?.addEventListener('click', async () => {
+    const link = $('#myReferralLink')?.value || '';
+    if (!link) return;
+    const text = 'LoadLink Pakistan join karein. Mere referral link se signup karein: ' + link;
+    try {
+      if (navigator.share) await navigator.share({ title: 'LoadLink Pakistan', text, url: link });
+      else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    } catch (_) {}
+  });
   $('#profileLogoutBtn').addEventListener('click', async () => {
     try {
       await logoutUser();
@@ -1963,6 +2007,7 @@ function initConnectivityWatch() {
    INIT
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  getPendingReferralCode();
   $('#year').textContent = new Date().getFullYear();
   initNav();
   initHeroSlider();
@@ -1982,9 +2027,13 @@ document.addEventListener('DOMContentLoaded', () => {
   initConnectivityWatch();
 
   // Sync the existing session after all UI controls are initialized.
-  syncSessionFromStorage().then((user) => {
+  syncSessionFromStorage().then(async (user) => {
     updateAuthUI();
-    if (user) loadMarketplace();
+    if (user) {
+      await saveAndAttachPendingReferral();
+      loadMarketplace();
+      loadReferralDashboard();
+    }
   });
 
   // Live Trips section loads lazily when scrolled into view
