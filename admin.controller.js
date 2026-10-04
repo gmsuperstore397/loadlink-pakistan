@@ -11,13 +11,15 @@ const { rewardDriverReferralOnVerification } = require('./referral.service');
 const dashboard = asyncHandler(async (req, res) => {
   const [
     users, drivers, verifiedDrivers, pendingDrivers, vehicles,
-    activeLoads, completedLoads, activeTrips, completedTrips,
+    activeLoads, completedLoads, activeTrips, completedTrips, referrals, rewardLiability,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: 'DRIVER' } }),
     prisma.driverProfile.count({ where: { verification: 'VERIFIED' } }),
     prisma.driverProfile.count({ where: { verification: 'PENDING_VERIFICATION' } }),
     prisma.vehicle.count(),
+    prisma.referral.count(),
+    prisma.rewardTransaction.aggregate({ _sum: { amount: true } }),
     prisma.load.count({ where: { status: { in: ['POSTED', 'SEARCHING', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT'] } } }),
     prisma.load.count({ where: { status: 'DELIVERED' } }),
     prisma.trip.count({ where: { status: { not: 'DELIVERED' } } }),
