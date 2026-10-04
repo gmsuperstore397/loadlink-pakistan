@@ -32,8 +32,17 @@ async function authenticateUser(req, res, next) {
   }
 }
 
-function requireDriver(req, res, next) {
+async function requireDriver(req, res, next) {
   if (!req.user) return fail(res, 401, 'Authentication required');
+  // A customer account can be upgraded to DRIVER during transporter signup.
+  // Re-read the relation here so an older session/token cannot incorrectly
+  // block vehicle and driver actions after the upgrade.
+  if (!['DRIVER', 'FLEET_OWNER'].includes(req.user.role) && !req.user.driverProfile) {
+    try {
+      const profile = await prisma.driverProfile.findUnique({ where: { userId: req.user.id } });
+      if (profile) req.user.driverProfile = profile;
+    } catch (_) {}
+  }
   if (!['DRIVER', 'FLEET_OWNER'].includes(req.user.role) && !req.user.driverProfile) {
     return fail(res, 403, 'Driver/Transporter account required');
   }
