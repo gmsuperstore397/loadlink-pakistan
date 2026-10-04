@@ -388,6 +388,11 @@ async function syncSessionFromStorage() {
 }
 
 function initAuthModals() {
+  const referralCode = getPendingReferralCode();
+  if (referralCode) {
+    if ($('#cReferralCode')) $('#cReferralCode').value = referralCode;
+    if ($('#dReferralCode')) $('#dReferralCode').value = referralCode;
+  }
   // If the user is already logged in, Login should never open the login form again.
   $('#loginBtn').addEventListener('click', async () => { await syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
   $('#loginBtnMobile').addEventListener('click', async () => { await syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
