@@ -179,9 +179,20 @@ const geocode = asyncHandler(async (req, res) => {
     };
     addFocused(normalized);
     addFocused(withoutCountry);
+    if (street && locality && city) {
+      addFocused(street + ', ' + locality + ', ' + city + (country ? ', ' + country : ''));
+    }
+    if (street && city) {
+      addFocused(street + ', ' + city + (country ? ', ' + country : ''));
+    }
+    if (locality && city) {
+      addFocused(locality + ', ' + city + (country ? ', ' + country : ''));
+    }
+    if (poiName && city) {
+      addFocused(poiName + ', ' + city + (country ? ', ' + country : ''));
+    }
     if (city) addFocused(city + (country ? ', ' + country : ''));
-    if (street && city) addFocused(street + ', ' + city + (country ? ', ' + country : ''));
-    for (let i = 0; i < Math.min(focusedQueries.length, 4); i += 1) {
+    for (let i = 0; i < Math.min(focusedQueries.length, 8); i += 1) {
       const data = await search(focusedQueries[i]);
       if (Array.isArray(data) && data.length) {
         // Prefer results in the same city when a city was identified.
