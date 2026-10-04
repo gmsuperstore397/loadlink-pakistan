@@ -25,7 +25,7 @@ const VEHICLE_CAPACITY = {
 };
 
 function isDriverUser(user = state.user) {
-  return !!user && (user.role === 'DRIVER' || !!user.driverProfile);
+  return !!user && (user.role === 'DRIVER' || user.role === 'FLEET_OWNER' || !!user.driverProfile);
 }
 
 const state = {
