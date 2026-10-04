@@ -5,6 +5,7 @@ const ApiError = require('./ApiError');
 const { sanitizeUser } = require('./sanitizeUser');
 const notify = require('./notification.service');
 const audit = require('./audit');
+const { rewardDriverReferralOnVerification } = require('./referral.service');
 
 // GET /api/admin/dashboard
 const dashboard = asyncHandler(async (req, res) => {
