@@ -152,7 +152,12 @@ const getVehicle = asyncHandler(async (req, res) => {
 
 // POST /api/vehicles  (driver only)
 const createVehicle = asyncHandler(async (req, res) => {
-  if (!req.user.driverProfile) throw new ApiError(403, 'Driver profile required');
+  // Resolve the profile from DB as a safety net for sessions created before
+  // a CUSTOMER account was upgraded to DRIVER.
+  const driverProfile = req.user.driverProfile || await prisma.driverProfile.findUnique({
+    where: { userId: req.user.id },
+  });
+  if (!driverProfile) throw new ApiError(403, 'Driver profile required');
 
   const { vehicleType, vehicleNumber, capacityKg, brand, model, year } = req.body;
 
@@ -161,7 +166,7 @@ const createVehicle = asyncHandler(async (req, res) => {
 
   const vehicle = await prisma.vehicle.create({
     data: {
-      driverId: req.user.driverProfile.id,
+      driverId: driverProfile.id,
       vehicleType,
       vehicleNumber,
       capacityKg: Number(capacityKg),
