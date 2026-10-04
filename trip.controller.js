@@ -3,6 +3,7 @@ const asyncHandler = require('./asyncHandler');
 const { success } = require('./apiResponse');
 const ApiError = require('./ApiError');
 const notify = require('./notification.service');
+const { rewardDriverForCompletedLoad, rewardCustomerReferralOnDelivery } = require('./referral.service');
 
 // GET /api/trips
 const listTrips = asyncHandler(async (req, res) => {
@@ -163,6 +164,11 @@ const updateTripStatus = asyncHandler(async (req, res) => {
   });
 
   const load = await prisma.load.findUnique({ where: { id: trip.loadId } });
+  if (isDelivered) {
+    const driverUser = await prisma.driverProfile.findUnique({ where: { id: trip.driverId }, select: { userId: true } });
+    if (driverUser) await rewardDriverForCompletedLoad(driverUser.userId, trip.id);
+    await rewardCustomerReferralOnDelivery(load.customerId);
+  }
   await notify(
     load.customerId,
     isDelivered ? 'TRIP_DELIVERED' : 'TRIP_UPDATED',
