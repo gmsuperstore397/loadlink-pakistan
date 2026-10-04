@@ -65,6 +65,7 @@ const verifyTransporter = asyncHandler(async (req, res) => {
 
   await notify(driver.userId, 'ACCOUNT_VERIFIED', 'Account verified',
     'Your driver account has been verified. You can now accept bookings.');
+  await rewardDriverReferralOnVerification(driver.userId);
 
   return success(res, 200, 'Transporter verified', { driver: updated });
 });
