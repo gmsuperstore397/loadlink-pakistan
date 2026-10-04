@@ -482,6 +482,28 @@
         <div class="profile-completion-missing" id="profileCompletionMissing"></div>
       </div>
 
+    <div class="card" id="referralCard" style="margin-top:18px">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+        <div><h3>🎁 Refer &amp; Earn</h3><p class="section-desc small">Genuine drivers aur customers ko LoadLink par invite karein. Reward sirf verified/qualifying activity ke baad milta hai.</p></div>
+        <span class="badge-pill" id="referralLevelBadge">Starter</span>
+      </div>
+      <div class="driver-feedback-stats">
+        <div><strong id="referralTotal">0</strong><span>Referrals</span></div>
+        <div><strong id="referralQualified">0</strong><span>Qualified</span></div>
+        <div><strong id="referralCash">PKR 0</strong><span>Rewards Earned</span></div>
+        <div><strong id="referralPoints">0</strong><span>Load Points</span></div>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label>Your Referral Code</label>
+        <div class="field-with-btn"><input id="myReferralCode" readonly><button type="button" class="btn btn-outline" id="copyReferralBtn">Copy</button></div>
+      </div>
+      <div class="field">
+        <label>Referral Link</label>
+        <div class="field-with-btn"><input id="myReferralLink" readonly><button type="button" class="btn btn-primary" id="shareReferralBtn">📲 Share</button></div>
+      </div>
+      <div id="referralRewardsList" class="results-grid" style="margin-top:12px"></div>
+    </div>
+
     <div class="card" id="driverVehiclesCard" style="margin-top:18px" hidden>
       <h3>🚚 Meri Gaariyan</h3>
       <p class="section-desc">Apni ek ya multiple gaariyan yahan add aur manage karein.</p>
@@ -637,6 +659,7 @@
       </div>
       <div class="field"><label>Password</label><input type="password" id="cPassword" minlength="6" required></div>
       <div class="field"><label>City</label><input type="text" id="cCity"></div>
+      <div class="field"><label>Referral Code (optional)</label><input type="text" id="cReferralCode" placeholder="Agar kisi ne invite kiya hai"></div>
       <button type="submit" class="btn btn-primary btn-block">Create Customer Account</button>
     </form>
 
@@ -652,6 +675,7 @@
         <div class="field"><label>Password</label><input type="password" id="dPassword" minlength="6" required></div>
       </div>
       <div class="field"><label>Driving License Number</label><input type="text" id="dLicense" required></div>
+      <div class="field"><label>Referral Code (optional)</label><input type="text" id="dReferralCode" placeholder="Agar kisi driver ne invite kiya hai"></div>
       <div class="field-row">
         <div class="field"><label>CNIC Expiry (optional)</label><input type="date" id="dCnicExpiry"></div>
         <div class="field"><label>License Expiry (optional)</label><input type="date" id="dLicenseExpiry"></div>
@@ -715,7 +739,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20261001-27"></script>
+<script src="app.js?v=20261004-1"></script>
  
 <div class="modal" id="sosModal" aria-hidden="true">
   <div class="modal-box">
