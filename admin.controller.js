@@ -18,17 +18,18 @@ const dashboard = asyncHandler(async (req, res) => {
     prisma.driverProfile.count({ where: { verification: 'VERIFIED' } }),
     prisma.driverProfile.count({ where: { verification: 'PENDING_VERIFICATION' } }),
     prisma.vehicle.count(),
-    prisma.referral.count(),
-    prisma.rewardTransaction.aggregate({ _sum: { amount: true } }),
     prisma.load.count({ where: { status: { in: ['POSTED', 'SEARCHING', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT'] } } }),
     prisma.load.count({ where: { status: 'DELIVERED' } }),
     prisma.trip.count({ where: { status: { not: 'DELIVERED' } } }),
     prisma.trip.count({ where: { status: 'DELIVERED' } }),
+    prisma.referral.count(),
+    prisma.rewardTransaction.aggregate({ _sum: { amount: true } }),
   ]);
 
   return success(res, 200, 'Dashboard stats', {
     users, drivers, verifiedDrivers, pendingDrivers, vehicles,
     activeLoads, completedLoads, activeTrips, completedTrips,
+    referrals, rewardLiability: Number(rewardLiability._sum.amount || 0),
   });
 });
 
