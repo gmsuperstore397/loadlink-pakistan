@@ -77,9 +77,33 @@ const registerTransporter = asyncHandler(async (req, res) => {
       throw new ApiError(409, 'Driver account already exists. Please login instead of signing up again.');
     }
     if (existingUser.role === 'CUSTOMER') {
-      throw new ApiError(409, 'This mobile or email is already registered as a customer. Please use a different mobile/email for a driver account.');
+      const passwordHash = await bcrypt.hash(password, 10);
+      user = await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          fullName,
+          mobile: normalizedMobile,
+          email: normalizedEmail,
+          city,
+          passwordHash,
+          role: 'DRIVER',
+          driverProfile: {
+            create: {
+              cnic,
+              cnicDocUrl,
+              drivingLicense,
+              cnicExpiryDate: cnicExpiryDate ? new Date(cnicExpiryDate) : null,
+              licenseExpiryDate: licenseExpiryDate ? new Date(licenseExpiryDate) : null,
+              licenseDocUrl,
+              verification: 'PENDING_VERIFICATION',
+            },
+          },
+        },
+        include: { driverProfile: { include: { vehicles: true } } },
+      });
+    } else {
+      throw new ApiError(409, 'Mobile or email is already registered');
     }
-    throw new ApiError(409, 'Mobile or email is already registered');
   } else {
     const passwordHash = await bcrypt.hash(password, 10);
     user = await prisma.user.create({
