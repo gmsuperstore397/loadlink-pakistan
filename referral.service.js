@@ -29,13 +29,19 @@ async function ensureReferralCode(user) {
   return code;
 }
 
-async function attachReferral(referredUserId, referralCode) {
+async function validateReferralCode(referralCode) {
   const code = cleanCode(referralCode);
   if (!code) return null;
   const referrer = await prisma.user.findUnique({ where: { referralCode: code }, select: { id: true, status: true, referralCode: true } });
-  if (!referrer) throw new ApiError(400, 'Invalid referral code');
+  if (!referrer || referrer.status !== 'ACTIVE') throw new ApiError(400, 'Invalid referral code');
+  return referrer;
+}
+
+async function attachReferral(referredUserId, referralCode) {
+  const code = cleanCode(referralCode);
+  if (!code) return null;
+  const referrer = await validateReferralCode(code);
   if (referrer.id === referredUserId) throw new ApiError(400, 'Self-referral is not allowed');
-  if (referrer.status !== 'ACTIVE') throw new ApiError(400, 'Referral account is not active');
 
   const existing = await prisma.referral.findUnique({ where: { referredUserId } });
   if (existing) return existing;
@@ -162,4 +168,5 @@ module.exports = {
   rewardCustomerReferralOnDelivery,
   rewardDriverForCompletedLoad,
   getReferralDashboard,
+  validateReferralCode,
 };
