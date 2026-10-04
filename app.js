@@ -387,17 +387,31 @@ async function syncSessionFromStorage() {
   return state.user;
 }
 
-function initAuthModals() {
+function applyPendingReferralToForms() {
   const referralCode = getPendingReferralCode();
-  if (referralCode) {
-    if ($('#cReferralCode')) $('#cReferralCode').value = referralCode;
-    if ($('#dReferralCode')) $('#dReferralCode').value = referralCode;
-  }
+  if (!referralCode) return '';
+  const customerField = $('#cReferralCode');
+  const driverField = $('#dReferralCode');
+  if (customerField && !customerField.value.trim()) customerField.value = referralCode;
+  if (driverField && !driverField.value.trim()) driverField.value = referralCode;
+  return referralCode;
+}
+
+function initAuthModals() {
+  applyPendingReferralToForms();
   // If the user is already logged in, Login should never open the login form again.
   $('#loginBtn').addEventListener('click', async () => { await syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
   $('#loginBtnMobile').addEventListener('click', async () => { await syncSessionFromStorage(); state.user ? showProfile() : openModal('loginModal'); });
-  $('#signupBtn').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
-  $('#signupBtnMobile').addEventListener('click', () => state.user ? showProfile() : openModal('signupModal'));
+  $('#signupBtn').addEventListener('click', () => {
+    if (state.user) return showProfile();
+    applyPendingReferralToForms();
+    openModal('signupModal');
+  });
+  $('#signupBtnMobile').addEventListener('click', () => {
+    if (state.user) return showProfile();
+    applyPendingReferralToForms();
+    openModal('signupModal');
+  });
   $('#heroDriverBtn').addEventListener('click', (event) => {
     event.preventDefault();
     openDriverSignup();
@@ -567,7 +581,8 @@ function initAuthModals() {
 }
 
 function setSignupTab(role) {
-  $$('.signup-tab').forEach((t) => t.classList.toggle('active', t.dataset.role === role));
+  applyPendingReferralToForms();
+  $('.signup-tab').forEach((t) => t.classList.toggle('active', t.dataset.role === role));
   $('#customerSignupForm').hidden = role !== 'customer';
   $('#driverSignupForm').hidden = role !== 'driver';
 }
@@ -2012,7 +2027,10 @@ function initConnectivityWatch() {
    INIT
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  // Referral links use /?ref=CODE. Save the code immediately and keep the
+  // signup field pre-filled even if the user opens signup after page load.
   getPendingReferralCode();
+  applyPendingReferralToForms();
   $('#year').textContent = new Date().getFullYear();
   initNav();
   initHeroSlider();
