@@ -7,6 +7,7 @@ const { success, fail } = require('./apiResponse');
 const { signToken } = require('./jwt');
 const { sanitizeUser } = require('./sanitizeUser');
 const ApiError = require('./ApiError');
+const { generateReferralCode, attachReferral, validateReferralCode } = require('./referral.service');
 
 function setAuthCookie(res, token) {
   const secure = process.env.NODE_ENV === 'production';
@@ -22,10 +23,11 @@ function clearAuthCookie(res) {
 
 // POST /api/auth/register  (customer registration)
 const register = asyncHandler(async (req, res) => {
-  const { fullName, mobile, email, password, city } = req.body;
+  const { fullName, mobile, email, password, city, referralCode } = req.body;
 
   const normalizedMobile = String(mobile || '').replace(/\s+/g, '');
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  if (referralCode) await validateReferralCode(referralCode);
 
   const [mobileUser, emailUser] = await Promise.all([
     normalizedMobile ? prisma.user.findFirst({ where: { mobile: normalizedMobile } }) : null,
@@ -57,9 +59,20 @@ const register = asyncHandler(async (req, res) => {
   } else {
     const passwordHash = await bcrypt.hash(password, 10);
     user = await prisma.user.create({
-      data: { fullName, mobile: normalizedMobile, email: normalizedEmail, passwordHash, city, role: 'CUSTOMER' },
+      data: {
+        fullName,
+        mobile: normalizedMobile,
+        email: normalizedEmail,
+        passwordHash,
+        city,
+        role: 'CUSTOMER',
+        referralCode: await generateReferralCode(fullName),
+      },
     });
   }
+
+
+  if (referralCode) await attachReferral(user.id, referralCode);
 
   const otp = String(crypto.randomInt(100000, 1000000));
   await prisma.otpVerification.deleteMany({ where: { userId: user.id, purpose: 'SIGNUP', usedAt: null } });
