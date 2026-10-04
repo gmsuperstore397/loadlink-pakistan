@@ -944,11 +944,23 @@ document.addEventListener('click', async (event) => {
   if (!button) return;
   const id = button.dataset.contactSave;
   const select = document.querySelector('[data-contact-status="'+id+'"]');
+  if (!select) return;
+  button.disabled = true;
+  const originalText = button.textContent;
+  button.textContent = 'Saving...';
   try {
-    await api('/admin/contact-requests/'+encodeURIComponent(id), { method:'PATCH', body:JSON.stringify({ status: select?.value || 'IN_PROGRESS' }) });
-    toast('Contact request updated');
+    const result = await api('/admin/contact-requests/'+encodeURIComponent(id), {
+      method:'PATCH',
+      body:JSON.stringify({ status: select.value || 'IN_PROGRESS' })
+    });
+    toast(result?.request ? 'Contact request saved' : 'Contact request updated');
     await loadContactRequests();
-  } catch (error) { toast(error.message); }
+  } catch (error) {
+    toast('Save failed: ' + error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
 });
 $('#workspaceRefresh')?.addEventListener('click', loadWorkspace);
 $('#liveTrackingRefresh')?.addEventListener('click', loadLiveTracking);
