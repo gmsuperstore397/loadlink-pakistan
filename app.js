@@ -668,21 +668,110 @@ document.addEventListener('click', async (e) => {
   } catch (err) { toast(err.message); }
 });
 
-function initDashboard() {
-  $('#copyReferralBtn')?.addEventListener('click', async () => {
-    const value = $('#myReferralLink')?.value || $('#myReferralCode')?.value || '';
-    if (!value) return;
-    try { await navigator.clipboard.writeText(value); toast('Referral link copy ho gaya.'); }
-    catch (_) { $('#myReferralLink')?.select(); document.execCommand('copy'); toast('Referral link copy ho gaya.'); }
-  });
-  $('#shareReferralBtn')?.addEventListener('click', async () => {
-    const link = $('#myReferralLink')?.value || '';
-    if (!link) return;
-    const text = 'LoadLink Pakistan join karein. Mere referral link se signup karein: ' + link;
+function buildReferralShareData() {
+  const link = ($('#myReferralLink')?.value || '').trim();
+  const code = ($('#myReferralCode')?.value || '').trim();
+  const fallbackLink = code
+    ? new URL('/?ref=' + encodeURIComponent(code), location.origin).toString()
+    : '';
+  const finalLink = link || fallbackLink;
+  return {
+    link: finalLink,
+    text: finalLink
+      ? 'LoadLink Pakistan join karein. Mere referral link se signup karein: ' + finalLink
+      : 'LoadLink Pakistan join karein.',
+  };
+}
+
+async function copyReferralLink(value) {
+  if (!value) return false;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch (_) {}
+  try {
+    const input = $('#myReferralLink');
+    if (input) {
+      input.focus();
+      input.select();
+      input.setSelectionRange(0, input.value.length);
+      return document.execCommand('copy');
+    }
+  } catch (_) {}
+  return false;
+}
+
+async function shareReferralLink() {
+  const { link, text } = buildReferralShareData();
+  if (!link) {
+    toast('Referral link abhi load nahi hua. Profile dobara open karein.');
+    return;
+  }
+
+  // Android/iPhone native share sheet.
+  if (typeof navigator.share === 'function') {
     try {
-      if (navigator.share) await navigator.share({ title: 'LoadLink Pakistan', text, url: link });
-      else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-    } catch (_) {}
+      await navigator.share({
+        title: 'LoadLink Pakistan',
+        text: 'LoadLink Pakistan join karein. Mere referral link se signup karein.',
+        url: link,
+      });
+      return;
+    } catch (err) {
+      // User cancelled the native sheet: do nothing. Other browser errors
+      // should continue to the reliable WhatsApp/copy fallbacks below.
+      if (err?.name === 'AbortError') return;
+    }
+  }
+
+  // Reliable mobile fallback. Direct navigation is less likely to be blocked
+  // than window.open() after an async operation.
+  const whatsappUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
+  try {
+    window.location.href = whatsappUrl;
+    return;
+  } catch (_) {}
+
+  const copied = await copyReferralLink(link);
+  toast(copied ? 'Referral link copy ho gaya. WhatsApp se share karein.' : 'Referral link: ' + link);
+}
+
+function initDashboard() {
+  // Delegated handlers keep working even when the profile/dashboard markup is
+  // re-rendered after login.
+  document.addEventListener('click', async (event) => {
+    const copyButton = event.target.closest?.('#copyReferralBtn');
+    const shareButton = event.target.closest?.('#shareReferralBtn');
+
+    if (copyButton) {
+      event.preventDefault();
+      const { link } = buildReferralShareData();
+      if (!link) return toast('Referral link abhi load nahi hua. Profile dobara open karein.');
+      copyButton.disabled = true;
+      try {
+        const copied = await copyReferralLink(link);
+        toast(copied ? 'Referral link copy ho gaya.' : 'Copy nahi ho saka. Link manually select karein.');
+      } finally {
+        copyButton.disabled = false;
+      }
+      return;
+    }
+
+    if (shareButton) {
+      event.preventDefault();
+      shareButton.disabled = true;
+      try {
+        await shareReferralLink();
+      } catch (err) {
+        const { link } = buildReferralShareData();
+        const copied = await copyReferralLink(link);
+        toast(copied ? 'Share open nahi hua. Referral link copy ho gaya.' : 'Share nahi ho saka. Dobara try karein.');
+      } finally {
+        shareButton.disabled = false;
+      }
+    }
   });
   $('#profileLogoutBtn').addEventListener('click', async () => {
     try {
