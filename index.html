@@ -644,6 +644,20 @@
   </div>
 </div>
 
+<div class="modal" id="commissionSlipModal" aria-hidden="true">
+  <div class="modal-card">
+    <button type="button" class="modal-close" data-close="commissionSlipModal">×</button>
+    <h3>💰 Commission Transaction Slip</h3>
+    <p class="section-desc" id="commissionSlipInfo">Commission 5% hai. Transaction slip upload karein.</p>
+    <form id="commissionSlipForm" class="modal-form">
+      <input type="hidden" id="commissionSlipTripId">
+      <div class="field"><label>Commission Amount</label><input id="commissionSlipAmount" readonly></div>
+      <div class="field"><label>Transaction Slip</label><input id="commissionSlipFile" type="file" accept="image/jpeg,image/png,application/pdf" required></div>
+      <button type="submit" class="btn btn-primary">💾 Upload Transaction Slip</button>
+    </form>
+  </div>
+</div>
+
 <!-- ============== SIGN UP MODAL ============== -->
 <div class="modal" id="signupModal">
   <div class="modal-box modal-box-wide">
