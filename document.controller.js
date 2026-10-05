@@ -28,7 +28,7 @@ const getPrivateDocument = asyncHandler(async (req, res) => {
   const filename = requestedFilename(req.params.filename);
   const url = storedUrl(filename);
 
-  const [driverDoc, vehicleDoc, proof] = await Promise.all([
+  const [driverDoc, vehicleDoc, proof, commission] = await Promise.all([
     prisma.driverProfile.findFirst({
       where: { OR: [{ cnicDocUrl: url }, { licenseDocUrl: url }] },
       select: { userId: true },
@@ -49,9 +49,16 @@ const getPrivateDocument = asyncHandler(async (req, res) => {
         },
       },
     }),
+    prisma.booking.findFirst({
+      where: { commissionSlipUrl: url },
+      select: {
+        customerId: true,
+        driver: { select: { userId: true } },
+      },
+    }),
   ]);
 
-  if (!driverDoc && !vehicleDoc && !proof) {
+  if (!driverDoc && !vehicleDoc && !proof && !commission) {
     throw new ApiError(404, 'Document not found');
   }
 
@@ -60,14 +67,16 @@ const getPrivateDocument = asyncHandler(async (req, res) => {
   const isManager = req.user.role === 'MANAGER' && (
     hasPermission(req.user, 'drivers.view') ||
     hasPermission(req.user, 'vehicles.view') ||
-    hasPermission(req.user, 'trips.view')
+    hasPermission(req.user, 'trips.view') ||
+    hasPermission(req.user, 'commission.view')
   );
   const isDriverOwner =
     driverDoc?.userId === userId ||
     vehicleDoc?.driver?.userId === userId ||
     proof?.submittedById === userId ||
-    proof?.trip?.driver?.userId === userId;
-  const isCustomerOwner = proof?.trip?.load?.customerId === userId;
+    proof?.trip?.driver?.userId === userId ||
+    commission?.driver?.userId === userId;
+  const isCustomerOwner = proof?.trip?.load?.customerId === userId || commission?.customerId === userId;
 
   if (!isAdmin && !isManager && !isDriverOwner && !isCustomerOwner) {
     throw new ApiError(403, 'You do not have permission to view this document');
