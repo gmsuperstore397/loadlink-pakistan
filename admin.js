@@ -68,6 +68,7 @@ const MODULES = {
   vehicles:{permission:'vehicles.view',title:'Vehicle Verification',path:'/admin/vehicles/verification',columns:[['vehicleNumber','Number'],['vehicleType','Type'],['capacityKg','Capacity KG'],['driver.user.fullName','Driver'],['driver.user.status','Driver Account'],['fleetOwner.fullName','Fleet Owner'],['isVerified','Verified'],['status','Status']]},
   loads:{permission:'loads.view',title:'Loads',path:'/admin/loads',columns:[['pickupAddress','Pickup'],['destinationAddress','Destination'],['weightKg','Weight KG'],['status','Status'],['customer.fullName','Customer'],['createdAt','Posted']]},
   bookings:{permission:'bookings.view',title:'Bookings',path:'/admin/bookings',columns:[['id','ID'],['status','Status'],['agreedFare','Fare'],['customer.fullName','Customer'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
+  commissions:{permission:'commission.view',title:'Commission',path:'/admin/commissions',columns:[['id','Booking ID'],['agreedFare','Fare'],['commissionAmount','Commission (5%)'],['commissionStatus','Slip Status'],['trip.status','Trip Status'],['driver.user.fullName','Driver'],['customer.fullName','Customer']]},
   payments:{permission:'payments.verify',title:'Payments',path:'/admin/payments',columns:[['id','ID'],['amount','Amount'],['method','Method'],['status','Status'],['user.fullName','User'],['createdAt','Date']]},
   trips:{permission:'trips.view',title:'Trips',path:'/admin/trips',columns:[['id','ID'],['status','Status'],['pickup','Pickup'],['destination','Destination'],['driver.user.fullName','Driver'],['vehicle.vehicleNumber','Vehicle']]},
   disputes:{permission:'disputes.view',title:'Disputes',path:'/admin/disputes',columns:[['id','ID'],['status','Status'],['category','Category'],['raisedBy.fullName','Raised By'],['trip.id','Trip'],['createdAt','Created']]},
@@ -103,6 +104,7 @@ function moduleActions(key,row){
   if(key==='drivers') return '<button class="primary danger-action" type="button" data-action="toggle-driver" data-id="'+id+'" data-status="'+esc(row.user?.status||'ACTIVE')+'">'+(row.user?.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
   if(key==='loads') return '<button class="primary" type="button" data-action="edit-load" data-id="'+id+'">Edit</button>';
   if(key==='bookings') return '<button class="primary" type="button" data-action="edit-booking" data-id="'+id+'">Update</button>';
+  if(key==='commissions') return (row.commissionSlipUrl ? '<button class="primary" type="button" data-action="view-commission-slip" data-id="'+id+'" data-url="'+esc(row.commissionSlipUrl)+'">View Slip</button> ' : '') + (row.commissionStatus==='SLIP_UPLOADED' ? '<button class="primary" type="button" data-action="verify-commission" data-id="'+id+'">Verify Slip</button> <button class="primary danger-action" type="button" data-action="reject-commission" data-id="'+id+'">Reject</button>' : row.commissionStatus==='VERIFIED' ? '<span class="muted">Verified</span>' : '');
   if(key==='payments') return '<button class="primary" type="button" data-action="edit-payment" data-id="'+id+'">Verify</button>';
   if(key==='disputes') return '<button class="primary" type="button" data-action="edit-dispute" data-id="'+id+'">Review</button>';
   if(key==='sos') return '<button class="primary danger-action" type="button" data-action="edit-sos" data-id="'+id+'">Manage</button>';
@@ -534,7 +536,7 @@ function renderNav() {
     ['drivers.view','🚛 Drivers','module','Drivers'],
     ['loads.view','📦 Loads','module','Loads'],
     ['bookings.view','🤝 Bookings','module','Bookings'],
-    ['commission.verify','💰 Commission','module','Bookings'],
+    ['commission.view','💰 Commission','module','Commission'],
     ['payments.verify','💳 Payments','module','Payments'],
     ['trips.view','📍 Trips','module','Trips'],
     ['location.view','📡 Live Tracking','liveTracking','Live Driver Tracking'],
@@ -818,6 +820,9 @@ document.addEventListener('click', async (event) => {
     if (action === 'toggle-driver') return toggleDriverAccount(id, button.dataset.status);
     if (action === 'edit-load') return editLoad(id);
     if (action === 'edit-booking') return editBooking(id);
+    if (action === 'view-commission-slip') { const url = button.dataset.url; if (url) window.open(url, '_blank', 'noopener'); return; }
+    if (action === 'verify-commission') { await api('/admin/commissions/' + id + '/verify', {method:'PATCH',body:JSON.stringify({})}); toast('Commission slip verified'); return loadModule('Commission'); }
+    if (action === 'reject-commission') { const reason = prompt('Reject reason (optional)') || ''; await api('/admin/commissions/' + id + '/reject', {method:'PATCH',body:JSON.stringify({reason})}); toast('Commission slip rejected'); return loadModule('Commission'); }
     if (action === 'edit-payment') return editPayment(id);
     if (action === 'edit-dispute') return editDispute(id);
     if (action === 'edit-sos') return editSOS(id);
