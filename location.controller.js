@@ -215,39 +215,29 @@ const geocode = asyncHandler(async (req, res) => {
         return score(b) - score(a);
       });
 
-    for (let i = 0; i < Math.min(focusedQueries.length, 12); i += 1) {
-      const data = await search(focusedQueries[i]);
+    // Do not burst many public Nominatim requests. The first strong query
+    // is enough for normal addresses; then use the structured fallback below.
+    if (focusedQueries.length) {
+      const data = await search(focusedQueries[0]);
+      if (Array.isArray(data) && data.length) {
+        const ranked = rankResults(data);
+        if (ranked.length) first = ranked[0];
+      }
+    }
+
+    // A clean street/locality/city query is more reliable for landmark-heavy
+    // Pakistani addresses when the full free-form string is not indexed.
+    if (!first && street && city) {
+      await sleep(1000);
+      const cleanQuery = [street, locality, city, country].filter(Boolean).join(', ');
+      const data = await search(cleanQuery);
       if (Array.isArray(data) && data.length) {
         const ranked = rankResults(data);
         if (ranked.length) {
           first = ranked[0];
-          // Exact/strong POI/street match is good enough; otherwise keep trying
-          // a few richer queries before falling back to city level.
-          const textValue = [first.display_name, JSON.stringify(first.address || {})].join(' ').toLowerCase();
-          const strong = relevanceTerms.some(term => term && textValue.includes(term));
-          if (strong || i >= Math.min(7, focusedQueries.length - 1)) break;
           approximate = true;
         }
       }
-      if (i < Math.min(focusedQueries.length, 12) - 1) await sleep(700);
-      if (Array.isArray(data) && data.length) {
-        // Prefer results in the same city when a city was identified.
-        const ranked = data
-          .filter((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)))
-          .sort((a, b) => {
-            const aCity = String(a.address?.city || a.address?.town || a.address?.municipality || a.address?.village || '').toLowerCase();
-            const bCity = String(b.address?.city || b.address?.town || b.address?.municipality || b.address?.village || '').toLowerCase();
-            const target = city.toLowerCase();
-            const aMatch = target && aCity.includes(target) ? 1 : 0;
-            const bMatch = target && bCity.includes(target) ? 1 : 0;
-            return bMatch - aMatch;
-          });
-        if (ranked.length) {
-          first = ranked[0];
-          break;
-        }
-      }
-      if (i < queries.length - 1) await sleep(1100);
     }
 
     // Second pass: structured street/city fallback.
