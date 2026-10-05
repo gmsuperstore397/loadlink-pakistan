@@ -130,7 +130,7 @@ const VALID_TRIP_TRANSITIONS = {
 
 // PATCH /api/trips/:id/status  (assigned driver only)
 const updateTripStatus = asyncHandler(async (req, res) => {
-  const trip = await prisma.trip.findUnique({ where: { id: req.params.id } });
+  const trip = await prisma.trip.findUnique({ where: { id: req.params.id }, include: { booking: true } });
   if (!trip) throw new ApiError(404, 'Trip not found');
   if (!req.user.driverProfile || trip.driverId !== req.user.driverProfile.id) {
     throw new ApiError(403, 'Only the assigned driver can update this trip');
