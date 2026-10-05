@@ -118,8 +118,6 @@ const updateLoad = asyncHandler(async (req, res) => {
 
 // POST /api/loads/:id/contact-team (driver only)
 const contactTeam = asyncHandler(async (req, res) => {
-  if (!['DRIVER', 'FLEET_OWNER'].includes(req.user.role) && !req.user.driverProfile) throw new ApiError(403, 'Driver/Transporter account required');
-
   const load = await prisma.load.findUnique({
     where: { id: req.params.id },
     include: { customer: { select: { id: true, fullName: true, mobile: true, city: true } } },
