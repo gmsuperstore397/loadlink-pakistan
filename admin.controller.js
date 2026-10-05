@@ -496,7 +496,7 @@ const updateContactRequest = asyncHandler(async (req,res) => {
   const request = await prisma.contactRequest.update({ where: { id: req.params.id }, data: { status } });
   return success(res,200,'Contact request updated',{request});
 });
-const listBookings = asyncHandler(async (req,res) => { const bookings=await prisma.booking.findMany({include:{load:{select:{id:true,pickupAddress:true,destinationAddress:true,status:true,weightKg:true}},customer:{select:{id:true,fullName:true,mobile:true}},driver:{include:{user:{select:{id:true,fullName:true,mobile:true}}}},vehicle:{select:{id:true,vehicleNumber:true,vehicleType:true}},trip:{select:{id:true,status:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Bookings fetched',{bookings}); });
+const listBookings = asyncHandler(async (req,res) => { const bookings=await prisma.booking.findMany({include:{load:{select:{id:true,pickupAddress:true,destinationAddress:true,status:true,weightKg:true}},customer:{select:{id:true,fullName:true,mobile:true}},driver:{include:{user:{select:{id:true,fullName:true,mobile:true}}}},vehicle:{select:{id:true,vehicleNumber:true,vehicleType:true}},trip:{select:{id:true,status:true}},},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Bookings fetched',{bookings}); });
 const listPayments = asyncHandler(async (req,res) => { const payments=await prisma.payment.findMany({include:{user:{select:{id:true,fullName:true,mobile:true}},trip:{select:{id:true,status:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Payments fetched',{payments}); });
 const listTrips = asyncHandler(async (req,res) => { const trips=await prisma.trip.findMany({include:{load:{select:{id:true,pickupAddress:true,destinationAddress:true}},driver:{include:{user:{select:{id:true,fullName:true,mobile:true}}}},vehicle:{select:{id:true,vehicleNumber:true,vehicleType:true}},booking:{select:{id:true,status:true,agreedFare:true}}},orderBy:{createdAt:'desc'},take:300}); return success(res,200,'Trips fetched',{trips}); });
 const reports = asyncHandler(async (req,res) => { const [usersByRole,loadStatus,bookingStatus,paymentStatus,revenue]=await Promise.all([prisma.user.groupBy({by:['role'],_count:{_all:true}}),prisma.load.groupBy({by:['status'],_count:{_all:true}}),prisma.booking.groupBy({by:['status'],_count:{_all:true}}),prisma.payment.groupBy({by:['status'],_count:{_all:true}}),prisma.payment.aggregate({where:{status:'PAID'},_sum:{amount:true}})]); return success(res,200,'Reports fetched',{usersByRole,loadStatus,bookingStatus,paymentStatus,revenue:revenue._sum.amount||0}); });
@@ -649,6 +649,10 @@ const approveDeal = asyncHandler(async (req, res) => {
   const booking = await prisma.booking.findUnique({ where: { id: req.params.id }, include: { load: true } });
   if (!booking) throw new ApiError(404, 'Booking not found');
   if (!['REQUESTED','ACCEPTED'].includes(booking.status)) throw new ApiError(409, 'Booking is not pending approval');
+  if (booking.commissionStatus !== 'VERIFIED') {
+    const amount = Number(booking.commissionAmount || (Number(booking.agreedFare || 0) * 0.05));
+    throw new ApiError(409, 'Commission pehle verify honi zaroori hai. Driver ko PKR ' + amount.toLocaleString() + ' ki transaction slip upload karni hogi.');
+  }
   const updated = await prisma.booking.update({ where: { id: booking.id }, data: { status: 'ACCEPTED' } });
   await audit(req, 'DEAL_APPROVED', 'Booking', booking.id, { loadId: booking.loadId });
   await notify(booking.customerId, 'BOOKING_ACCEPTED', 'Deal approved', 'LoadLink Operations ne aapki deal approve kar di hai.');
