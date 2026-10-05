@@ -281,6 +281,40 @@ const subscribePush = (subscription) => apiRequest('/push/subscribe', { method: 
 const getReferralDashboard = () => apiRequest('/referrals/me');
 const attachReferral = (referralCode) => apiRequest('/referrals/attach', { method: 'POST', body: { referralCode } });
 
+async function loadReferralDashboard() {
+  if (!state.user) return;
+  try {
+    const data = await getReferralDashboard();
+    state.referral = data || {};
+    const code = String(data.referralCode || data.code || state.user.referralCode || '').trim().toUpperCase();
+    const link = data.referralLink || (code ? new URL('/?ref=' + encodeURIComponent(code), location.origin).toString() : '');
+    if ($('#myReferralCode')) $('#myReferralCode').value = code;
+    if ($('#myReferralLink')) $('#myReferralLink').value = link;
+    const setText = (id, value) => { const el = $('#' + id); if (el) el.textContent = String(value ?? 0); };
+    setText('referralTotal', data.totalReferrals ?? data.total ?? 0);
+    setText('referralQualified', data.qualifiedReferrals ?? data.qualified ?? 0);
+    setText('referralCash', 'PKR ' + Number(data.rewardsEarned ?? data.totalRewards ?? data.rewardAmount ?? 0).toLocaleString());
+    setText('referralPoints', data.loadPoints ?? data.points ?? 0);
+    if ($('#referralLevelBadge')) $('#referralLevelBadge').textContent = data.level || 'Starter';
+    const rewards = data.rewards || data.rewardTransactions || [];
+    if ($('#referralRewardsList')) $('#referralRewardsList').innerHTML = rewards.length
+      ? rewards.slice(0, 20).map(x => '<div class="result-card"><b>' + escapeHtml(x.description || x.type || 'Referral reward') + '</b><p>PKR ' + Number(x.amount || x.rewardAmount || 0).toLocaleString() + (x.points ? ' · ' + Number(x.points).toLocaleString() + ' points' : '') + '</p><small>' + (x.createdAt ? new Date(x.createdAt).toLocaleString() : '') + '</small></div>').join('')
+      : '<p class="muted-empty">Abhi koi referral reward nahi mila.</p>';
+    if (code && !state.user.referralCode) {
+      state.user.referralCode = code;
+      localStorage.setItem('ll_user', JSON.stringify(state.user));
+    }
+  } catch (err) {
+    // The share link should still work if the dashboard request fails.
+    const code = String(state.user.referralCode || '').trim().toUpperCase();
+    if (code) {
+      if ($('#myReferralCode')) $('#myReferralCode').value = code;
+      if ($('#myReferralLink')) $('#myReferralLink').value = new URL('/?ref=' + encodeURIComponent(code), location.origin).toString();
+    }
+    console.warn('Referral dashboard failed', err);
+  }
+}
+
 
 /* ============================================================
    NAVIGATION
