@@ -14,7 +14,7 @@ const listTrips = asyncHandler(async (req, res) => {
       : { load: { customerId: req.user.id } };
   const trips = await prisma.trip.findMany({
     where,
-    include: { load: true, vehicle: true, driver: { include: { user: { select: { id: true, fullName: true } } } } },
+    include: { load: true, vehicle: true, booking: { select: { id: true, agreedFare: true, commissionRate: true, commissionAmount: true, commissionStatus: true, commissionSlipUrl: true } }, driver: { include: { user: { select: { id: true, fullName: true } } } } },
     orderBy: { createdAt: 'desc' },
   });
   return success(res, 200, 'Trips fetched', { trips });
