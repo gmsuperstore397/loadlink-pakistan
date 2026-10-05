@@ -512,3 +512,14 @@ body.profile-view #profile{display:block !important;min-height:calc(100vh - 70px
   border-color:var(--green);
   color:var(--navy);
 }
+
+.trip-commission-note{
+  margin:8px 0;
+  padding:10px 12px;
+  border-left:4px solid var(--green);
+  border-radius:10px;
+  background:#eefaf4;
+  color:var(--navy);
+  font-weight:700;
+  font-size:.92rem;
+}
