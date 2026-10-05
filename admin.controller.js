@@ -661,7 +661,7 @@ const approveDeal = asyncHandler(async (req, res) => {
 
 // PATCH /api/admin/operations/trips/:id
 const operationalTripUpdate = asyncHandler(async (req, res) => {
-  const trip = await prisma.trip.findUnique({ where: { id: req.params.id } });
+  const trip = await prisma.trip.findUnique({ where: { id: req.params.id }, include: { booking: true } });
   if (!trip) throw new ApiError(404, 'Trip not found');
   const transitions = {
     ASSIGNED: ['PICKED_UP'],
@@ -673,6 +673,9 @@ const operationalTripUpdate = asyncHandler(async (req, res) => {
   const status = String(req.body.status || '').toUpperCase();
   if (!(transitions[trip.status] || []).includes(status)) {
     throw new ApiError(400, 'Cannot move trip from ' + trip.status + ' to ' + status);
+  }
+  if (trip.status === 'ASSIGNED' && status === 'PICKED_UP' && trip.booking?.commissionStatus !== 'VERIFIED') {
+    throw new ApiError(409, 'Commission payment verify hone ke baad hi trip approve/start ho sakta hai');
   }
   if (status === 'DELIVERED') {
     const updated = await prisma.$transaction(async (tx) => {
