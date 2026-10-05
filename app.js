@@ -190,6 +190,7 @@ const getDriverRatings = (userId) => apiRequest(`/ratings/${userId}`);
 const createRating = (body) => apiRequest('/ratings', { method: 'POST', body });
 const getDeliveryProof = (tripId) => apiRequest(`/trips/${tripId}/proof`);
 const submitDeliveryProof = (tripId, formData) => apiRequest(`/trips/${tripId}/proof`, { method: 'POST', body: formData, isForm: true });
+const submitCommissionSlip = (tripId, formData) => apiRequest(`/trips/${tripId}/commission-slip`, { method: 'POST', body: formData, isForm: true });
 const createDispute = (body) => apiRequest('/disputes', { method: 'POST', body });
 const getMyDisputes = () => apiRequest('/disputes/mine');
 const createSOS = (tripId, body) => apiRequest('/sos/trips/' + tripId, { method: 'POST', body });
@@ -1949,6 +1950,7 @@ async function loadLiveTrips() {
         <div class="field-row">
           ${state.user.role === 'DRIVER' ? `
             ${t.trackingEnabled ? '<button class="btn btn-outline trip-tracking-btn" data-trip="' + t.id + '" data-tracking="false">⏹ Stop Location</button>' : '<button class="btn btn-primary trip-tracking-btn" data-trip="' + t.id + '" data-tracking="true">📍 Start Live Location</button>'}
+            ${state.user.role === 'DRIVER' && t.booking && t.booking.commissionStatus !== 'VERIFIED' ? '<div class="trip-commission-note">💰 Commission 5% · PKR ' + Number(t.booking.commissionAmount || (Number(t.booking.agreedFare || 0) * 0.05)).toLocaleString() + ' · ' + (t.booking.commissionStatus === 'SLIP_UPLOADED' ? 'Slip uploaded — Manager verification pending' : 'Transaction slip required before Manager approval') + '</div><button class="btn btn-primary commission-slip-btn" data-trip="' + t.id + '" data-amount="' + Number(t.booking.commissionAmount || (Number(t.booking.agreedFare || 0) * 0.05)) + '">💰 Upload Commission Slip</button>' : ''}
             ${t.status === 'ASSIGNED' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="PICKED_UP">Picked Up</button>' : ''}
             ${t.status === 'PICKED_UP' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="IN_TRANSIT">In Transit</button>' : ''}
             ${t.status === 'IN_TRANSIT' ? '<button class="btn btn-primary trip-status-btn" data-trip="' + t.id + '" data-status="NEAR_DESTINATION">Near Destination</button>' : ''}
@@ -2022,6 +2024,14 @@ document.addEventListener('click', async (e) => {
     return;
   }
   const statusBtn=e.target.closest('.trip-status-btn'); if(statusBtn){ statusBtn.disabled=true; try{ await updateTripStatus(statusBtn.dataset.trip,statusBtn.dataset.status); if(statusBtn.dataset.status==='DELIVERED' && driverGeoTripId===statusBtn.dataset.trip) stopDriverTracking(); toast('Trip status update ho gaya.'); await loadLiveTrips(); } catch(err){toast(err.message);} finally{statusBtn.disabled=false;} return; }
+  const commissionBtn = e.target.closest('.commission-slip-btn');
+  if (commissionBtn) {
+    $('#commissionSlipForm').reset();
+    $('#commissionSlipTripId').value = commissionBtn.dataset.trip;
+    $('#commissionSlipAmount').value = 'PKR ' + Number(commissionBtn.dataset.amount || 0).toLocaleString();
+    openModal('commissionSlipModal');
+    return;
+  }
   const btn = e.target.closest('.delivery-proof-btn');
   if (!btn) return;
   $('#deliveryProofForm').reset();
@@ -2030,6 +2040,26 @@ document.addEventListener('click', async (e) => {
 });
 
 document.addEventListener('submit', async (e) => {
+  if (e.target.id === 'commissionSlipForm') {
+    e.preventDefault();
+    const form = e.target;
+    const tripId = $('#commissionSlipTripId').value;
+    const file = $('#commissionSlipFile').files?.[0];
+    if (!file) return toast('Transaction slip select karein.');
+    if (file.size > 5 * 1024 * 1024) return toast('Slip 5MB se chhoti honi chahiye.');
+    const fd = new FormData();
+    fd.append('slip', file);
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      await submitCommissionSlip(tripId, fd);
+      closeModal('commissionSlipModal');
+      toast('Commission transaction slip upload ho gayi. Manager verification ke baad approval hoga.');
+      await loadLiveTrips();
+    } catch (err) { toast(err.message); }
+    finally { button.disabled = false; }
+    return;
+  }
   if (e.target.id !== 'deliveryProofForm') return;
   e.preventDefault();
   const form = e.target;
