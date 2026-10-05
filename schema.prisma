@@ -87,6 +87,13 @@ enum BookingStatus {
   COMPLETED
 }
 
+enum CommissionStatus {
+  PENDING
+  SLIP_UPLOADED
+  VERIFIED
+  REJECTED
+}
+
 enum TripStatus {
   ASSIGNED
   PICKED_UP
@@ -278,6 +285,13 @@ model Booking {
   agreedFare Float?
   platformFee Float?
   driverPayout Float?
+  commissionRate Float @default(0.05)
+  commissionAmount Float?
+  commissionStatus CommissionStatus @default(PENDING)
+  commissionSlipUrl String?
+  commissionUploadedAt DateTime?
+  commissionVerifiedAt DateTime?
+  commissionVerifiedById String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
