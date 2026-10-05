@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   dashboard, roleWorkspace, liveTrackingTrips, dispatchOptions, assignBooking, approveDeal, operationalTripUpdate, listVehicleVerification, verifyVehicle, rejectVehicle, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert, listContactRequests, updateContactRequest,
 } = require('./admin.controller');
+const { listCommissions, verifyCommission, rejectCommission } = require('./commission.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
 
 const PORTAL_ROLES = ['ADMIN','MANAGER','FLEET_OWNER','DISPATCHER','FREIGHT_BROKER','FREIGHT_FORWARDER','CUSTOMS_AGENT','PORT_AGENT','WAREHOUSE_OPERATOR','FINANCE','OPERATIONS','SUPPORT'];
@@ -39,6 +40,9 @@ router.get('/contact-requests', requirePermission('loads.view'), listContactRequ
 router.patch('/contact-requests/:id', requirePermission('loads.edit'), updateContactRequest);
 router.patch('/loads/:id', requirePermission('loads.edit'), updateLoad);
 router.get('/bookings', requirePermission('bookings.view'), listBookings);
+router.get('/commissions', requirePermission('commission.view'), listCommissions);
+router.patch('/commissions/:id/verify', requirePermission('commission.verify'), verifyCommission);
+router.patch('/commissions/:id/reject', requirePermission('commission.verify'), rejectCommission);
 router.patch('/bookings/:id', requirePermission('deals.approve'), updateBooking);
 router.get('/trips', requirePermission('trips.view'), listTrips);
 router.get('/reports', requirePermission('reports.view'), reports);
