@@ -28,8 +28,20 @@ function isDriverUser(user = state.user) {
   return !!user && (user.role === 'DRIVER' || user.role === 'FLEET_OWNER' || !!user.driverProfile);
 }
 
+async function refreshDriverSession() {
+  try {
+    const me = await apiRequest('/auth/me');
+    if (me.user) {
+      state.user = me.user;
+      localStorage.setItem('ll_user', JSON.stringify(me.user));
+      return isDriverUser(me.user);
+    }
+  } catch (_) {}
+  return isDriverUser();
+}
+
 const state = {
-  token: localStorage.getItem('ll_auth_token') || null,
+  token: null,
   user: JSON.parse(localStorage.getItem('ll_user') || 'null'),
   map: null,
   mapMarker: null,
@@ -110,8 +122,6 @@ async function saveAndAttachPendingReferral() {
 function saveSession(token, user) {
   state.token = token || null;
   state.user = user;
-  if (token) localStorage.setItem('ll_auth_token', token);
-  else localStorage.removeItem('ll_auth_token');
   localStorage.setItem('ll_user', JSON.stringify(user));
 }
 function clearSession() {
@@ -121,7 +131,6 @@ function clearSession() {
   const panel = $('#notificationPanel');
   if (panel) panel.hidden = true;
   localStorage.removeItem('ll_user');
-  localStorage.removeItem('ll_auth_token');
 }
 
 async function logoutUser() {
@@ -1027,6 +1036,7 @@ function initDriverVehicles() {
   if (!form) return;
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    await refreshDriverSession();
     if (!isDriverUser()) return toast('Driver/Transporter account se login karein.');
     if (!form.checkValidity()) return form.reportValidity();
     const file = $('#vDocument').files?.[0];
@@ -1765,18 +1775,9 @@ function renderLoadResults(loads, targetSel = '#flResults', ownOnly = false) {
 }
 
 async function contactPostedLoad(loadId) {
-  // Refresh the authenticated user from the server before authorizing this
-  // action. localStorage can contain an older CUSTOMER role after transporter
-  // signup upgraded the same account to DRIVER/FLEET_OWNER.
-  if (!isDriverUser()) {
-    try {
-      const me = await apiRequest('/auth/me');
-      if (me.user) {
-        state.user = me.user;
-        localStorage.setItem('ll_user', JSON.stringify(me.user));
-      }
-    } catch (_) {}
-  }
+  // Always use the server-authoritative session; cached localStorage role
+  // can be stale after a CUSTOMER -> DRIVER upgrade.
+  await refreshDriverSession();
   if (!isDriverUser()) {
     return toast('Driver/Transporter account se login karein.');
   }
