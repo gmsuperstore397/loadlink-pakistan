@@ -1752,7 +1752,7 @@ function renderLoadResults(loads, targetSel = '#flResults', ownOnly = false) {
       <p>Weight: ${l.weightKg} kg · Vehicle: ${l.preferredVehicle || 'Any suitable'}</p>
       ${l.customer ? `<p class="muted-empty">👤 Posted by: <b>${l.customer.fullName}</b>${l.customer.city ? ` · ${l.customer.city}` : ''}</p>` : ''}
       <small>Posted ${new Date(l.createdAt).toLocaleString()}</small>
-      ${(!ownOnly && state.user?.role === 'DRIVER') ? `
+      ${(!ownOnly && isDriverUser()) ? `
         <button type="button" class="btn btn-primary contact-load-btn" data-load-id="${l.id}" style="margin-top:12px;width:100%">
           📲 LoadLink Team se Contact Karein
         </button>
@@ -1762,8 +1762,20 @@ function renderLoadResults(loads, targetSel = '#flResults', ownOnly = false) {
 }
 
 async function contactPostedLoad(loadId) {
+  // Refresh the authenticated user from the server before authorizing this
+  // action. localStorage can contain an older CUSTOMER role after transporter
+  // signup upgraded the same account to DRIVER/FLEET_OWNER.
   if (!isDriverUser()) {
-    return toast('Driver account se login karein.');
+    try {
+      const me = await apiRequest('/auth/me');
+      if (me.user) {
+        state.user = me.user;
+        localStorage.setItem('ll_user', JSON.stringify(me.user));
+      }
+    } catch (_) {}
+  }
+  if (!isDriverUser()) {
+    return toast('Driver/Transporter account se login karein.');
   }
 
   let load;
