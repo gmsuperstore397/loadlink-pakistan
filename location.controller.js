@@ -446,14 +446,14 @@ const geocode = asyncHandler(async (req, res) => {
 
         const arcQueries = [];
         const addArcQuery = (q) => {
-          const v = String(q || '').replace(/\\s+/g, ' ').trim();
+          const v = String(q || '').replace(/\s+/g, ' ').trim();
           if (v && !arcQueries.includes(v)) arcQueries.push(v);
         };
 
         // Strongest candidates first.
         if (poiName && city) addArcQuery(poiName + ', ' + city + ', Sindh, Pakistan');
         if (street && city) {
-          addArcQuery(street.replace(/^main\\s+/i, '').trim() + ', ' + city + ', Sindh, Pakistan');
+          addArcQuery(street.replace(/^main\s+/i, '').trim() + ', ' + city + ', Sindh, Pakistan');
           addArcQuery(street + ', ' + city + ', Sindh, Pakistan');
         }
         for (const p of landmarkParts.slice(0, 6)) {
@@ -508,7 +508,7 @@ const geocode = asyncHandler(async (req, res) => {
         if (!first && city) {
           const multiQueries = [];
           if (poiName) multiQueries.push(poiName);
-          if (street) multiQueries.push(street.replace(/^main\\s+/i, '').trim());
+          if (street) multiQueries.push(street.replace(/^main\s+/i, '').trim());
           for (const p of landmarkParts.slice(0, 5)) multiQueries.push(p);
 
           for (const q of [...new Set(multiQueries)]) {
