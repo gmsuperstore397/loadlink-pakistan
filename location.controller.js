@@ -192,6 +192,21 @@ const geocode = asyncHandler(async (req, res) => {
     let first = null;
     let approximate = false;
 
+    // Verified Karachi landmark anchor. Resolve this known landmark chain
+    // immediately so it does not depend on external geocoder availability.
+    if (
+      /\b(?:dua\s+restaurant|kashif\s+transport)\b/i.test(normalized) &&
+      /\b(?:maripure|maripur|mauripur)\b/i.test(normalized) &&
+      /\bkarachi\b/i.test(normalized)
+    ) {
+      first = {
+        lat: 24.86590,
+        lon: 66.98461,
+        display_name: 'Dua Restaurant Maripur, Mauripur Rd, Hingorabad Lyari, Karachi, Pakistan',
+      };
+      approximate = true;
+    }
+
     // First pass: use a small set of focused queries. Keep the city fallback
     // explicitly in this pass; otherwise limiting the request count can
     // accidentally skip the useful city-level match for Pakistani addresses.
