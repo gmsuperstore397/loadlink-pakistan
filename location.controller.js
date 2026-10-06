@@ -45,6 +45,7 @@ const geocode = asyncHandler(async (req, res) => {
       url.searchParams.set('limit', '5');
       url.searchParams.set('addressdetails', '1');
       url.searchParams.set('accept-language', 'en');
+      url.searchParams.set('countrycodes', 'pk');
 
       if (structured) {
         Object.entries(structured).forEach(([key, value]) => {
@@ -218,7 +219,26 @@ const geocode = asyncHandler(async (req, res) => {
     // Try more than the single full-string query. Pakistani addresses often
     // contain local landmarks that are not indexed as one exact Nominatim POI.
     // Keep requests sequential so we respect the public geocoder rate limit.
-    for (let i = 0; i < focusedQueries.length && i < 4 && !first; i += 1) {
+    // Try progressively shorter address fragments. This is important for
+    // Pakistani landmark-heavy addresses: a POI/landmark may be indexed while
+    // the user's full human-written address is not.
+    const expandedQueries = [...focusedQueries];
+    if (coreParts.length > 1) {
+      for (let start = 0; start < coreParts.length - 1; start += 1) {
+        const fragment = coreParts.slice(start).join(', ');
+        addFocused(fragment + (country ? ', ' + country : ''));
+      }
+      // Also try the strongest locality/city suffixes.
+      for (let take = Math.min(4, coreParts.length); take >= 2; take -= 1) {
+        const fragment = coreParts.slice(-take).join(', ');
+        addFocused(fragment + (country ? ', ' + country : ''));
+      }
+    }
+    for (const q of expandedQueries) {
+      if (!focusedQueries.includes(q)) focusedQueries.push(q);
+    }
+
+    for (let i = 0; i < focusedQueries.length && i < 10 && !first; i += 1) {
       const data = await search(focusedQueries[i]);
       if (Array.isArray(data) && data.length) {
         const ranked = rankResults(data);
@@ -267,8 +287,9 @@ const geocode = asyncHandler(async (req, res) => {
     if (!first) {
       try {
         const photonUrl = new URL('https://photon.komoot.io/api/');
-        photonUrl.searchParams.set('q', city ? normalized + ', ' + city + (country ? ', ' + country : '') : normalized);
-        photonUrl.searchParams.set('limit', '5');
+        photonUrl.searchParams.set('q', normalized + (country ? ', ' + country : ', Pakistan'));
+        photonUrl.searchParams.set('limit', '10');
+        photonUrl.searchParams.set('lang', 'en');
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
         try {
