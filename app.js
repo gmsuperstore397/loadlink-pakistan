@@ -1564,9 +1564,15 @@ async function searchAddressOnMap(query) {
       return;
     }
     state._pendingCoords = { lat: Number(result.lat), lng: Number(result.lng) };
-    $('#selectedLocation').value = result.displayName || address;
+    // Keep the user's complete address in the form. The geocoder may return a
+    // shorter canonical street/area label even when it found the correct area.
+    $('#selectedLocation').value = result.approximate
+      ? address
+      : (result.displayName || address);
     await renderLeafletMap(state._pendingCoords.lat, state._pendingCoords.lng);
-    if (status) status.textContent = '📍 Location mil gayi. Neeche Confirm Location press karein.';
+    if (status) status.textContent = result.approximate
+      ? '📍 Address match mil gaya. Map pin verify karke Confirm Location karein.'
+      : '📍 Location mil gayi. Neeche Confirm Location press karein.';
   } catch (err) {
     if (status) status.textContent = '❌ Location search failed. Address dobara check karein.';
   }
