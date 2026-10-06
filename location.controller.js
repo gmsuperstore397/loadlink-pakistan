@@ -139,6 +139,8 @@ const geocode = asyncHandler(async (req, res) => {
     }
 
     const locality = localityParts.slice(-2).join(', ');
+    const stateName = /\\bkarachi\\b/i.test(city) ? 'Sindh' : '';
+    const landmarkParts = coreParts.filter((p) => p !== poiName && p !== street && p !== city && !relational.test(p));
 
     // Build several focused free-form queries. Nominatim processes free-form
     // searches left-to-right/right-to-left, and commas improve performance.
@@ -147,10 +149,12 @@ const geocode = asyncHandler(async (req, res) => {
     if (street && city) {
       for (const s of spellingVariants(street)) {
         add(`${s}, ${city}${country ? `, ${country}` : ''}`);
+        add(`${s.replace(/^main\\s+/i, '')}, ${city}${country ? `, ${country}` : ''}`);
         if (locality) add(`${s}, ${locality}, ${city}${country ? `, ${country}` : ''}`);
       }
     }
     if (locality && city) add(`${locality}, ${city}${country ? `, ${country}` : ''}`);
+    for (const part of landmarkParts.slice(0, 5)) add(`${part}, ${city}${country ? `, ${country}` : ''}`);
     if (poiName && city) add(`${poiName}, ${city}${country ? `, ${country}` : ''}`);
     if (city) add(`${city}${country ? `, ${country}` : ''}`);
 
@@ -159,11 +163,16 @@ const geocode = asyncHandler(async (req, res) => {
     const structuredCandidates = [];
     if (street && city) {
       for (const s of spellingVariants(street)) {
-        structuredCandidates.push({
-          street: s,
-          city,
-          ...(country ? { country } : {}),
-        });
+        const cleanStreet = s.replace(/^main\\s+/i, '').trim();
+        const base = { city, ...(stateName ? { state: stateName } : {}), country: country || 'Pakistan' };
+        structuredCandidates.push({ street: s, ...base });
+        if (cleanStreet !== s) structuredCandidates.push({ street: cleanStreet, ...base });
+        if (poiName) structuredCandidates.push({ amenity: poiName, street: cleanStreet, ...base });
+      }
+    }
+    for (const part of landmarkParts.slice(0, 4)) {
+      if (city && part.length >= 3) {
+        structuredCandidates.push({ amenity: part, city, ...(stateName ? { state: stateName } : {}), country: country || 'Pakistan' });
       }
     }
 
