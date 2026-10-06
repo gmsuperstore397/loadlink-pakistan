@@ -664,7 +664,14 @@ async function loadDashboard() {
   try {
     const [n, p, u, d] = await Promise.all([getNotifications(), getPayments(), getUnreadCount(), getMyDisputes()]);
     loadReferralDashboard().catch(() => {});
-    if (isDriverUser()) {
+
+    const driver = isDriverUser();
+    const customerDashboard = $('#customerDashboardContent');
+    const driverDashboard = $('#driverDashboardContent');
+    if (customerDashboard) customerDashboard.hidden = driver;
+    if (driverDashboard) driverDashboard.hidden = !driver;
+
+    if (driver) {
       const b = await getMyBookings();
       const pending = (b.bookings || []).filter(x => x.status === 'REQUESTED');
       $('#driverBookingsCard').hidden = false;
