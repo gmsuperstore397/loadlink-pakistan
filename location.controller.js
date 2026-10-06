@@ -327,27 +327,43 @@ const geocode = asyncHandler(async (req, res) => {
     }
 
     if (!first) {
-      try {
-        const photonUrl = new URL('https://photon.komoot.io/api/');
-        photonUrl.searchParams.set('q', normalized + (country ? ', ' + country : ', Pakistan'));
-        photonUrl.searchParams.set('limit', '10');
-        photonUrl.searchParams.set('lang', 'en');
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
+      // Photon fallback: search the complete address and then the strongest
+      // street/landmark/locality fragments. This is much more reliable for
+      // Pakistani addresses written as a chain of landmarks.
+      const photonQueries = [];
+      const addPhotonQuery = (q) => {
+        const v = String(q || '').replace(/\s+/g, ' ').trim();
+        if (v && !photonQueries.includes(v)) photonQueries.push(v);
+      };
+      addPhotonQuery(normalized + (country ? ', ' + country : ', Pakistan'));
+      if (street && city) addPhotonQuery(street.replace(/^main\s+/i, '').trim() + ', ' + city);
+      for (const p of landmarkParts.slice(0, 5)) if (city) addPhotonQuery(p + ', ' + city);
+      if (locality && city) addPhotonQuery(locality + ', ' + city);
+      if (city) addPhotonQuery(city + ', Pakistan');
+
+      for (const photonQuery of photonQueries) {
         try {
-          const resp = await fetch(photonUrl, {
-            headers: { 'User-Agent': NOMINATIM_USER_AGENT, Accept: 'application/json' },
-            signal: controller.signal,
-          });
-          if (resp.ok) {
+          const photonUrl = new URL('https://photon.komoot.io/api/');
+          photonUrl.searchParams.set('q', photonQuery);
+          photonUrl.searchParams.set('limit', '10');
+          photonUrl.searchParams.set('lang', 'en');
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          try {
+            const resp = await fetch(photonUrl, {
+              headers: { 'User-Agent': NOMINATIM_USER_AGENT, Accept: 'application/json' },
+              signal: controller.signal,
+            });
+            if (!resp.ok) continue;
             const data = await resp.json();
             const features = Array.isArray(data?.features) ? data.features : [];
             const targetCity = city.toLowerCase();
             const ranked = features
               .filter((item) => Number.isFinite(Number(item?.geometry?.coordinates?.[1])) && Number.isFinite(Number(item?.geometry?.coordinates?.[0])))
               .sort((a, b) => {
-                const aCity = String(a?.properties?.city || a?.properties?.town || a?.properties?.municipality || '').toLowerCase();
-                const bCity = String(b?.properties?.city || b?.properties?.town || b?.properties?.municipality || '').toLowerCase();
+                const cityOf = (x) => String(x?.properties?.city || x?.properties?.town || x?.properties?.municipality || '').toLowerCase();
+                const aCity = cityOf(a);
+                const bCity = cityOf(b);
                 return (targetCity && bCity.includes(targetCity) ? 1 : 0) - (targetCity && aCity.includes(targetCity) ? 1 : 0);
               });
             const item = ranked[0];
@@ -356,18 +372,21 @@ const geocode = asyncHandler(async (req, res) => {
               first = {
                 lat,
                 lon: lng,
-                display_name: item.properties?.name
-                  ? [item.properties.name, item.properties.street, item.properties.city || item.properties.town, item.properties.country].filter(Boolean).join(', ')
-                  : address,
+                display_name: [
+                  item.properties?.name,
+                  item.properties?.street,
+                  item.properties?.district,
+                  item.properties?.city || item.properties?.town,
+                  item.properties?.country,
+                ].filter(Boolean).join(', ') || address,
               };
               approximate = true;
+              break;
             }
+          } finally {
+            clearTimeout(timeout);
           }
-        } finally {
-          clearTimeout(timeout);
-        }
-      } catch (fallbackError) {
-        console.error('Photon geocoding fallback error:', fallbackError.message);
+        } catch (_) {}
       }
     }
 
