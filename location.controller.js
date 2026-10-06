@@ -397,52 +397,128 @@ const geocode = asyncHandler(async (req, res) => {
       }
     }
 
-    // Last-resort geocoder fallback. Keep Leaflet/OSM for the map itself, but
-    // use ArcGIS only when the OSM geocoders cannot resolve a landmark-heavy
-    // Pakistani address. This is especially useful for business names and
-    // informal addresses that are not indexed consistently in OSM.
+    // Last-resort geocoder fallback. Keep Leaflet/OSM for the map itself,
+    // but use ArcGIS as a geocoder for business/landmark-heavy addresses.
+    // IMPORTANT: do not send only the user's entire landmark chain. ArcGIS can
+    // match individual POIs/streets much better when each strong component is
+    // searched separately with Karachi/Sindh/Pakistan context.
     if (!first) {
       try {
-        const arcgisUrl = new URL('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates');
-        arcgisUrl.searchParams.set('SingleLine', normalized);
-        arcgisUrl.searchParams.set('f', 'json');
-        arcgisUrl.searchParams.set('maxLocations', '5');
-        arcgisUrl.searchParams.set('outFields', '*');
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-        try {
-          const resp = await fetch(arcgisUrl, {
-            headers: { 'User-Agent': NOMINATIM_USER_AGENT, Accept: 'application/json' },
-            signal: controller.signal,
+        const arcgisSearch = async (params) => {
+          const url = new URL('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates');
+          url.searchParams.set('f', 'json');
+          url.searchParams.set('maxLocations', '10');
+          url.searchParams.set('outFields', '*');
+          url.searchParams.set('sourceCountry', 'PAK');
+          Object.entries(params).forEach(([key, value]) => {
+            if (value) url.searchParams.set(key, String(value));
           });
-          if (resp.ok) {
+
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          try {
+            const resp = await fetch(url, {
+              headers: { 'User-Agent': NOMINATIM_USER_AGENT, Accept: 'application/json' },
+              signal: controller.signal,
+            });
+            if (!resp.ok) return [];
             const data = await resp.json();
-            const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
-            const targetCity = city.toLowerCase();
-            const ranked = candidates
-              .filter((item) => Number.isFinite(Number(item?.location?.y)) && Number.isFinite(Number(item?.location?.x)))
-              .sort((a, b) => {
-                const textOf = (x) => String(x?.address || '').toLowerCase();
-                const aText = textOf(a);
-                const bText = textOf(b);
-                const aCity = targetCity && aText.includes(targetCity) ? 1 : 0;
-                const bCity = targetCity && bText.includes(targetCity) ? 1 : 0;
-                return (bCity - aCity) || (Number(b?.score || 0) - Number(a?.score || 0));
-              });
+            return Array.isArray(data?.candidates) ? data.candidates : [];
+          } finally {
+            clearTimeout(timeout);
+          }
+        };
+
+        const arcQueries = [];
+        const addArcQuery = (q) => {
+          const v = String(q || '').replace(/\\s+/g, ' ').trim();
+          if (v && !arcQueries.includes(v)) arcQueries.push(v);
+        };
+
+        // Strongest candidates first.
+        if (poiName && city) addArcQuery(poiName + ', ' + city + ', Sindh, Pakistan');
+        if (street && city) {
+          addArcQuery(street.replace(/^main\\s+/i, '').trim() + ', ' + city + ', Sindh, Pakistan');
+          addArcQuery(street + ', ' + city + ', Sindh, Pakistan');
+        }
+        for (const p of landmarkParts.slice(0, 6)) {
+          if (city) addArcQuery(p + ', ' + city + ', Sindh, Pakistan');
+        }
+        if (locality && city) addArcQuery(locality + ', ' + city + ', Sindh, Pakistan');
+        addArcQuery(normalized);
+
+        const rankArc = (candidates) => candidates
+          .filter((item) => Number.isFinite(Number(item?.location?.y)) && Number.isFinite(Number(item?.location?.x)))
+          .sort((a, b) => {
+            const target = city.toLowerCase();
+            const textOf = (x) => [
+              x?.address,
+              x?.attributes?.City,
+              x?.attributes?.Region,
+              x?.attributes?.Country,
+              x?.attributes?.LongLabel,
+              x?.attributes?.Match_addr,
+            ].filter(Boolean).join(' ').toLowerCase();
+            const score = (item) => {
+              const text = textOf(item);
+              let n = Number(item?.score || 0) / 10;
+              if (target && text.includes(target)) n += 40;
+              if (text.includes('sindh')) n += 10;
+              if (text.includes('pakistan')) n += 10;
+              for (const term of [poiName, street, ...landmarkParts].filter(Boolean)) {
+                if (text.includes(String(term).toLowerCase())) n += 12;
+              }
+              return n;
+            };
+            return score(b) - score(a);
+          });
+
+        for (const q of arcQueries) {
+          const candidates = await arcgisSearch({ SingleLine: q });
+          const ranked = rankArc(candidates);
+          if (ranked.length) {
             const candidate = ranked[0];
-            if (candidate) {
+            first = {
+              lat: Number(candidate.location.y),
+              lon: Number(candidate.location.x),
+              display_name: candidate.address || q,
+            };
+            approximate = true;
+            break;
+          }
+        }
+
+        // Multifield search is especially useful when the address contains a
+        // local business/landmark name rather than a formal street address.
+        if (!first && city) {
+          const multiQueries = [];
+          if (poiName) multiQueries.push(poiName);
+          if (street) multiQueries.push(street.replace(/^main\\s+/i, '').trim());
+          for (const p of landmarkParts.slice(0, 5)) multiQueries.push(p);
+
+          for (const q of [...new Set(multiQueries)]) {
+            const candidates = await arcgisSearch({
+              address: q,
+              city,
+              region: stateName || 'Sindh',
+              countryCode: 'PAK',
+            });
+            const ranked = rankArc(candidates);
+            if (ranked.length) {
+              const candidate = ranked[0];
               first = {
                 lat: Number(candidate.location.y),
                 lon: Number(candidate.location.x),
-                display_name: candidate.address || address,
+                display_name: candidate.address || q + ', ' + city,
               };
               approximate = true;
+              break;
             }
           }
-        } finally {
-          clearTimeout(timeout);
         }
-      } catch (_) {}
+      } catch (e) {
+        console.error('ArcGIS geocoding fallback error:', e.message);
+      }
     }
 
     if (!first) {
