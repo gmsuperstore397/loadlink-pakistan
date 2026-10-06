@@ -109,7 +109,7 @@ const login = asyncHandler(async (req, res) => {
 
   const token = signToken({ id: user.id, role: user.role });
   setAuthCookie(res, token);
-  return success(res, 200, 'Login successful', { user: sanitizeUser(user), token });
+  return success(res, 200, 'Login successful', { user: sanitizeUser(user) });
 });
 
 // POST /api/auth/forgot-password
