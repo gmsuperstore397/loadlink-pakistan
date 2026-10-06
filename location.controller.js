@@ -72,10 +72,17 @@ const geocode = asyncHandler(async (req, res) => {
       }
     };
 
+    // Users commonly enter Pakistani addresses as slash-separated
+    // landmark chains, e.g. "Kashif Transport / Main Maripur Road / Karachi".
+    // Treat slash, pipe, semicolon and line-break separators as address
+    // components before parsing city/street/landmarks.
     const normalized = address
       .replace(/[，、]/g, ',')
+      .replace(/[\\/|;]+/g, ', ')
+      .replace(/\r?\n+/g, ', ')
       .replace(/\s*,\s*/g, ', ')
       .replace(/\s+/g, ' ')
+      .replace(/(?:,\s*){2,}/g, ', ')
       .trim();
 
     // Common romanized spellings seen in Pakistani addresses.
