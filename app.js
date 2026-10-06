@@ -375,11 +375,24 @@ function initNav() {
     });
   });
 
-  $('#hamburgerBtn').addEventListener('click', () => {
-    const nav = $('#navMobile');
-    const open = nav.classList.toggle('open');
-    $('#hamburgerBtn').setAttribute('aria-expanded', String(open));
+  const hamburgerBtn = $('#hamburgerBtn');
+  const navMobile = $('#navMobile');
+
+  hamburgerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = navMobile.classList.toggle('open');
+    hamburgerBtn.setAttribute('aria-expanded', String(open));
   });
+
+  // Close the mobile hamburger menu whenever the user taps/clicks
+  // anywhere outside the menu itself (and outside the hamburger button).
+  // Capture phase keeps this reliable even if another element stops bubbling.
+  document.addEventListener('pointerdown', (e) => {
+    if (!navMobile.classList.contains('open')) return;
+    if (navMobile.contains(e.target) || hamburgerBtn.contains(e.target)) return;
+    navMobile.classList.remove('open');
+    hamburgerBtn.setAttribute('aria-expanded', 'false');
+  }, true);
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
