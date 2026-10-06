@@ -573,15 +573,40 @@
 <section class="dashboard-section" id="dashboard">
   <div class="section-inner">
     <h2>👤 My Dashboard</h2>
-    <div class="post-load-grid">
+    <div id="customerDashboardContent" class="post-load-grid" hidden>
       <div class="card">
-        <h3>Notifications <span id="unreadBadge"></span></h3>
-        <div id="notificationList"><p class="muted-empty">Login karke notifications dekhein.</p></div>
-        <button type="button" class="btn btn-outline" id="markAllReadBtn">Mark all read</button>
+        <h3>📦 Customer Dashboard</h3>
+        <p>Apne loads, booking requests, payments aur disputes yahan manage karein.</p>
+        <button type="button" class="btn btn-primary" data-nav="postload">➕ Load Post Karein</button>
       </div>
-      <div class="card" id="driverBookingsCard" hidden>
-        <h3>🚚 Booking Requests</h3><div id="driverBookings"></div>
+      <div class="card">
+        <h3>🔎 Available Transport</h3>
+        <p>Apne route ke liye available vehicles aur transport offers dekhein.</p>
+        <button type="button" class="btn btn-outline" data-nav="findtruck">🚚 Find Truck</button>
       </div>
+    </div>
+
+    <div id="driverDashboardContent" class="post-load-grid" hidden>
+      <div class="card" id="driverBookingsCard">
+        <h3>🚚 Driver Dashboard — Booking Requests</h3><div id="driverBookings"></div>
+      </div>
+      <div class="card">
+        <h3>📍 Active Trips</h3>
+        <p>Approved trips aur live location/tracking manage karein.</p>
+        <button type="button" class="btn btn-outline" data-nav="livetrips">📍 My Trips</button>
+      </div>
+      <div class="card">
+        <h3>🚛 Vehicles & Space</h3>
+        <p>Apni vehicles aur available load space manage karein.</p>
+        <button type="button" class="btn btn-outline" data-nav="profile">🚛 Manage Vehicles</button>
+      </div>
+    </div>
+
+    <div class="card" id="sharedDashboardNotifications">
+      <h3>Notifications <span id="unreadBadge"></span></h3>
+      <div id="notificationList"><p class="muted-empty">Login karke notifications dekhein.</p></div>
+      <button type="button" class="btn btn-outline" id="markAllReadBtn">Mark all read</button>
+    </div>
       <div class="card" id="myDisputesCard">
         <h3>⚖️ My Disputes</h3>
         <div id="myDisputesList"><p class="muted-empty">Abhi koi dispute nahi.</p></div>
