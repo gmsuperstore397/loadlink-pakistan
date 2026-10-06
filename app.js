@@ -29,7 +29,7 @@ function isDriverUser(user = state.user) {
 }
 
 const state = {
-  token: null,
+  token: localStorage.getItem('ll_auth_token') || null,
   user: JSON.parse(localStorage.getItem('ll_user') || 'null'),
   map: null,
   mapMarker: null,
@@ -110,6 +110,8 @@ async function saveAndAttachPendingReferral() {
 function saveSession(token, user) {
   state.token = token || null;
   state.user = user;
+  if (token) localStorage.setItem('ll_auth_token', token);
+  else localStorage.removeItem('ll_auth_token');
   localStorage.setItem('ll_user', JSON.stringify(user));
 }
 function clearSession() {
@@ -119,6 +121,7 @@ function clearSession() {
   const panel = $('#notificationPanel');
   if (panel) panel.hidden = true;
   localStorage.removeItem('ll_user');
+  localStorage.removeItem('ll_auth_token');
 }
 
 async function logoutUser() {
