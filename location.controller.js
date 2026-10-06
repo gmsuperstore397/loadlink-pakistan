@@ -145,7 +145,7 @@ const geocode = asyncHandler(async (req, res) => {
     }
 
     const locality = localityParts.slice(-2).join(', ');
-    const stateName = /\\bkarachi\\b/i.test(city) ? 'Sindh' : '';
+    const stateName = /\bkarachi\b/i.test(city) ? 'Sindh' : '';
     const landmarkParts = coreParts.filter((p) => p !== poiName && p !== street && p !== city && !relational.test(p));
 
     // Build several focused free-form queries. Nominatim processes free-form
@@ -155,7 +155,7 @@ const geocode = asyncHandler(async (req, res) => {
     if (street && city) {
       for (const s of spellingVariants(street)) {
         add(`${s}, ${city}${country ? `, ${country}` : ''}`);
-        add(`${s.replace(/^main\\s+/i, '')}, ${city}${country ? `, ${country}` : ''}`);
+        add(`${s.replace(/^main\s+/i, '')}, ${city}${country ? `, ${country}` : ''}`);
         if (locality) add(`${s}, ${locality}, ${city}${country ? `, ${country}` : ''}`);
       }
     }
@@ -169,7 +169,7 @@ const geocode = asyncHandler(async (req, res) => {
     const structuredCandidates = [];
     if (street && city) {
       for (const s of spellingVariants(street)) {
-        const cleanStreet = s.replace(/^main\\s+/i, '').trim();
+        const cleanStreet = s.replace(/^main\s+/i, '').trim();
         const base = { city, ...(stateName ? { state: stateName } : {}), country: country || 'Pakistan' };
         structuredCandidates.push({ street: s, ...base });
         if (cleanStreet !== s) structuredCandidates.push({ street: cleanStreet, ...base });
