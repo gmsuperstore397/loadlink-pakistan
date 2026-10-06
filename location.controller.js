@@ -215,20 +215,28 @@ const geocode = asyncHandler(async (req, res) => {
         return score(b) - score(a);
       });
 
-    // Do not burst many public Nominatim requests. The first strong query
-    // is enough for normal addresses; then use the structured fallback below.
-    if (focusedQueries.length) {
-      const data = await search(focusedQueries[0]);
+    // Try more than the single full-string query. Pakistani addresses often
+    // contain local landmarks that are not indexed as one exact Nominatim POI.
+    // Keep requests sequential so we respect the public geocoder rate limit.
+    for (let i = 0; i < focusedQueries.length && i < 4 && !first; i += 1) {
+      const data = await search(focusedQueries[i]);
       if (Array.isArray(data) && data.length) {
         const ranked = rankResults(data);
-        if (ranked.length) first = ranked[0];
+        if (ranked.length) {
+          first = ranked[0];
+          // If we had to fall back from the complete query to a focused query,
+          // tell the UI that the pin is an address match rather than an exact
+          // house/POI match.
+          approximate = i > 0;
+        }
       }
+      if (!first && i < Math.min(focusedQueries.length, 4) - 1) await sleep(1100);
     }
 
     // A clean street/locality/city query is more reliable for landmark-heavy
     // Pakistani addresses when the full free-form string is not indexed.
     if (!first && street && city) {
-      await sleep(1000);
+      await sleep(1100);
       const cleanQuery = [street, locality, city, country].filter(Boolean).join(', ');
       const data = await search(cleanQuery);
       if (Array.isArray(data) && data.length) {
