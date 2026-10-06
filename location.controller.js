@@ -111,6 +111,12 @@ const geocode = asyncHandler(async (req, res) => {
     const coreParts = withoutCountry.split(',').map((p) => p.trim()).filter(Boolean);
     const city = coreParts.length >= 2 ? coreParts[coreParts.length - 1] : '';
 
+    // Pakistani addresses are often written as a chain of landmarks rather
+    // than one OSM-indexed address. Keep the map usable even when the exact
+    // landmark chain is not indexed: derive the strongest locality/city and
+    // return the best available nearby map point.
+    const isPakistanAddress = /\b(?:pakistan|karachi|lahore|islamabad|rawalpindi|peshawar|quetta|multan|faisalabad|hyderabad)\b/i.test(normalized);
+
     const relational = /\b(next\s+to|near|opposite|behind|beside|in\s+front\s+of|close\s+to|adjacent\s+to)\b/i;
     const streetPattern = /\b(road|rd|street|st|avenue|ave|boulevard|blvd|highway|hwy|drive|dr|lane|ln|way|roadside|main\s+road|link\s+road)\b/i;
 
@@ -293,6 +299,33 @@ const geocode = asyncHandler(async (req, res) => {
     // Production fallback: Photon uses OpenStreetMap data through a separate
     // geocoding service. This prevents a temporary Nominatim throttle/outage
     // from turning every valid address into "Address not found".
+    // Final broad fallback: for Pakistan, try the strongest locality/city
+    // terms independently before declaring the address missing.
+    if (!first && isPakistanAddress) {
+      const fallbackQueries = [];
+      const addFallback = (q) => {
+        const v = String(q || '').trim();
+        if (v && !fallbackQueries.includes(v)) fallbackQueries.push(v);
+      };
+      if (street && city) addFallback(street.replace(/^main\s+/i, '').trim() + ', ' + city);
+      for (const p of landmarkParts.slice(-3)) if (city) addFallback(p + ', ' + city);
+      if (locality && city) addFallback(locality + ', ' + city);
+      if (city) addFallback(city + ', Pakistan');
+
+      for (const q of fallbackQueries) {
+        await sleep(1100);
+        try {
+          const data = await search(q);
+          const ranked = rankResults(data || []);
+          if (ranked.length) {
+            first = ranked[0];
+            approximate = true;
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+
     if (!first) {
       try {
         const photonUrl = new URL('https://photon.komoot.io/api/');
