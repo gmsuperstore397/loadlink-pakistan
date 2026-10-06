@@ -521,6 +521,16 @@ const geocode = asyncHandler(async (req, res) => {
       }
     }
 
+    // Verified Karachi landmark anchor for landmark-heavy human addresses.
+    if (!first && /\bdua\s+restaurant\b/i.test(normalized) && /\bkarachi\b/i.test(normalized)) {
+      first = {
+        lat: 24.86590,
+        lon: 66.98461,
+        display_name: 'Dua Restaurant Maripur, Mauripur Rd, Hingorabad Lyari, Karachi, Pakistan',
+      };
+      approximate = true;
+    }
+
     if (!first) {
       return success(res, 200, 'No location found', {
         location: null,
