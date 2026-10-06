@@ -390,6 +390,54 @@ const geocode = asyncHandler(async (req, res) => {
       }
     }
 
+    // Last-resort geocoder fallback. Keep Leaflet/OSM for the map itself, but
+    // use ArcGIS only when the OSM geocoders cannot resolve a landmark-heavy
+    // Pakistani address. This is especially useful for business names and
+    // informal addresses that are not indexed consistently in OSM.
+    if (!first) {
+      try {
+        const arcgisUrl = new URL('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates');
+        arcgisUrl.searchParams.set('SingleLine', normalized);
+        arcgisUrl.searchParams.set('f', 'json');
+        arcgisUrl.searchParams.set('maxLocations', '5');
+        arcgisUrl.searchParams.set('outFields', '*');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        try {
+          const resp = await fetch(arcgisUrl, {
+            headers: { 'User-Agent': NOMINATIM_USER_AGENT, Accept: 'application/json' },
+            signal: controller.signal,
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
+            const targetCity = city.toLowerCase();
+            const ranked = candidates
+              .filter((item) => Number.isFinite(Number(item?.location?.y)) && Number.isFinite(Number(item?.location?.x)))
+              .sort((a, b) => {
+                const textOf = (x) => String(x?.address || '').toLowerCase();
+                const aText = textOf(a);
+                const bText = textOf(b);
+                const aCity = targetCity && aText.includes(targetCity) ? 1 : 0;
+                const bCity = targetCity && bText.includes(targetCity) ? 1 : 0;
+                return (bCity - aCity) || (Number(b?.score || 0) - Number(a?.score || 0));
+              });
+            const candidate = ranked[0];
+            if (candidate) {
+              first = {
+                lat: Number(candidate.location.y),
+                lon: Number(candidate.location.x),
+                display_name: candidate.address || address,
+              };
+              approximate = true;
+            }
+          }
+        } finally {
+          clearTimeout(timeout);
+        }
+      } catch (_) {}
+    }
+
     if (!first) {
       return success(res, 200, 'No location found', {
         location: null,
