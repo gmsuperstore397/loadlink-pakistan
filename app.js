@@ -1808,13 +1808,54 @@ async function contactPostedLoad(loadId) {
     return toast('Driver/Transporter account se login karein.');
   }
 
+  const rawAmount = window.prompt(
+    '💰 Is load ka aap kitna charge lenge?\\n\\nAmount PKR mein enter karein:',
+    ''
+  );
+  if (rawAmount === null) return;
+
+  const quotedFare = Number(String(rawAmount).replace(/,/g, '').trim());
+  if (!Number.isFinite(quotedFare) || quotedFare <= 0) {
+    return toast('❌ Valid load charge enter karein.');
+  }
+  if (quotedFare > 100000000) {
+    return toast('❌ Load charge amount bohat zyada hai.');
+  }
+
+  const commissionAmount = Math.round(quotedFare * 0.05 * 100) / 100;
+  const driverPayout = Math.round((quotedFare - commissionAmount) * 100) / 100;
+  const money = (value) => Number(value).toLocaleString('en-PK', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+
+  const agreed = window.confirm(
+    '🧾 Load Charge / Commission\\n\\n' +
+    'Load Charge: PKR ' + money(quotedFare) + '\\n' +
+    'LoadLink Commission (5%): PKR ' + money(commissionAmount) + '\\n' +
+    'Aap ko milenge: PKR ' + money(driverPayout) + '\\n\\n' +
+    'Kya aap 5% commission deduction ke saath Agree karte hain?\\n\\n' +
+    'Agree = LoadLink Team se Contact hoga.'
+  );
+  if (!agreed) {
+    toast('Commission agree nahi ki gayi. Team se contact nahi kiya gaya.');
+    return;
+  }
+
   let load;
+  let calculation;
   try {
-    // Save the team-contact request FIRST. WhatsApp must not open as if the
-    // team was contacted when the backend request failed.
-    await apiRequest(`/loads/${encodeURIComponent(loadId)}/contact-team`, { method: 'POST', body: {} });
+    // Server re-calculates the 5% amount so the final commission cannot be
+    // manipulated from the browser.
+    calculation = await apiRequest(`/loads/${encodeURIComponent(loadId)}/contact-team`, {
+      method: 'POST',
+      body: {
+        quotedFare,
+        message: 'Driver agreed to 5% commission deduction.',
+      },
+    });
     load = await apiRequest(`/loads/${encodeURIComponent(loadId)}`);
-    toast('✅ LoadLink Team ko request save ho gayi. WhatsApp bhi open ho raha hai.');
+    toast('✅ Commission agree ho gayi. LoadLink Team ko request bhej di gayi.');
   } catch (requestError) {
     toast(requestError.message || 'Team request save nahi ho saki. WhatsApp nahi khola gaya.');
     return;
@@ -1838,6 +1879,12 @@ async function contactPostedLoad(loadId) {
     `📍 Pickup: ${l.pickupAddress || '-'}`,
     `🏁 Destination: ${l.destinationAddress || '-'}`,
     `📝 Description: ${l.description || '-'}`,
+    '',
+    '💰 *Driver Charge & Commission*',
+    `Load Charge: PKR ${money(Number(calculation.quotedFare ?? quotedFare))}`,
+    `LoadLink Commission (5%): PKR ${money(Number(calculation.commissionAmount ?? commissionAmount))}`,
+    `Driver Payout: PKR ${money(Number(calculation.driverPayout ?? driverPayout))}`,
+    'Driver has agreed to the 5% commission deduction.',
     `⚖️ Weight: ${l.weightKg || '-'} kg`,
     `🚚 Preferred Vehicle: ${l.preferredVehicle || 'Any suitable'}`,
     `📌 Status: ${l.status || '-'}`,
