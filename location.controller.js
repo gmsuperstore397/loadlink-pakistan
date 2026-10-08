@@ -65,7 +65,14 @@ const geocode = asyncHandler(async (req, res) => {
           },
           signal: controller.signal,
         });
-        if (!resp.ok) throw new Error('Nominatim HTTP ' + resp.status);
+        if (!resp.ok) {
+          if (resp.status === 429) {
+            nominatimRateLimited = true;
+            console.warn('Nominatim rate limited (HTTP 429); continuing with fallback geocoders.');
+            return [];
+          }
+          throw new Error('Nominatim HTTP ' + resp.status);
+        }
         return resp.json();
       } finally {
         clearTimeout(timeout);
@@ -191,6 +198,7 @@ const geocode = asyncHandler(async (req, res) => {
 
     let first = null;
     let approximate = false;
+    let nominatimRateLimited = false;
 
     // Verified Karachi landmark anchor. Resolve this known landmark chain
     // immediately so it does not depend on external geocoder availability.
@@ -275,7 +283,7 @@ const geocode = asyncHandler(async (req, res) => {
       if (!focusedQueries.includes(q)) focusedQueries.push(q);
     }
 
-    for (let i = 0; i < focusedQueries.length && i < 10 && !first; i += 1) {
+    for (let i = 0; i < focusedQueries.length && i < 2 && !first && !nominatimRateLimited; i += 1) {
       const data = await search(focusedQueries[i]);
       if (Array.isArray(data) && data.length) {
         const ranked = rankResults(data);
@@ -306,8 +314,8 @@ const geocode = asyncHandler(async (req, res) => {
     }
 
     // Second pass: structured street/city fallback.
-    if (!first) {
-      for (let i = 0; i < structuredCandidates.length; i += 1) {
+    if (!first && !nominatimRateLimited) {
+      for (let i = 0; i < structuredCandidates.length && i < 3; i += 1) {
         const data = await search('', structuredCandidates[i]);
         if (Array.isArray(data) && data.length) {
           first = data[0];
