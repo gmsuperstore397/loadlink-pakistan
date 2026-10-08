@@ -442,12 +442,16 @@ model Notification {
 }
 
 model ContactRequest {
-  id           String   @id @default(uuid())
-  loadId       String
-  requesterId  String
-  status       ContactRequestStatus @default(NEW)
-  message      String?
-  createdAt    DateTime @default(now())
+  id               String   @id @default(uuid())
+  loadId           String
+  requesterId      String
+  status           ContactRequestStatus @default(NEW)
+  message          String?
+  quotedFare       Float?
+  commissionRate   Float    @default(0.05)
+  commissionAmount  Float?
+  driverPayout     Float?
+  createdAt        DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   load         Load @relation(fields: [loadId], references: [id], onDelete: Cascade)
