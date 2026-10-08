@@ -203,8 +203,10 @@ const geocode = asyncHandler(async (req, res) => {
     // Verified Karachi landmark anchor. Resolve this known landmark chain
     // immediately so it does not depend on external geocoder availability.
     if (
-      /\b(?:dua\s+restaurant|kashif\s+transport)\b/i.test(normalized) &&
-      /\b(?:maripure|maripur|mauripur)\b/i.test(normalized) &&
+      (
+        /\bkashif\s+transport\b/i.test(normalized) ||
+        (/\bdua\s+restaurant\b/i.test(normalized) && /\b(?:maripure|maripur|mauripur)\b/i.test(normalized))
+      ) &&
       /\bkarachi\b/i.test(normalized)
     ) {
       first = {
