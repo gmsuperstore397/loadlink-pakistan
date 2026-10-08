@@ -578,7 +578,11 @@ async function loadContactRequests() {
       const vehicles = driver.driverProfile?.vehicles || [];
       const vehicleText = vehicles.length ? vehicles.map(v => (v.vehicleType || 'Vehicle') + ' · ' + (v.vehicleNumber || '—') + ' · ' + (v.capacityKg || '—') + 'kg').join('<br>') : 'No vehicle added';
       const options = ['NEW','IN_PROGRESS','COMPLETED','REJECTED'].map(x => '<option value="'+x+'" '+(x===r.status?'selected':'')+'>'+x+'</option>').join('');
-      return '<tr><td><select data-contact-status="'+esc(r.id)+'">'+options+'</select></td><td><b>'+esc(load.pickupAddress)+' → '+esc(load.destinationAddress)+'</b><br><small>'+esc(load.weightKg)+' kg · '+esc(load.status)+'</small></td><td>'+esc(load.customer?.fullName)+'<br><small>'+esc(load.customer?.mobile)+' · '+esc(load.customer?.city)+'</small></td><td><b>'+esc(driver.fullName)+'</b><br><small>'+esc(driver.mobile)+' · '+esc(driver.city)+'</small></td><td>'+vehicleText+'</td><td>'+esc(new Date(r.createdAt).toLocaleString())+'</td><td><button class="primary" type="button" data-contact-save="'+esc(r.id)+'">Save</button></td></tr>';
+      const money = (value) => Number(value || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 });
+      const quoteText = r.quotedFare != null
+        ? '<b>PKR '+money(r.quotedFare)+'</b><br><small>5%: PKR '+money(r.commissionAmount)+'<br>Driver: PKR '+money(r.driverPayout)+'</small>'
+        : '<span class="muted">Not quoted</span>';
+      return '<tr><td><select data-contact-status="'+esc(r.id)+'">'+options+'</select></td><td><b>'+esc(load.pickupAddress)+' → '+esc(load.destinationAddress)+'</b><br><small>'+esc(load.weightKg)+' kg · '+esc(load.status)+'</small></td><td>'+quoteText+'</td><td>'+esc(load.customer?.fullName)+'<br><small>'+esc(load.customer?.mobile)+' · '+esc(load.customer?.city)+'</small></td><td><b>'+esc(driver.fullName)+'</b><br><small>'+esc(driver.mobile)+' · '+esc(driver.city)+'</small></td><td>'+vehicleText+'</td><td>'+esc(new Date(r.createdAt).toLocaleString())+'</td><td><button class="primary" type="button" data-contact-save="'+esc(r.id)+'">Save</button></td></tr>';
     }).join('') : '<tr><td colspan="7">No contact requests found.</td></tr>';
   } catch (error) { toast(error.message); }
 }
