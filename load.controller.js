@@ -123,21 +123,60 @@ const contactTeam = asyncHandler(async (req, res) => {
     include: { customer: { select: { id: true, fullName: true, mobile: true, city: true } } },
   });
   if (!load) throw new ApiError(404, 'Load not found');
-  if (!['POSTED', 'SEARCHING'].includes(load.status)) throw new ApiError(400, 'This load is no longer available for contact');
+  if (!['POSTED', 'SEARCHING'].includes(load.status)) {
+    throw new ApiError(400, 'This load is no longer available for contact');
+  }
+
+  const rawFare = req.body?.quotedFare ?? req.body?.loadCharge;
+  const quotedFare = Number(rawFare);
+  if (!Number.isFinite(quotedFare) || quotedFare <= 0) {
+    throw new ApiError(400, 'Load ka charge valid amount mein enter karein');
+  }
+  if (quotedFare > 100000000) {
+    throw new ApiError(400, 'Load charge amount bohat zyada hai');
+  }
+
+  const commissionRate = 0.05;
+  const commissionAmount = Math.round(quotedFare * commissionRate * 100) / 100;
+  const driverPayout = Math.round((quotedFare - commissionAmount) * 100) / 100;
+  const requestMessage = [
+    'Driver quoted load charge: PKR ' + quotedFare.toLocaleString('en-PK'),
+    'LoadLink commission (5%): PKR ' + commissionAmount.toLocaleString('en-PK'),
+    'Driver payout after commission: PKR ' + driverPayout.toLocaleString('en-PK'),
+  ].join(' | ');
 
   const existing = await prisma.contactRequest.findFirst({
     where: { loadId: load.id, requesterId: req.user.id, status: { in: ['NEW', 'IN_PROGRESS'] } },
   });
-  if (existing) return success(res, 200, 'Contact request already sent', { request: existing, alreadyExists: true });
 
-  const request = await prisma.contactRequest.create({
-    data: {
-      loadId: load.id,
-      requesterId: req.user.id,
-      status: 'NEW',
-      message: req.body?.message ? String(req.body.message).slice(0, 1000) : null,
-    },
-  });
+  let request;
+  let alreadyExists = false;
+  if (existing) {
+    request = await prisma.contactRequest.update({
+      where: { id: existing.id },
+      data: {
+        quotedFare,
+        commissionRate,
+        commissionAmount,
+        driverPayout,
+        message: requestMessage,
+      },
+    });
+    alreadyExists = true;
+  } else {
+    request = await prisma.contactRequest.create({
+      data: {
+        loadId: load.id,
+        requesterId: req.user.id,
+        status: 'NEW',
+        message: requestMessage,
+        quotedFare,
+        commissionRate,
+        commissionAmount,
+        driverPayout,
+      },
+    });
+  }
 
   const teamUsers = await prisma.user.findMany({
     where: { role: { in: ['ADMIN', 'MANAGER'] }, status: 'ACTIVE' },
@@ -147,12 +186,22 @@ const contactTeam = asyncHandler(async (req, res) => {
   const message = [
     'Driver ne posted load ke liye LoadLink Team se contact request bheji hai.',
     'Load: ' + load.pickupAddress + ' → ' + load.destinationAddress,
+    'Load Charge: PKR ' + quotedFare.toLocaleString('en-PK'),
+    '5% LoadLink Commission: PKR ' + commissionAmount.toLocaleString('en-PK'),
+    'Driver Payout: PKR ' + driverPayout.toLocaleString('en-PK'),
     'Driver: ' + (req.user.fullName || '—') + ' · ' + (req.user.mobile || '—'),
     'Request ID: ' + request.id,
   ].join(' | ');
   await Promise.all(teamUsers.map((u) => notify(u.id, 'TEAM_CONTACT_REQUEST', title, message)));
 
-  return success(res, 201, 'LoadLink Team ko contact request bhej di gayi', { request });
+  return success(res, alreadyExists ? 200 : 201, alreadyExists ? 'Contact request updated' : 'LoadLink Team ko contact request bhej di gayi', {
+    request,
+    alreadyExists,
+    quotedFare,
+    commissionRate,
+    commissionAmount,
+    driverPayout,
+  });
 });
 
 // DELETE /api/loads/:id  (owner only, and only while not yet assigned)
