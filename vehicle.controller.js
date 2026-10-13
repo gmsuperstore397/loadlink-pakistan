@@ -107,10 +107,47 @@ const listVehicles = asyncHandler(async (req, res) => {
 const listMyVehicles = asyncHandler(async (req, res) => {
   if (!req.user.driverProfile) throw new ApiError(403, 'Driver profile required');
   const vehicles = await prisma.vehicle.findMany({
-    where: { driverId: req.user.driverProfile.id },
+    where: { driverId: req.user.driverProfile.id, status: { not: 'SUSPENDED' } },
     orderBy: { createdAt: 'desc' },
   });
   return success(res, 200, 'My vehicles fetched', { vehicles });
+});
+
+// DELETE /api/vehicles/:id (driver removes vehicle from their own list; preserve admin/history records)
+const deleteMyVehicle = asyncHandler(async (req, res) => {
+  const driverProfile = req.user.driverProfile || await prisma.driverProfile.findUnique({
+    where: { userId: req.user.id },
+  });
+  if (!driverProfile) throw new ApiError(403, 'Driver profile required');
+
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: req.params.id } });
+  if (!vehicle || vehicle.driverId !== driverProfile.id) throw new ApiError(404, 'Vehicle not found');
+
+  if (vehicle.status === 'SUSPENDED') {
+    return success(res, 200, 'Vehicle is already removed from your list', { vehicle });
+  }
+
+  const [activeBookings, activeTrips, openListings, activeSpaceBookings] = await Promise.all([
+    prisma.booking.count({ where: { vehicleId: vehicle.id, status: { in: ['REQUESTED', 'ACCEPTED'] } } }),
+    prisma.trip.count({ where: { vehicleId: vehicle.id, status: { not: 'DELIVERED' } } }),
+    prisma.spaceListing.count({ where: { vehicleId: vehicle.id, status: 'OPEN' } }),
+    prisma.spaceBooking.count({ where: { vehicleId: vehicle.id, status: { in: ['REQUESTED', 'ACCEPTED'] } } }),
+  ]);
+  if (activeBookings || activeTrips || openListings || activeSpaceBookings) {
+    throw new ApiError(409, 'Is gaari ki active booking, trip ya load listing mojood hai. Pehle usay complete/cancel karein; phir gaari remove karein.');
+  }
+
+  // Soft removal: keep the database record and historical references available to Admin.
+  const updated = await prisma.vehicle.update({
+    where: { id: vehicle.id },
+    data: { status: 'SUSPENDED', isVerified: false },
+  });
+  await require('./audit')(req, 'DRIVER_VEHICLE_REMOVED', 'Vehicle', vehicle.id, {
+    driverProfileId: driverProfile.id,
+    vehicleNumber: vehicle.vehicleNumber,
+    retainedForAdmin: true,
+  });
+  return success(res, 200, 'Gaari aapki list se hata di gayi. Admin panel mein record mehfooz rahega.', { vehicle: updated });
 });
 
 // GET /api/vehicles/available
@@ -213,4 +250,4 @@ const updateVehicle = asyncHandler(async (req, res) => {
   return success(res, 200, 'Vehicle updated', { vehicle: updated });
 });
 
-module.exports = { listVehicles, listMyVehicles, listAvailableVehicles, getVehicle, createVehicle, updateVehicle, listFleetVehicles, createFleetVehicle, updateFleetVehicle, listFleetDrivers };
+module.exports = { listVehicles, listMyVehicles, listAvailableVehicles, getVehicle, createVehicle, updateVehicle, deleteMyVehicle, listFleetVehicles, createFleetVehicle, updateFleetVehicle, listFleetDrivers };
