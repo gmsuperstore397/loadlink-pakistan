@@ -163,12 +163,38 @@ const updatePayment = asyncHandler(async (req,res) => {
 
 const listVehicleVerification = asyncHandler(async (req, res) => {
   const vehicles = await prisma.vehicle.findMany({
-    where: { isVerified: false },
+    where: {},
     include: { driver: { include: { user: { select: { id: true, fullName: true, mobile: true, city: true, status: true } } } }, fleetOwner: { select: { id: true, fullName: true, mobile: true } } },
     orderBy: { createdAt: 'asc' },
     take: 500,
   });
   return success(res, 200, 'Vehicle verification queue fetched', { vehicles });
+});
+
+const permanentlyDeleteVehicle = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'ADMIN') throw new ApiError(403, 'Only an Admin can permanently delete vehicle records');
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: req.params.id } });
+  if (!vehicle) throw new ApiError(404, 'Vehicle not found');
+
+  const [bookings, trips, spaceListings, spaceBookings] = await Promise.all([
+    prisma.booking.count({ where: { vehicleId: vehicle.id } }),
+    prisma.trip.count({ where: { vehicleId: vehicle.id } }),
+    prisma.spaceListing.count({ where: { vehicleId: vehicle.id } }),
+    prisma.spaceBooking.count({ where: { vehicleId: vehicle.id } }),
+  ]);
+  if (bookings || trips || spaceListings || spaceBookings) {
+    throw new ApiError(409, 'Is gaari ke booking/trip/history records linked hain. Historical data safe rakhne ke liye permanent delete block hai; gaari Admin panel mein retained rahegi.');
+  }
+
+  await audit(req, 'VEHICLE_PERMANENTLY_DELETED', 'Vehicle', vehicle.id, {
+    vehicleNumber: vehicle.vehicleNumber,
+    vehicleType: vehicle.vehicleType,
+    driverId: vehicle.driverId,
+    fleetOwnerId: vehicle.fleetOwnerId,
+    deletedByAdminId: req.user.id,
+  });
+  await prisma.vehicle.delete({ where: { id: vehicle.id } });
+  return success(res, 200, 'Vehicle permanently deleted by Admin', { id: vehicle.id });
 });
 
 const verifyVehicle = asyncHandler(async (req, res) => {
@@ -858,4 +884,4 @@ const roleWorkspace = asyncHandler(async (req, res) => {
   return success(res, 200, 'Role workspace fetched', { workspace });
 });
 
-module.exports = { listContactRequests, updateContactRequest,  listVehicleVerification, verifyVehicle, rejectVehicle, approveDeal, operationalTripUpdate, ROLE_DEFINITIONS, roleCatalog, listRoleAccounts, createRoleAccount, updateRoleAccount, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, liveTrackingTrips, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
+module.exports = { listContactRequests, updateContactRequest,  listVehicleVerification, permanentlyDeleteVehicle, verifyVehicle, rejectVehicle, approveDeal, operationalTripUpdate, ROLE_DEFINITIONS, roleCatalog, listRoleAccounts, createRoleAccount, updateRoleAccount, dispatchOptions, assignBooking, listSOSAlerts, updateSOSAlert, managerAuditTimeline, setCustomerAccountStatus, setDriverAccountStatus, updateCustomer, updateLoad, updateBooking, updatePayment, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, dashboard, roleWorkspace, liveTrackingTrips, listUsers, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS };
