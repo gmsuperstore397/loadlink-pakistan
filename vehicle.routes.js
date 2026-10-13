@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  listVehicles, listMyVehicles, listAvailableVehicles, getVehicle, createVehicle, updateVehicle, listFleetVehicles, createFleetVehicle, updateFleetVehicle, listFleetDrivers,
+  listVehicles, listMyVehicles, listAvailableVehicles, getVehicle, createVehicle, updateVehicle, deleteMyVehicle, listFleetVehicles, createFleetVehicle, updateFleetVehicle, listFleetDrivers,
 } = require('./vehicle.controller');
 const { createVehicleRules } = require('./vehicle.validator');
 const validate = require('./validate');
@@ -18,5 +18,6 @@ router.get('/available', authenticateUser, listAvailableVehicles);
 router.get('/:id', authenticateUser, getVehicle);
 router.post('/', authenticateUser, requireDriver, upload.single('vehicleDoc'), createVehicleRules, validate, createVehicle);
 router.patch('/:id', authenticateUser, requireDriver, updateVehicle);
+router.delete('/:id', authenticateUser, requireDriver, deleteMyVehicle);
 
 module.exports = router;
