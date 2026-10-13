@@ -176,6 +176,7 @@ const getRecommendations = (payload) => apiRequest('/recommendations/vehicle', {
 const findVehicles = (query) => apiRequest(`/vehicles/available?${new URLSearchParams(query)}`);
 const getMyVehicles = () => apiRequest('/vehicles/mine');
 const createVehicle = (body) => apiRequest('/vehicles', { method: 'POST', body, isForm: true });
+const deleteVehicle = (id) => apiRequest('/vehicles/' + encodeURIComponent(id), { method: 'DELETE' });
 const findLoads = (query) => apiRequest(`/loads?${new URLSearchParams(query)}`);
 const getReturnLoads = (query) => apiRequest(`/return-loads?${new URLSearchParams(query)}`);
 const getSmartReturnLoads = (query) => apiRequest(`/return-loads/smart?${new URLSearchParams(query)}`);
@@ -1041,9 +1042,10 @@ async function loadDriverVehicles() {
     renderProfileCompletion(vehicles);
     list.innerHTML = vehicles.map(v => `
       <div class="result-card">
-        <b>🚚 ${v.vehicleType}</b>
-        <p>${v.vehicleNumber} · ${Number(v.capacityKg).toLocaleString()} kg${v.brand ? ' · ' + v.brand : ''}${v.model ? ' ' + v.model : ''}</p>
-        <small>Status: ${v.status} · Verification: ${v.isVerified ? 'Verified' : 'Pending'}</small>
+        <b>🚚 ${escapeHtml(v.vehicleType)}</b>
+        <p>${escapeHtml(v.vehicleNumber)} · ${Number(v.capacityKg).toLocaleString()} kg${v.brand ? ' · ' + escapeHtml(v.brand) : ''}${v.model ? ' ' + escapeHtml(v.model) : ''}</p>
+        <small>Status: ${escapeHtml(v.status)} · Verification: ${v.isVerified ? 'Verified' : 'Pending'}</small>
+        <p><button type="button" class="btn btn-outline driver-remove-vehicle-btn" data-vehicle-id="${escapeHtml(v.id)}">🗑️ Delete / Remove</button></p>
       </div>
     `).join('') || '<p class="muted-empty">Abhi koi gaari add nahi hui.</p>';
   } catch (err) {
@@ -1052,6 +1054,28 @@ async function loadDriverVehicles() {
 }
 
 function initDriverVehicles() {
+  const list = $('#driverVehicles');
+  if (list && !list.dataset.removeHandlerBound) {
+    list.dataset.removeHandlerBound = '1';
+    list.addEventListener('click', async (e) => {
+      const button = e.target.closest('.driver-remove-vehicle-btn');
+      if (!button) return;
+      const vehicleId = button.dataset.vehicleId;
+      if (!vehicleId) return;
+      const confirmed = window.confirm('Kya aap waqai is gaari ko apni list se hatana chahte hain? Record Admin panel aur purani bookings ke liye mehfooz rahega.');
+      if (!confirmed) return;
+      button.disabled = true;
+      try {
+        await deleteVehicle(vehicleId);
+        await loadDriverVehicles();
+        toast('Gaari aapki list se hata di gayi. Admin panel mein record mehfooz hai.');
+      } catch (err) {
+        toast(err.message || 'Gaari remove nahi ho saki. Active booking/trip check karein.');
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
   const form = $('#addVehicleForm');
   if (!form) return;
   form.addEventListener('submit', async (e) => {
