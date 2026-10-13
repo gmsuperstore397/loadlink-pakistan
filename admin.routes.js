@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  dashboard, roleWorkspace, liveTrackingTrips, dispatchOptions, assignBooking, approveDeal, operationalTripUpdate, listVehicleVerification, verifyVehicle, rejectVehicle, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert, listContactRequests, updateContactRequest,
+  dashboard, roleWorkspace, liveTrackingTrips, dispatchOptions, assignBooking, approveDeal, operationalTripUpdate, listVehicleVerification, permanentlyDeleteVehicle, verifyVehicle, rejectVehicle, listRoleAccounts, createRoleAccount, updateRoleAccount, listUsers, managerAuditTimeline, roleCatalog, pendingTransporters, verifyTransporter, rejectTransporter, suspendUser, listAuditLogs, paymentSummary, expiringDocuments, listManagers, createManager, updateManager, MANAGER_PERMISSIONS, listCustomers, listDrivers, listLoads, listBookings, listPayments, listTrips, reports, unlockLocation, listDisputes, updateDispute, updateCustomer, updateLoad, updateBooking, updatePayment, setCustomerAccountStatus, setDriverAccountStatus, listSOSAlerts, updateSOSAlert, listContactRequests, updateContactRequest,
 } = require('./admin.controller');
 const { listCommissions, verifyCommission, rejectCommission } = require('./commission.controller');
 const { authenticateUser, requireRole, requirePermission } = require('./auth');
@@ -33,6 +33,7 @@ router.patch('/customers/:id/status', requirePermission('customers.edit'), setCu
 router.get('/drivers', requirePermission('drivers.view'), listDrivers);
 router.get('/vehicles/verification', requirePermission('vehicles.view'), listVehicleVerification);
 router.patch('/vehicles/:id/verify', requirePermission('vehicles.verify'), verifyVehicle);
+router.delete('/vehicles/:id', permanentlyDeleteVehicle);
 router.patch('/vehicles/:id/reject', requirePermission('vehicles.verify'), rejectVehicle);
 router.patch('/drivers/:id/status', requirePermission('drivers.verify'), setDriverAccountStatus);
 router.get('/loads', requirePermission('loads.view'), listLoads);
