@@ -100,7 +100,7 @@ function moduleActions(key,row){
   if(!row?.id)return '';
   const id=esc(row.id);
   if(key==='customers') return '<button class="primary" type="button" data-action="edit-customer" data-id="'+id+'">Edit</button> <button class="primary danger-action" type="button" data-action="toggle-customer" data-id="'+id+'" data-status="'+esc(row.status)+'">'+(row.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
-  if(key==='vehicles') return row.isVerified ? '<span class="muted">Verified</span>' : '<button class="primary" type="button" data-action="verify-vehicle" data-id="'+id+'">Verify</button> <button class="primary danger-action" type="button" data-action="reject-vehicle" data-id="'+id+'">Reject</button>';
+  if(key==='vehicles') return (row.isVerified ? '<span class="muted">Verified</span>' : '<button class="primary" type="button" data-action="verify-vehicle" data-id="'+id+'">Verify</button> <button class="primary danger-action" type="button" data-action="reject-vehicle" data-id="'+id+'">Reject</button>') + ' <button class="primary danger-action" type="button" data-action="delete-vehicle" data-id="'+id+'">Permanent Delete</button>';
   if(key==='drivers') return '<button class="primary danger-action" type="button" data-action="toggle-driver" data-id="'+id+'" data-status="'+esc(row.user?.status||'ACTIVE')+'">'+(row.user?.status==='SUSPENDED'?'Enable':'Disable')+'</button>';
   if(key==='loads') return '<button class="primary" type="button" data-action="edit-load" data-id="'+id+'">Edit</button>';
   if(key==='bookings') return '<button class="primary" type="button" data-action="edit-booking" data-id="'+id+'">Update</button>';
@@ -817,6 +817,13 @@ document.addEventListener('click', async (event) => {
     if (action === 'edit-customer') return editCustomer(id);
     if (action === 'toggle-customer') return toggleCustomerAccount(id, button.dataset.status);
     if (action === 'verify-vehicle') return patchModule('/admin/vehicles/' + id + '/verify', {}, 'Vehicle Verification');
+    if (action === 'delete-vehicle') {
+      if (me?.role !== 'ADMIN') { toast('Permanent delete sirf Admin kar sakta hai.'); return; }
+      if (!confirm('WARNING: Ye gaari ka record permanently delete karne ki request hai. Linked booking/trip history ho to system delete rok dega. Continue?')) return;
+      await api('/admin/vehicles/' + id, {method:'DELETE'});
+      toast('Vehicle record permanently deleted');
+      return loadModule('Vehicle Verification');
+    }
     if (action === 'reject-vehicle') {
       const reason = prompt('Reason (optional)') || '';
       return patchModule('/admin/vehicles/' + id + '/reject', { reason }, 'Vehicle Verification');
