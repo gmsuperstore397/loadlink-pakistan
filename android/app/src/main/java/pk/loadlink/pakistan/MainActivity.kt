@@ -56,8 +56,16 @@ private fun LoadLinkApp() {
         }
     }
 
-    MaterialTheme {
-        Surface(Modifier.fillMaxSize()) {
+    MaterialTheme(colorScheme = lightColorScheme(
+        primary = Color(0xFF087F8C),
+        onPrimary = Color.White,
+        secondary = Color(0xFF16A085),
+        background = Color(0xFFF4F7FA),
+        surface = Color.White,
+        onSurface = Color(0xFF183044),
+        error = Color(0xFFB42318)
+    )) {
+        Surface(Modifier.fillMaxSize(), color = Color(0xFFF4F7FA)) {
             if (user == null) {
                 when (screen) {
                     Screen.LOGIN -> LoginScreen(loading, message, { id, pass -> run {
